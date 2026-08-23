@@ -159,6 +159,7 @@ class TrafficWarningEngine(
         CameraType.ZONE_RESIDENTIAL_ENTRY -> "Vào khu đông dân cư ($distInt m): ${nearestCamera.roadName} (Tối đa 50 km/h)"
         CameraType.ZONE_RESIDENTIAL_EXIT -> "Hết khu đông dân cư ($distInt m): ${nearestCamera.roadName} (Tối đa 60 km/h)"
         CameraType.HAZARD_ACCIDENT_ZONE -> "Đoạn đường nguy hiểm ($distInt m): ${nearestCamera.roadName}"
+        CameraType.MOTORBIKE_PROHIBITED_ZONE -> "🚨 CẤM XE MÁY ($distInt m): ${nearestCamera.roadName} - Không đi vào cao tốc!"
         CameraType.SCHOOL_ZONE -> "Khu vực trường học ($distInt m): ${nearestCamera.roadName}"
         CameraType.SPEED_LIMIT_SIGN -> "Biển báo ${nearestCamera.speedLimit} km/h ($distInt m): ${nearestCamera.roadName}"
         CameraType.COMMUNITY_REPORT -> "Chốt tốc độ theo báo cáo ($distInt m): ${nearestCamera.roadName}"

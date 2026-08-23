@@ -177,6 +177,8 @@ class VoiceAlertEngine(private val context: Context) : TextToSpeech.OnInitListen
         "Phía trước $roundedDist mét có Camera an ninh và giám sát trật tự $locClause."
       CameraType.HAZARD_ACCIDENT_ZONE ->
         "Cảnh báo: Phía trước $roundedDist mét là đoạn đường nguy hiểm $locClause. Xin chú ý quan sát!"
+      CameraType.MOTORBIKE_PROHIBITED_ZONE ->
+        "CẢNH BÁO NGUY HIỂM: Phía trước $roundedDist mét là đường CẤM XE MÁY và cao tốc $locClause! Xin giữ làn bên phải, không đi vào cao tốc!"
       CameraType.SCHOOL_ZONE ->
         "Chú ý: Phía trước $roundedDist mét là khu vực trường học $locClause, giảm tốc độ."
       CameraType.COMMUNITY_REPORT ->

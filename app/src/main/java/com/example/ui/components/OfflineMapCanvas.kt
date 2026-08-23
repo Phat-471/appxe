@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.VietnamTrafficData
 import com.example.data.model.*
 import com.example.service.MapTileSource
 import com.example.service.OsmTileManager
@@ -386,57 +387,84 @@ fun OfflineMapCanvas(
           )
         }
 
-        // 4. ACTIVE NAVIGATION ROUTE OVERLAY (Vietmap Electric Blue Polyline)
+        // 4. ACTIVE NAVIGATION ROUTE OVERLAY (Dynamically shortens as vehicle advances)
         if (activeRoute != null && activeRoute.waypoints.size >= 2) {
-          val navPath = Path()
-          val firstPos = project(activeRoute.waypoints[0].first, activeRoute.waypoints[0].second)
-          navPath.moveTo(firstPos.x, firstPos.y)
-          for (i in 1 until activeRoute.waypoints.size) {
-            val pos = project(activeRoute.waypoints[i].first, activeRoute.waypoints[i].second)
-            navPath.lineTo(pos.x, pos.y)
+          // Find closest waypoint on route to vehicle current position
+          var closestIdx = 0
+          var minWpDist = Double.MAX_VALUE
+          for (i in 0 until activeRoute.waypoints.size) {
+            val d = VietnamTrafficData.calculateDistanceMeters(
+              centerLat, centerLng,
+              activeRoute.waypoints[i].first, activeRoute.waypoints[i].second
+            )
+            if (d < minWpDist) {
+              minWpDist = d
+              closestIdx = i
+            }
           }
 
-          // Dark blue route outline casing
-          drawPath(
-            path = navPath,
-            color = Color(0xFF0C4A6E),
-            style = Stroke(width = 15.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-          )
+          // Build forward path starting directly from current vehicle coordinate
+          val forwardWaypoints = mutableListOf<Pair<Double, Double>>()
+          forwardWaypoints.add(centerLat to centerLng)
+          val startIndex = if (minWpDist < 25.0) closestIdx + 1 else closestIdx
+          for (i in startIndex until activeRoute.waypoints.size) {
+            forwardWaypoints.add(activeRoute.waypoints[i])
+          }
+          if (forwardWaypoints.size < 2 && activeRoute.waypoints.isNotEmpty()) {
+            forwardWaypoints.add(activeRoute.waypoints.last())
+          }
 
-          // Electric Blue Polyline
-          drawPath(
-            path = navPath,
-            color = Color(0xFF0284C7),
-            style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-          )
+          if (forwardWaypoints.size >= 2) {
+            val navPath = Path()
+            val firstPos = project(forwardWaypoints[0].first, forwardWaypoints[0].second)
+            navPath.moveTo(firstPos.x, firstPos.y)
+            for (i in 1 until forwardWaypoints.size) {
+              val pos = project(forwardWaypoints[i].first, forwardWaypoints[i].second)
+              navPath.lineTo(pos.x, pos.y)
+            }
 
-          // Moving chevrons along route
-          for (i in 0 until activeRoute.waypoints.size - 1) {
-            val p1 = project(activeRoute.waypoints[i].first, activeRoute.waypoints[i].second)
-            val p2 = project(activeRoute.waypoints[i + 1].first, activeRoute.waypoints[i + 1].second)
-            val distPx = hypot(p2.x - p1.x, p2.y - p1.y)
-            val step = 45.dp.toPx()
-            var currentD = (chevronOffset * step) % step
-            while (currentD < distPx) {
-              val fraction = currentD / distPx
-              val cx = p1.x + (p2.x - p1.x) * fraction
-              val cy = p1.y + (p2.y - p1.y) * fraction
-              val angle = atan2(p2.y - p1.y, p2.x - p1.x)
+            // Dark blue route outline casing
+            drawPath(
+              path = navPath,
+              color = Color(0xFF0C4A6E),
+              style = Stroke(width = 15.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+            )
 
-              val chevronPaint = Paint().apply {
-                isAntiAlias = true
-                textSize = 12.sp.toPx()
-                color = android.graphics.Color.WHITE
-                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                textAlign = Paint.Align.CENTER
+            // Electric Blue Polyline
+            drawPath(
+              path = navPath,
+              color = Color(0xFF0284C7),
+              style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+            )
+
+            // Moving chevrons along forward remaining route only
+            for (i in 0 until forwardWaypoints.size - 1) {
+              val p1 = project(forwardWaypoints[i].first, forwardWaypoints[i].second)
+              val p2 = project(forwardWaypoints[i + 1].first, forwardWaypoints[i + 1].second)
+              val distPx = hypot(p2.x - p1.x, p2.y - p1.y)
+              val step = 45.dp.toPx()
+              var currentD = (chevronOffset * step) % step
+              while (currentD < distPx) {
+                val fraction = currentD / distPx
+                val cx = p1.x + (p2.x - p1.x) * fraction
+                val cy = p1.y + (p2.y - p1.y) * fraction
+                val angle = atan2(p2.y - p1.y, p2.x - p1.x)
+
+                val chevronPaint = Paint().apply {
+                  isAntiAlias = true
+                  textSize = 12.sp.toPx()
+                  color = android.graphics.Color.WHITE
+                  typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                  textAlign = Paint.Align.CENTER
+                }
+                drawContext.canvas.nativeCanvas.save()
+                drawContext.canvas.nativeCanvas.translate(cx, cy)
+                drawContext.canvas.nativeCanvas.rotate(Math.toDegrees(angle.toDouble()).toFloat() + 90f)
+                drawContext.canvas.nativeCanvas.drawText("▲", 0f, 4.dp.toPx(), chevronPaint)
+                drawContext.canvas.nativeCanvas.restore()
+
+                currentD += step
               }
-              drawContext.canvas.nativeCanvas.save()
-              drawContext.canvas.nativeCanvas.translate(cx, cy)
-              drawContext.canvas.nativeCanvas.rotate(Math.toDegrees(angle.toDouble()).toFloat() + 90f)
-              drawContext.canvas.nativeCanvas.drawText("▲", 0f, 4.dp.toPx(), chevronPaint)
-              drawContext.canvas.nativeCanvas.restore()
-
-              currentD += step
             }
           }
 
@@ -565,6 +593,19 @@ fun OfflineMapCanvas(
                 textAlign = Paint.Align.CENTER
               }
               drawContext.canvas.nativeCanvas.drawText("🛡️", camPos.x, camPos.y + 3.5.dp.toPx(), iconPaint)
+            }
+
+            CameraType.MOTORBIKE_PROHIBITED_ZONE -> {
+              // Prohibited Motorbike Red Warning Circle
+              val r = 13.5.dp.toPx()
+              drawCircle(color = SignBackgroundWhite, radius = r, center = camPos)
+              drawCircle(color = Color(0xFFDC2626), radius = r, center = camPos, style = Stroke(width = 3.dp.toPx()))
+              val iconPaint = Paint().apply {
+                isAntiAlias = true
+                textSize = 10.sp.toPx()
+                textAlign = Paint.Align.CENTER
+              }
+              drawContext.canvas.nativeCanvas.drawText("🚫", camPos.x, camPos.y + 3.5.dp.toPx(), iconPaint)
             }
 
             CameraType.ZONE_RESIDENTIAL_ENTRY, CameraType.ZONE_RESIDENTIAL_EXIT -> {

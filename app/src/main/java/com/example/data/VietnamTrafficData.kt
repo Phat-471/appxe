@@ -304,6 +304,68 @@ object VietnamTrafficData {
       speedLimit = 40,
       description = "Camera phạt nguội vượt đèn và đè vạch rẽ trái",
       districtCity = "Hải Châu, Đà Nẵng"
+    ),
+
+    // ====== ĐIỂM CẢNH BÁO ĐƯỜNG CẤM XE MÁY / CAO TỐC ======
+    TrafficCamera(
+      id = "cam_prohibit_lt_01",
+      latitude = 10.7960,
+      longitude = 106.7620,
+      type = CameraType.MOTORBIKE_PROHIBITED_ZONE,
+      roadName = "Lối vào Cao Tốc TP.HCM - Long Thành (Nút Giao An Phú)",
+      speedLimit = 0,
+      description = "CẤM XE MÁY ĐI VÀO CAO TỐC! Phạt 2-3 triệu & tước GPLX 3-5 tháng",
+      districtCity = "TP. Thủ Đức, TP.HCM"
+    ),
+    TrafficCamera(
+      id = "cam_prohibit_tl_01",
+      latitude = 10.6850,
+      longitude = 106.5920,
+      type = CameraType.MOTORBIKE_PROHIBITED_ZONE,
+      roadName = "Lối vào Cao Tốc TP.HCM - Trung Lương (Nút Giao Chợ Đệm)",
+      speedLimit = 0,
+      description = "CẤM XE MÁY ĐI VÀO CAO TỐC! Chú ý rẽ vào đường gom Quốc Lộ 1A",
+      districtCity = "Bình Chánh, TP.HCM"
+    ),
+    TrafficCamera(
+      id = "cam_prohibit_vvk_01",
+      latitude = 10.7480,
+      longitude = 106.6620,
+      type = CameraType.MOTORBIKE_PROHIBITED_ZONE,
+      roadName = "Làn Ô Tô Giữa Đại Lộ Võ Văn Kiệt",
+      speedLimit = 0,
+      description = "Làn ô tô cấm xe máy! Xe máy chỉ được đi làn hỗn hợp bên phải",
+      districtCity = "Quận 5, TP.HCM"
+    ),
+    TrafficCamera(
+      id = "cam_prohibit_pvd_01",
+      latitude = 10.8250,
+      longitude = 106.6980,
+      type = CameraType.MOTORBIKE_PROHIBITED_ZONE,
+      roadName = "Làn Ô Tô Giữa Đường Phạm Văn Đồng",
+      speedLimit = 0,
+      description = "Làn ô tô 80km/h cấm xe máy! Đi đúng làn xe 2 bánh bên phải",
+      districtCity = "Gò Vấp, TP.HCM"
+    ),
+    TrafficCamera(
+      id = "cam_prohibit_hn_tl_01",
+      latitude = 21.0025,
+      longitude = 105.7480,
+      type = CameraType.MOTORBIKE_PROHIBITED_ZONE,
+      roadName = "Làn Cao Tốc Đại Lộ Thăng Long",
+      speedLimit = 0,
+      description = "CẤM XE MÁY VÀO LÀN CAO TỐC! Xe máy phải đi đường gom 2 bên",
+      districtCity = "Nam Từ Liêm, Hà Nội"
+    ),
+    TrafficCamera(
+      id = "cam_prohibit_hn_pv_01",
+      latitude = 20.9620,
+      longitude = 105.8520,
+      type = CameraType.MOTORBIKE_PROHIBITED_ZONE,
+      roadName = "Đầu Cao Tốc Pháp Vân - Cầu Giẽ (Nút giao Giải Phóng)",
+      speedLimit = 0,
+      description = "CẤM TUYỆT ĐỐI XE MÁY ĐI VÀO CAO TỐC PHÁP VÂN! Rẽ sang Quốc Lộ 1A cũ",
+      districtCity = "Hoàng Mai, Hà Nội"
     )
   )
 

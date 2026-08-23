@@ -60,6 +60,9 @@ fun CameraVisualBadge(
       CameraType.HAZARD_ACCIDENT_ZONE -> {
         HazardWarningBadge(size = size)
       }
+      CameraType.MOTORBIKE_PROHIBITED_ZONE -> {
+        ProhibitedMotorbikeBadge(size = size)
+      }
       CameraType.SCHOOL_ZONE -> {
         SchoolZoneBadge(size = size)
       }
@@ -70,6 +73,20 @@ fun CameraVisualBadge(
         CommunityReportBadge(size = size)
       }
     }
+  }
+}
+
+@Composable
+fun ProhibitedMotorbikeBadge(size: Dp) {
+  Box(
+    modifier = Modifier
+      .size(size)
+      .clip(CircleShape)
+      .background(Color.White)
+      .border((size.value * 0.12f).dp, Color(0xFFDC2626), CircleShape),
+    contentAlignment = Alignment.Center
+  ) {
+    Text("🚫🏍️", fontSize = (size.value * 0.40f).sp)
   }
 }
 

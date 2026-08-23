@@ -236,41 +236,88 @@ fun VietmapTopLaneGuidanceBanner(
   turnInstruction: String,
   modifier: Modifier = Modifier
 ) {
+  val turnIcon = when {
+    turnInstruction.contains("trái", ignoreCase = true) && turnInstruction.contains("quay", ignoreCase = true) -> "↩️"
+    turnInstruction.contains("phải", ignoreCase = true) && turnInstruction.contains("quay", ignoreCase = true) -> "↪️"
+    turnInstruction.contains("trái", ignoreCase = true) -> "⬅️"
+    turnInstruction.contains("phải", ignoreCase = true) -> "➡️"
+    turnInstruction.contains("vòng xuyến", ignoreCase = true) || turnInstruction.contains("bùng binh", ignoreCase = true) -> "🔄"
+    turnInstruction.contains("đích", ignoreCase = true) -> "🏁"
+    else -> "⬆️"
+  }
+
   Surface(
-    shape = RoundedCornerShape(18.dp),
-    color = Color(0xFF0F172A).copy(alpha = 0.95f),
-    shadowElevation = 10.dp,
-    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
-    modifier = modifier.padding(horizontal = 14.dp)
+    shape = RoundedCornerShape(20.dp),
+    color = Color(0xFF0F172A).copy(alpha = 0.96f),
+    shadowElevation = 12.dp,
+    border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFF0284C7)),
+    modifier = modifier
+      .fillMaxWidth(0.94f)
+      .padding(horizontal = 4.dp)
   ) {
-    Column(
-      horizontalAlignment = Alignment.CenterHorizontally,
-      modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+    Row(
+      verticalAlignment = Alignment.CenterVertically,
+      modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
-      // Distance to next turn
-      Text(
-        text = if (turnDistanceMeters >= 1000) {
-          "${String.format(java.util.Locale.US, "%.1f", turnDistanceMeters / 1000f)} km"
-        } else {
-          "${turnDistanceMeters} m"
-        },
-        style = MaterialTheme.typography.titleMedium.copy(
-          fontWeight = FontWeight.Black,
-          fontSize = 18.sp
-        ),
-        color = Color.White
-      )
+      // Maneuver Icon Badge
+      Surface(
+        shape = CircleShape,
+        color = Color(0xFF0284C7),
+        modifier = Modifier.size(46.dp)
+      ) {
+        Box(contentAlignment = Alignment.Center) {
+          Text(text = turnIcon, fontSize = 22.sp)
+        }
+      }
 
-      Spacer(modifier = Modifier.height(4.dp))
+      Spacer(modifier = Modifier.width(12.dp))
 
-      // 3-Lane Guidance Indicators (Vietmap Style)
+      // Instruction & Countdown Distance
+      Column(modifier = Modifier.weight(1f)) {
+        Row(verticalAlignment = Alignment.Bottom) {
+          Text(
+            text = if (turnDistanceMeters >= 1000) {
+              String.format(java.util.Locale.US, "%.1f", turnDistanceMeters / 1000f)
+            } else {
+              "$turnDistanceMeters"
+            },
+            style = MaterialTheme.typography.titleLarge.copy(
+              fontWeight = FontWeight.Black,
+              fontSize = 24.sp
+            ),
+            color = Color(0xFF38BDF8)
+          )
+          Spacer(modifier = Modifier.width(4.dp))
+          Text(
+            text = if (turnDistanceMeters >= 1000) "km" else "m",
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+            color = Color(0xFF94A3B8),
+            modifier = Modifier.padding(bottom = 3.dp)
+          )
+        }
+
+        Text(
+          text = turnInstruction,
+          style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+          color = Color.White,
+          maxLines = 1,
+          overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+        )
+      }
+
+      Spacer(modifier = Modifier.width(8.dp))
+
+      // 3-Lane Guidance Indicators
       Row(
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically
       ) {
         LaneIndicatorBox(arrowSymbol = "⬆️", isActive = true)
-        LaneIndicatorBox(arrowSymbol = "⬆️", isActive = true)
-        LaneIndicatorBox(arrowSymbol = "↗️", isActive = turnInstruction.contains("phải", ignoreCase = true))
+        LaneIndicatorBox(arrowSymbol = "⬆️", isActive = !turnInstruction.contains("phải", ignoreCase = true) && !turnInstruction.contains("trái", ignoreCase = true))
+        LaneIndicatorBox(
+          arrowSymbol = if (turnInstruction.contains("trái", ignoreCase = true)) "↖️" else "↗️",
+          isActive = turnInstruction.contains("phải", ignoreCase = true) || turnInstruction.contains("trái", ignoreCase = true)
+        )
       }
     }
   }

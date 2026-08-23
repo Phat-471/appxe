@@ -9,6 +9,7 @@ enum class CameraType(val displayName: String, val iconDescription: String) {
   ZONE_RESIDENTIAL_ENTRY("Bắt Đầu Khu Dân Cư", "Biển báo vào khu đông dân cư (Tối đa 50 km/h)"),
   ZONE_RESIDENTIAL_EXIT("Hết Khu Dân Cư", "Biển báo hết khu dân cư (Tối đa 60 km/h)"),
   HAZARD_ACCIDENT_ZONE("Đoạn Đường Nguy Hiểm", "Khu vực hay xảy ra va chạm, đường cong gắt"),
+  MOTORBIKE_PROHIBITED_ZONE("Đường Cấm Xe Máy / Cao Tốc", "Cấm xe máy đi vào - Phạt 2-3 triệu & tước bằng lái"),
   SCHOOL_ZONE("Khu Vực Trường Học", "Khu vực trường học, học sinh qua đường"),
   COMMUNITY_REPORT("Báo Cáo Cộng Đồng", "Điểm chốt kiểm tra tốc độ do tài xế báo")
 }

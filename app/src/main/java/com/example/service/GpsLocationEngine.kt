@@ -605,15 +605,15 @@ class GpsLocationEngine(private val context: Context) {
     }
 
     val now = System.currentTimeMillis()
-    if (minDistanceToRoute > 45.0 && distToDest > 60 && !isRerouting && (now - lastRerouteTime) > 4000) {
+    if (minDistanceToRoute > 28.0 && distToDest > 50 && !isRerouting && (now - lastRerouteTime) > 3000) {
       offRouteCount++
-      if (offRouteCount >= 2) {
+      if (offRouteCount >= 1) {
         offRouteCount = 0
         isRerouting = true
         lastRerouteTime = now
         scope.launch {
           try {
-            onTurnVoicePrompt?.invoke("Bạn đã đi chệch tuyến đường. Đang tự động tính toán lại lộ trình mới!")
+            onTurnVoicePrompt?.invoke("Đang tự động tính lại lộ trình mới!")
             val newRoute = NavigationRoutingService.fetchRoute(
               startLat = currentLat,
               startLng = currentLng,
@@ -633,31 +633,36 @@ class GpsLocationEngine(private val context: Context) {
         }
         return
       }
-    } else if (minDistanceToRoute <= 40.0) {
+    } else if (minDistanceToRoute <= 25.0) {
       offRouteCount = 0
     }
 
-    // Find nearest step index
+    // Find nearest step index & update realtime step distance
     var currentStepIndex = route.currentStepIndex
-    if (route.steps.isNotEmpty() && currentStepIndex < route.steps.size) {
-      val nextStep = route.steps[currentStepIndex]
+    val updatedSteps = route.steps.toMutableList()
+
+    if (updatedSteps.isNotEmpty() && currentStepIndex < updatedSteps.size) {
+      val nextStep = updatedSteps[currentStepIndex]
       val distToNextStep = VietnamTrafficData.calculateDistanceMeters(
         currentLat, currentLng,
         nextStep.latitude, nextStep.longitude
       ).toInt()
 
-      if (distToNextStep < 35 && currentStepIndex < route.steps.size - 1) {
+      // Update remaining distance for the upcoming maneuver
+      updatedSteps[currentStepIndex] = nextStep.copy(distanceMeters = distToNextStep.coerceAtLeast(0))
+
+      if (distToNextStep < 25 && currentStepIndex < updatedSteps.size - 1) {
         currentStepIndex++
       }
 
       // Voice prompt trigger for upcoming turn
-      val upcomingStep = route.steps.getOrNull(currentStepIndex)
+      val upcomingStep = updatedSteps.getOrNull(currentStepIndex)
       if (upcomingStep != null) {
-        val stepDist = distToNextStep.coerceAtLeast(20)
+        val stepDist = distToNextStep.coerceAtLeast(15)
         val band = when {
           stepDist in 220..380 -> 300
-          stepDist in 70..160 -> 100
-          stepDist < 45 -> 30
+          stepDist in 60..160 -> 100
+          stepDist < 35 -> 30
           else -> -1
         }
 
@@ -677,7 +682,8 @@ class GpsLocationEngine(private val context: Context) {
     _activeRoute.value = route.copy(
       totalDistanceMeters = distToDest,
       estimatedDurationMinutes = durationMinutes,
-      currentStepIndex = currentStepIndex
+      currentStepIndex = currentStepIndex,
+      steps = updatedSteps
     )
   }
 

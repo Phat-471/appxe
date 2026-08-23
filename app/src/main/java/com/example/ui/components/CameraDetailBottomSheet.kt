@@ -49,6 +49,7 @@ fun CameraDetailBottomSheet(
     CameraType.ZONE_RESIDENTIAL_ENTRY -> "Biển Báo Khu Đông Dân Cư (R.420)" to "Tốc độ tối đa quy định: 50 km/h (đường đôi/1 chiều 2 làn) hoặc 60 km/h theo TT 31/2019."
     CameraType.ZONE_RESIDENTIAL_EXIT -> "Hết Khu Đông Dân Cư (R.421)" to "Được phép tăng tốc độ lên tối đa 60 km/h (xe máy) / 80 km/h (ô tô ngoài đô thị)."
     CameraType.HAZARD_ACCIDENT_ZONE -> "Đoạn Đường Thường Xảy Ra Tai Nạn" to "Khu vực điểm đen giao thông, giảm tốc độ và chú ý quan sát xe qua lại."
+    CameraType.MOTORBIKE_PROHIBITED_ZONE -> "Đường Cấm Xe Máy / Lối Vào Cao Tốc" to "CẤM XE MÁY ĐI VÀO! Phạt 2.000.000đ - 3.000.000đ và tước GPLX 3 - 5 tháng theo NĐ 100/2019/NĐ-CP."
     CameraType.SCHOOL_ZONE -> "Khu Vực Trường Học Trọng Điểm" to "Giảm tốc độ, chú ý học sinh sang đường và tuân thủ vạch kẻ người đi bộ."
     CameraType.SPEED_LIMIT_SIGN -> "Biển Báo Giới Hạn Tốc Độ (P.127)" to "Tốc độ tối đa cho phép ${camera.speedLimit} km/h theo quy chuẩn QCVN 41:2019/BGTVT."
     CameraType.COMMUNITY_REPORT -> "Chốt Kiểm Tra Tốc Độ Do Tài Xế Báo" to "Cộng đồng lái xe đóng góp thông tin chốt tuần tra và camera cơ động."

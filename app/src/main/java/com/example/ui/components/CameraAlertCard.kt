@@ -51,6 +51,7 @@ fun CameraAlertCard(
         CameraType.ZONE_RESIDENTIAL_ENTRY -> Icons.Default.LocationCity to "BẮT ĐẦU KHU DÂN CƯ"
         CameraType.ZONE_RESIDENTIAL_EXIT -> Icons.Default.DirectionsCar to "HẾT KHU DÂN CƯ"
         CameraType.HAZARD_ACCIDENT_ZONE -> Icons.Default.Warning to "ĐOẠN ĐƯỜNG NGUY HIỂM"
+        CameraType.MOTORBIKE_PROHIBITED_ZONE -> Icons.Default.Block to "CẤM XE MÁY / VÀO CAO TỐC"
         CameraType.SCHOOL_ZONE -> Icons.Default.School to "KHU VỰC TRƯỜNG HỌC"
         CameraType.SPEED_LIMIT_SIGN -> Icons.Default.Speed to "BIỂN BÁO TỐC ĐỘ"
         CameraType.COMMUNITY_REPORT -> Icons.Default.Report to "CHỐT BÁO CỘNG ĐỒNG"

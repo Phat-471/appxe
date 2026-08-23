@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -58,6 +59,21 @@ fun CockpitDashboardScreen(
 
   LaunchedEffect(locationState.speedKmh) {
     testSpeedSlider = locationState.speedKmh
+  }
+
+  // 1. FULLSCREEN NIGHT HUD MIRROR MODE (Reflects onto Windshield)
+  if (hudMirrorMode) {
+    FullscreenMirrorHUDView(
+      currentSpeed = locationState.speedKmh.toInt(),
+      speedLimit = trafficEvaluation.currentSpeedLimit,
+      isOverspeeding = trafficEvaluation.isOverspeeding,
+      roadName = trafficEvaluation.currentRoadName,
+      nearestCamera = trafficEvaluation.nearestCamera,
+      nearestCameraDistance = trafficEvaluation.nearestCameraDistance,
+      onExitMirrorMode = onToggleHudMirror,
+      modifier = modifier
+    )
+    return
   }
 
   Column(
@@ -603,3 +619,170 @@ fun CockpitDashboardScreen(
     }
   }
 }
+
+/**
+ * Fullscreen OLED Pitch-Black HUD View with Mirror Flip for Windshield Projection
+ */
+@Composable
+fun FullscreenMirrorHUDView(
+  currentSpeed: Int,
+  speedLimit: Int,
+  isOverspeeding: Boolean,
+  roadName: String,
+  nearestCamera: com.example.data.model.TrafficCamera?,
+  nearestCameraDistance: Int?,
+  onExitMirrorMode: () -> Unit,
+  modifier: Modifier = Modifier
+) {
+  var isMirrored by remember { mutableStateOf(true) }
+  val speedColor = if (isOverspeeding) Color(0xFFFF2A6D) else Color(0xFF00F0FF)
+
+  Box(
+    modifier = modifier
+      .fillMaxSize()
+      .background(Color.Black)
+      .graphicsLayer(
+        scaleY = if (isMirrored) -1f else 1f,
+        scaleX = 1f
+      )
+      .padding(24.dp)
+  ) {
+    // Top Row: Road Name & Mode Toggle
+    Row(
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically,
+      modifier = Modifier
+        .fillMaxWidth()
+        .align(Alignment.TopCenter)
+    ) {
+      Text(
+        text = roadName,
+        style = MaterialTheme.typography.titleMedium.copy(
+          fontWeight = FontWeight.Bold,
+          fontSize = 18.sp
+        ),
+        color = Color(0xFF94A3B8),
+        maxLines = 1
+      )
+
+      Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        // Toggle Flip Button
+        Surface(
+          shape = CircleShape,
+          color = Color(0xFF1E293B),
+          modifier = Modifier
+            .size(44.dp)
+            .clickable { isMirrored = !isMirrored }
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Icon(
+              imageVector = Icons.Default.Flip,
+              contentDescription = "Lật hình",
+              tint = Color(0xFF38BDF8),
+              modifier = Modifier.size(24.dp)
+            )
+          }
+        }
+
+        // Exit HUD Mode Button
+        Surface(
+          shape = CircleShape,
+          color = Color(0xFFDC2626),
+          modifier = Modifier
+            .size(44.dp)
+            .clickable { onExitMirrorMode() }
+        ) {
+          Box(contentAlignment = Alignment.Center) {
+            Icon(
+              imageVector = Icons.Default.Close,
+              contentDescription = "Đóng HUD",
+              tint = Color.White,
+              modifier = Modifier.size(24.dp)
+            )
+          }
+        }
+      }
+    }
+
+    // Center Display: Huge Neon Speedometer
+    Column(
+      horizontalAlignment = Alignment.CenterHorizontally,
+      verticalArrangement = Arrangement.Center,
+      modifier = Modifier.align(Alignment.Center)
+    ) {
+      Text(
+        text = "$currentSpeed",
+        style = MaterialTheme.typography.displayLarge.copy(
+          fontWeight = FontWeight.Black,
+          fontSize = 118.sp,
+          letterSpacing = (-4).sp
+        ),
+        color = speedColor
+      )
+      Text(
+        text = "km/h",
+        style = MaterialTheme.typography.titleLarge.copy(
+          fontWeight = FontWeight.Bold,
+          fontSize = 22.sp
+        ),
+        color = Color(0xFF64748B)
+      )
+    }
+
+    // Bottom Display: Speed Limit Badge & Camera Countdown
+    Row(
+      horizontalArrangement = Arrangement.SpaceBetween,
+      verticalAlignment = Alignment.CenterVertically,
+      modifier = Modifier
+        .fillMaxWidth()
+        .align(Alignment.BottomCenter)
+    ) {
+      // Speed Limit Sign
+      Surface(
+        shape = CircleShape,
+        color = Color.White,
+        border = androidx.compose.foundation.BorderStroke(5.dp, Color(0xFFDC2626)),
+        modifier = Modifier.size(68.dp)
+      ) {
+        Box(contentAlignment = Alignment.Center) {
+          Text(
+            text = "$speedLimit",
+            style = MaterialTheme.typography.titleLarge.copy(
+              fontWeight = FontWeight.Black,
+              fontSize = 24.sp
+            ),
+            color = Color.Black
+          )
+        }
+      }
+
+      // Next Camera Card
+      if (nearestCamera != null && nearestCameraDistance != null) {
+        Surface(
+          shape = RoundedCornerShape(16.dp),
+          color = Color(0xFF0F172A),
+          border = androidx.compose.foundation.BorderStroke(1.5.dp, speedColor),
+          modifier = Modifier.padding(start = 12.dp)
+        ) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+          ) {
+            Text(
+              text = "📷 ${nearestCameraDistance}m",
+              style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black),
+              color = speedColor
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = nearestCamera.type.displayName.take(15),
+              style = MaterialTheme.typography.bodySmall,
+              color = Color.White
+            )
+          }
+        }
+      }
+    }
+  }
+}
+

@@ -355,6 +355,16 @@ fun OfflineMapCanvas(
           }
         }
 
+        // Night Mode Multi-layer Shader Overlay (Auto Night Mode & Dark Mode)
+        val calHour = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("GMT+7")).get(java.util.Calendar.HOUR_OF_DAY)
+        val isEffectiveDark = darkMapMode || (calHour >= 18 || calHour < 6)
+        if (isEffectiveDark) {
+          drawRect(
+            color = Color(0xFF0F172A).copy(alpha = 0.55f),
+            blendMode = BlendMode.Multiply
+          )
+        }
+
         // 3. TARGET FOCUS / SEARCH PIN (📍 Marker on Map)
         if (targetFocusPlace != null) {
           val focusPos = project(targetFocusPlace.latitude, targetFocusPlace.longitude)

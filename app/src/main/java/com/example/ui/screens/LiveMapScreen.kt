@@ -709,6 +709,17 @@ fun LiveMapScreen(
         onDismiss = onCloseTripSummary
       )
     }
+
+    // 11. CAMERA DETAIL BOTTOM SHEET (Tapping camera on map)
+    if (inspectingCamera != null) {
+      CameraDetailBottomSheet(
+        camera = inspectingCamera,
+        currentLocation = locationState,
+        onDismiss = { inspectingCamera = null },
+        onStartNavigation = onStartNavigation,
+        onSpeakCamera = onSpeakAlert
+      )
+    }
   }
 }
 

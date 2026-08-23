@@ -73,21 +73,8 @@ fun CameraAlertCard(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
           ) {
-            // Icon Badge
-            Box(
-              modifier = Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(if (isDanger) AlertCrimsonDanger else AlertAmberPrimary),
-              contentAlignment = Alignment.Center
-            ) {
-              Icon(
-                imageVector = icon,
-                contentDescription = typeTitle,
-                tint = Color.White,
-                modifier = Modifier.size(24.dp)
-              )
-            }
+            // Authentic Camera Visual Badge
+            CameraVisualBadge(camera = cam, size = 46.dp)
 
             Spacer(modifier = Modifier.width(12.dp))
 

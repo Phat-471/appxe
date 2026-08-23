@@ -24,6 +24,7 @@ import com.example.R
 import com.example.data.datasource.MockSpeedLimitDataSource
 import com.example.data.model.VisualAlertLevel
 import com.example.data.model.VisualSpeedAlertState
+import com.example.ui.widget.SpeedAlertWidgetProvider
 import com.google.android.gms.location.*
 import java.util.Locale
 import kotlin.math.roundToInt
@@ -315,11 +316,20 @@ class SpeedLimitTrackingService : Service() {
   }
 
   private fun buildNotification(state: VisualSpeedAlertState): Notification {
-    val pendingIntent = PendingIntent.getActivity(
+    val openAppIntent = PendingIntent.getActivity(
       this,
       0,
       Intent(this, MainActivity::class.java).apply {
-        flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+        flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+      },
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+
+    val stopServiceIntent = PendingIntent.getService(
+      this,
+      1,
+      Intent(this, SpeedLimitTrackingService::class.java).apply {
+        action = ACTION_STOP
       },
       PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
@@ -331,15 +341,18 @@ class SpeedLimitTrackingService : Service() {
     }
 
     val contentText = "${state.roadName} • ${state.alertMessage}"
+    val priority = if (state.isOverspeeding) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_LOW
 
     return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
       .setContentTitle(title)
       .setContentText(contentText)
       .setSmallIcon(android.R.drawable.ic_menu_compass)
-      .setContentIntent(pendingIntent)
+      .setContentIntent(openAppIntent)
       .setOngoing(true)
-      .setPriority(NotificationCompat.PRIORITY_LOW)
+      .setPriority(priority)
       .setCategory(NotificationCompat.CATEGORY_SERVICE)
+      .addAction(android.R.drawable.ic_menu_mapmode, "🗺️ Mở Bản Đồ", openAppIntent)
+      .addAction(android.R.drawable.ic_menu_close_clear_cancel, "⏹️ Dừng", stopServiceIntent)
       .build()
   }
 
@@ -347,6 +360,8 @@ class SpeedLimitTrackingService : Service() {
     try {
       val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
       notificationManager?.notify(NOTIFICATION_ID, buildNotification(state))
+      // Synchronize Lockscreen / Homescreen Widget
+      SpeedAlertWidgetProvider.updateAllWidgets(applicationContext, state)
     } catch (_: Exception) {}
   }
 

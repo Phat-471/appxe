@@ -8,18 +8,37 @@ import com.example.data.model.TrafficCamera
 import com.example.data.model.WarningLevel
 import kotlin.math.*
 
+// OSM highway type → max legal speed for motorbikes (Thông tư 31/2019/TT-BGTVT)
+object OsmRoadSpeedLimits {
+  fun getSpeedLimit(osmHighwayTag: String): Int = when (osmHighwayTag.lowercase().trim()) {
+    "motorway", "motorway_link"       ->  0   // CẤM xe máy
+    "trunk", "trunk_link"              -> 80   // Quốc lộ lớn
+    "primary", "primary_link"          -> 60   // Đường chính tỉnh
+    "secondary", "secondary_link"      -> 60   // Đường tỉnh lộ
+    "tertiary", "tertiary_link"        -> 50   // Đường liên xã
+    "unclassified"                     -> 50   // Đường chưa phân loại
+    "residential"                      -> 40   // Đường khu dân cư
+    "living_street"                    -> 25   // Đường dân sinh
+    "service"                          -> 20   // Đường nội bộ / hẻm
+    "pedestrian", "footway", "path"   ->  0   // Cấm xe máy
+    else                               -> 50   // Mặc định đô thị
+  }
+
+  // Cached result for current road — update when user moves > 150m
+  var cachedHighwayTag: String = "residential"
+  var cachedSpeedLimit: Int = 40
+  var cacheAnchorLat: Double = 0.0
+  var cacheAnchorLng: Double = 0.0
+}
+
 class TrafficWarningEngine(
   private val voiceAlertEngine: VoiceAlertEngine
 ) {
 
   private var lastAlertCameraId: String? = null
-  private var lastAlertDistanceBand = -1 // 500, 300, 100
+  private var lastAlertDistanceBand = -1
   private var lastOverspeedAlertTime = 0L
-
-  // Dynamic synthesized cameras for locations outside hardcoded database
-  private val dynamicRadarCameras = mutableListOf<TrafficCamera>()
-  private var lastGeneratedAnchorLat = 0.0
-  private var lastGeneratedAnchorLng = 0.0
+  private var passedCameraIds = mutableSetOf<String>() // cameras already passed
 
   fun evaluateTrafficState(
     location: GpsLocationState,
@@ -29,30 +48,40 @@ class TrafficWarningEngine(
     voiceEnabled: Boolean = true
   ): WarningEvaluationResult {
     val currentSpeed = location.speedKmh.toInt()
+    val isMoving = location.speedKmh > 3.5f
 
-    // 1. Find closest camera ahead in the direction of travel
+    // 1. Find nearest RELEVANT camera ahead (±45° cone, not already passed)
     var nearestCamera: TrafficCamera? = null
     var minDistance = Double.MAX_VALUE
 
     for (cam in allCameras) {
+      // Skip cameras that have already been passed
+      if (cam.id in passedCameraIds) continue
+
       val dist = VietnamTrafficData.calculateDistanceMeters(
         location.latitude, location.longitude,
         cam.latitude, cam.longitude
       )
 
-      // Directional check: if vehicle is moving, prioritize cameras ahead within 85 degree cone
-      if (location.speedKmh > 3.5f) {
+      // Mark camera as passed when within 25m (vehicle has gone through it)
+      if (dist < 25.0) {
+        passedCameraIds.add(cam.id)
+        // Only keep last 50 passed cameras to avoid memory leak
+        if (passedCameraIds.size > 50) passedCameraIds.remove(passedCameraIds.first())
+        continue
+      }
+
+      // Bearing filter: only alert cameras in the ±45° forward cone when moving
+      // When slow/stopped use wider 120° to still show nearby cameras
+      if (isMoving) {
         val bearingToCam = VietnamTrafficData.calculateBearing(
           location.latitude, location.longitude,
           cam.latitude, cam.longitude
         )
         var angleDiff = abs(bearingToCam - location.headingDegrees)
-        while (angleDiff > 180f) angleDiff -= 360f
-        angleDiff = abs(angleDiff)
-        // If camera is behind the vehicle (> 85 degrees) and not right on top of it, ignore
-        if (angleDiff > 85f && dist > 30.0) {
-          continue
-        }
+        if (angleDiff > 180f) angleDiff = 360f - angleDiff
+        val coneAngle = if (dist < 80.0) 90f else 45f  // Wider cone very close
+        if (angleDiff > coneAngle && dist > 30.0) continue
       }
 
       if (dist < minDistance) {
@@ -76,63 +105,45 @@ class TrafficWarningEngine(
       }
     }
 
-    // 3. Determine Legal Speed Limit (Chuẩn theo Thông tư 31/2019/TT-BGTVT & QCVN 41:2019)
+    // 3. Determine Legal Speed Limit — OSM-aware + Vietnamese road law
+    // Priority: Camera sign > OSM cached tag > Road name pattern > Default
+    val osmCachedLimit = OsmRoadSpeedLimits.cachedSpeedLimit
+    val distFromOsmCache = VietnamTrafficData.calculateDistanceMeters(
+      location.latitude, location.longitude,
+      OsmRoadSpeedLimits.cacheAnchorLat, OsmRoadSpeedLimits.cacheAnchorLng
+    )
+    val useOsmCache = distFromOsmCache < 200.0  // OSM cache valid within 200m
+
     val effectiveSpeedLimit = when {
-      // Ưu tiên 1: Biển báo tốc độ hoặc Camera gần nhất
-      nearestCamera != null && minDistance < 550 -> nearestCamera.speedLimit
+      // Priority 1: Active camera sign within range
+      nearestCamera != null && minDistance < 550 && nearestCamera.speedLimit > 0
+        -> nearestCamera.speedLimit
 
-      // Ưu tiên 2: Đường Cao Tốc (Expressway) -> 100 - 120 km/h
-      currentRoadName.contains("Cao tốc", ignoreCase = true) ||
-      currentRoadName.contains("Cao toc", ignoreCase = true) ||
-      currentRoadName.contains("Expressway", ignoreCase = true) ||
-      currentRoadName.contains("CT.01", ignoreCase = true) ||
-      currentRoadName.contains("CT.02", ignoreCase = true) ||
-      currentRoadName.contains("Long Thành", ignoreCase = true) ||
-      currentRoadName.contains("Dầu Giây", ignoreCase = true) ||
-      currentRoadName.contains("Trung Lương", ignoreCase = true) ||
-      currentRoadName.contains("Pháp Vân", ignoreCase = true) ||
-      currentRoadName.contains("Hải Phòng", ignoreCase = true) -> 100
+      // Priority 2: Motorbike prohibited → 0 (trigger prohibited zone warning)
+      nearestCamera?.type == CameraType.MOTORBIKE_PROHIBITED_ZONE && minDistance < 400
+        -> 0
 
-      // Ưu tiên 3: Quốc Lộ ngoài đô thị (QL1A, QL51, QL13, QL22, QL14, QL20, QL5...) -> 80 km/h
-      currentRoadName.contains("Quốc Lộ", ignoreCase = true) ||
-      currentRoadName.contains("Quoc lo", ignoreCase = true) ||
-      currentRoadName.contains("QL1", ignoreCase = true) ||
-      currentRoadName.contains("QL51", ignoreCase = true) ||
-      currentRoadName.contains("QL13", ignoreCase = true) ||
-      currentRoadName.contains("QL22", ignoreCase = true) ||
-      currentRoadName.contains("QL14", ignoreCase = true) ||
-      currentRoadName.contains("QL20", ignoreCase = true) ||
-      currentRoadName.contains("QL5", ignoreCase = true) ||
-      currentRoadName.contains("QL18", ignoreCase = true) ||
-      currentRoadName.contains("Xa Lộ Hà Nội", ignoreCase = true) ||
-      currentRoadName.contains("Xa Lo", ignoreCase = true) ||
-      currentRoadName.contains("AH1", ignoreCase = true) ||
-      currentRoadName.contains("AH17", ignoreCase = true) -> {
-        // Nếu gần biển báo bắt đầu khu dân cư thì 60 km/h, còn lại ngoài quốc lộ là 80 km/h
+      // Priority 3: OSM road tag (most accurate — set by fetchOsmRoadType)
+      useOsmCache && OsmRoadSpeedLimits.cachedHighwayTag.isNotEmpty()
+        -> osmCachedLimit
+
+      // Priority 4: Road name pattern matching (Thông tư 31/2019/TT-BGTVT)
+      currentRoadName.containsAny("Cao tốc","Cao toc","CT.0","Expressway") -> 100
+      currentRoadName.containsAny("Đại Lộ Thăng Long","Long Thành","Dầu Giây","Trung Lương") -> 100
+
+      currentRoadName.containsAny("Quốc Lộ","QL1","QL51","QL13","QL22","QL14","QL20",
+        "QL5","QL18","QL91","Xa Lộ Hà Nội","AH1","AH17") -> {
         if (nearestCamera?.type == CameraType.ZONE_RESIDENTIAL_ENTRY && minDistance < 750) 60 else 80
       }
 
-      // Ưu tiên 4: Đại lộ, đường đôi có dải phân cách giữa trong đô thị -> 60 km/h
-      currentRoadName.contains("Võ Văn Kiệt", ignoreCase = true) ||
-      currentRoadName.contains("Phạm Văn Đồng", ignoreCase = true) ||
-      currentRoadName.contains("Nguyễn Văn Linh", ignoreCase = true) ||
-      currentRoadName.contains("Mai Chí Thọ", ignoreCase = true) ||
-      currentRoadName.contains("Võ Nguyên Giáp", ignoreCase = true) ||
-      currentRoadName.contains("Vành Đai", ignoreCase = true) ||
-      currentRoadName.contains("Đại Lộ", ignoreCase = true) ||
-      currentRoadName.contains("Đại lộ Thăng Long", ignoreCase = true) ||
-      currentRoadName.contains("Trường Chinh", ignoreCase = true) ||
-      currentRoadName.contains("Điện Biên Phủ", ignoreCase = true) ||
-      currentRoadName.contains("Nam Kỳ Khởi Nghĩa", ignoreCase = true) ||
-      currentRoadName.contains("Nguyễn Hữu Thọ", ignoreCase = true) -> 60
+      currentRoadName.containsAny("Đường tỉnh","Tỉnh lộ","ĐT.","TL.") -> 70
 
-      // Ưu tiên 5: Đường Tỉnh / Tỉnh Lộ (ĐT, TL) -> 70 km/h ngoài đô thị
-      currentRoadName.contains("Đường tỉnh", ignoreCase = true) ||
-      currentRoadName.contains("Tỉnh lộ", ignoreCase = true) ||
-      currentRoadName.contains("ĐT", ignoreCase = true) ||
-      currentRoadName.contains("TL", ignoreCase = true) -> 70
+      currentRoadName.containsAny("Vành Đai","Đại Lộ","Võ Văn Kiệt","Phạm Văn Đồng",
+        "Nguyễn Văn Linh","Mai Chí Thọ","Trường Chinh","Điện Biên Phủ") -> 60
 
-      // Mặc định: Đường phố nội thị 2 chiều thông thường -> 50 km/h
+      currentRoadName.containsAny("Hẻm","ngõ","Ngõ","alley") -> 25
+
+      // Default: urban street 50 km/h
       else -> 50
     }
 
@@ -223,6 +234,10 @@ class TrafficWarningEngine(
   }
 }
 
+// Extension: multi-keyword String.containsAny
+private fun String.containsAny(vararg keywords: String, ignoreCase: Boolean = true): Boolean =
+  keywords.any { this.contains(it, ignoreCase = ignoreCase) }
+
 data class WarningEvaluationResult(
   val currentRoadName: String,
   val currentSpeedLimit: Int,
@@ -231,6 +246,8 @@ data class WarningEvaluationResult(
   val comparisonStatusText: String = "",
   val activeWarning: ActiveWarning?,
   val nearestCameraDistance: Int?,
-  val nearestCamera: TrafficCamera?
+  val nearestCamera: TrafficCamera?,
+  val osmHighwayType: String = "",
+  val detectedSpeedLimitSource: String = "road_name"  // "camera", "osm", "road_name"
 )
 

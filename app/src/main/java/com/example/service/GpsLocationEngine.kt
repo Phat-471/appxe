@@ -2,6 +2,10 @@ package com.example.service
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Geocoder
 import android.location.Location
 import android.location.LocationListener
@@ -98,10 +102,31 @@ class GpsLocationEngine(private val context: Context) {
   private var deadReckoningJob: Job? = null
   private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
+  // Sensor Fusion (Accelerometer / Linear Acceleration)
+  private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+  private val linearAccSensor: Sensor? = sensorManager?.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION)
+    ?: sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+  private var recentAccMagnitude = 0f
+  private var sensorListener: SensorEventListener? = null
+
   init {
     try {
       fusedClient = LocationServices.getFusedLocationProviderClient(context)
       locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+      
+      sensorListener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent?) {
+          if (event != null) {
+            val ax = event.values[0]
+            val ay = event.values[1]
+            val az = if (event.sensor.type == Sensor.TYPE_LINEAR_ACCELERATION) event.values[2] else event.values[2] - 9.81f
+            val mag = sqrt(ax * ax + ay * ay + az * az)
+            // Low-pass filter
+            recentAccMagnitude = recentAccMagnitude * 0.8f + mag * 0.2f
+          }
+        }
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+      }
     } catch (e: Exception) {
       Log.e("GpsLocationEngine", "Init error: ${e.message}")
     }
@@ -115,6 +140,10 @@ class GpsLocationEngine(private val context: Context) {
     kalmanFilter.reset()
 
     try {
+      // Register sensor fusion accelerometer
+      if (linearAccSensor != null && sensorListener != null) {
+        sensorManager?.registerListener(sensorListener, linearAccSensor, SensorManager.SENSOR_DELAY_UI)
+      }
       // 1. Instantly request high-accuracy current location fix
       fusedClient?.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)?.addOnSuccessListener { loc ->
         if (loc != null) {
@@ -224,6 +253,7 @@ class GpsLocationEngine(private val context: Context) {
     try {
       locationCallback?.let { fusedClient?.removeLocationUpdates(it) }
       androidLocationListener?.let { locationManager?.removeUpdates(it) }
+      sensorListener?.let { sensorManager?.unregisterListener(it) }
     } catch (e: Exception) {
       Log.e("GpsLocationEngine", "Stop error: ${e.message}")
     }
@@ -319,11 +349,15 @@ class GpsLocationEngine(private val context: Context) {
         rawLoc.latitude, rawLoc.longitude
       )
 
-      // Stationary noise gate: detect if vehicle is stopped (< 3.8 km/h or within 4m)
-      if (rawSpeedKmh < 3.8f || (distFromAnchor < 4.0 && rawSpeedKmh < 4.8f)) {
+      // Sensor Fusion Stationary Noise Gate:
+      // Combines GPS speed, distance drift, and hardware accelerometer
+      val isPhysicallyStationary = recentAccMagnitude < 0.25f
+      val isSpeedLow = rawSpeedKmh < 3.8f || (distFromAnchor < 4.5 && rawSpeedKmh < 4.8f)
+
+      if (isSpeedLow || (isPhysicallyStationary && rawSpeedKmh < 5.0f)) {
         consecutiveLowSpeedCount++
         consecutiveHighSpeedCount = 0
-        if (consecutiveLowSpeedCount >= 2 || rawSpeedKmh < 2.5f) {
+        if (consecutiveLowSpeedCount >= 2 || rawSpeedKmh < 2.0f || (isPhysicallyStationary && consecutiveLowSpeedCount >= 1)) {
           isStationaryLocked = true
           smoothSpeed = 0f
           // Freeze position to stationary anchor to prevent map drift
@@ -332,7 +366,7 @@ class GpsLocationEngine(private val context: Context) {
         }
       } else {
         consecutiveHighSpeedCount++
-        if (consecutiveHighSpeedCount >= 2 || rawSpeedKmh >= 5.5f) {
+        if (consecutiveHighSpeedCount >= 2 || rawSpeedKmh >= 5.5f || recentAccMagnitude > 0.8f) {
           isStationaryLocked = false
           consecutiveLowSpeedCount = 0
           stationaryAnchorLat = rawLoc.latitude
@@ -755,6 +789,35 @@ class GpsLocationEngine(private val context: Context) {
 
     scope.launch(Dispatchers.IO) {
       try {
+        // 1. Try OSM Online Road & Speed Tag Lookup First
+        val osmInfo = NavigationRoutingService.fetchOsmRoadInfo(lat, lng)
+        if (osmInfo != null && osmInfo.roadName.isNotBlank() && osmInfo.roadName != "Tuyến đường") {
+          // Update OsmRoadSpeedLimits Cache
+          OsmRoadSpeedLimits.cachedHighwayTag = osmInfo.highwayType
+          OsmRoadSpeedLimits.cachedSpeedLimit = osmInfo.maxSpeedKmh ?: OsmRoadSpeedLimits.getSpeedLimit(osmInfo.highwayType)
+          OsmRoadSpeedLimits.cacheAnchorLat = lat
+          OsmRoadSpeedLimits.cacheAnchorLng = lng
+
+          val fullRoadName = if (osmInfo.roadName.startsWith("Đường", ignoreCase = true) ||
+            osmInfo.roadName.startsWith("Đại lộ", ignoreCase = true) ||
+            osmInfo.roadName.startsWith("Quốc lộ", ignoreCase = true)) {
+            osmInfo.roadName
+          } else {
+            "Đường ${osmInfo.roadName}"
+          }
+
+          val fullAddr = listOf(osmInfo.suburb, osmInfo.city).filter { it.isNotBlank() }.joinToString(", ")
+
+          withContext(Dispatchers.Main) {
+            _locationState.value = _locationState.value.copy(
+              detectedRoadName = fullRoadName,
+              detectedAddress = fullAddr.ifBlank { "Việt Nam" }
+            )
+          }
+          return@launch
+        }
+
+        // 2. Fallback to Android Hardware Geocoder
         if (geocoder != null) {
           @Suppress("DEPRECATION")
           val addresses = geocoder.getFromLocation(lat, lng, 1)

@@ -112,8 +112,18 @@ object NavigationRoutingService {
    * Reverse geocode coordinates to street name online.
    */
   suspend fun reverseGeocode(lat: Double, lng: Double): String? = withContext(Dispatchers.IO) {
+    val info = fetchOsmRoadInfo(lat, lng)
+    return@withContext info?.let {
+      if (it.suburb.isNotBlank()) "${it.roadName}, ${it.suburb}" else it.roadName
+    }
+  }
+
+  /**
+   * Fetch detailed OSM road classification and speed limits for current location.
+   */
+  suspend fun fetchOsmRoadInfo(lat: Double, lng: Double): OsmRoadInfo? = withContext(Dispatchers.IO) {
     try {
-      val url = "https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&zoom=18&addressdetails=1"
+      val url = "https://nominatim.openstreetmap.org/reverse?format=json&lat=$lat&lon=$lng&zoom=18&addressdetails=1&extratags=1"
       val request = Request.Builder()
         .url(url)
         .header("User-Agent", "SpeedAlertVietnamApp/2.0 (Android Live Map)")
@@ -125,23 +135,49 @@ object NavigationRoutingService {
           if (!body.isNullOrBlank()) {
             val json = JSONObject(body)
             val addr = json.optJSONObject("address")
-            val road = addr?.optString("road", "")
-            val suburb = addr?.optString("suburb", "")
-            if (!road.isNullOrBlank()) {
-              return@withContext if (!suburb.isNullOrBlank()) "$road, $suburb" else road
+            val extratags = json.optJSONObject("extratags")
+            
+            val road = addr?.optString("road", "")?.ifBlank {
+              json.optString("name", "")
+            } ?: ""
+            val suburb = addr?.optString("suburb", "")?.ifBlank {
+              addr?.optString("quarter", "") ?: ""
+            } ?: ""
+            val city = addr?.optString("city", "")?.ifBlank {
+              addr?.optString("state", "") ?: ""
+            } ?: ""
+            
+            val highwayType = json.optString("type", "").ifBlank {
+              json.optString("class", "residential")
             }
+            
+            val maxspeedStr = extratags?.optString("maxspeed", "") ?: ""
+            val maxSpeed = maxspeedStr.filter { it.isDigit() }.toIntOrNull()
+
             val displayName = json.optString("display_name", "")
-            if (displayName.isNotBlank()) {
-              return@withContext displayName.split(",").take(2).joinToString(", ")
+            val finalRoadName = when {
+              road.isNotBlank() -> road
+              displayName.isNotBlank() -> displayName.split(",").firstOrNull()?.trim() ?: "Tuyến đường"
+              else -> "Tuyến đường"
             }
+
+            return@withContext OsmRoadInfo(
+              roadName = finalRoadName,
+              suburb = suburb,
+              city = city,
+              highwayType = highwayType,
+              maxSpeedKmh = maxSpeed,
+              fullAddress = displayName
+            )
           }
         }
       }
     } catch (e: Exception) {
-      Log.w(TAG, "Reverse geocoding error: ${e.message}")
+      Log.w(TAG, "fetchOsmRoadInfo error: ${e.message}")
     }
     return@withContext null
   }
+
 
   /**
    * Fetch real turn-by-turn route from OSRM (Open Source Routing Machine)
@@ -334,3 +370,13 @@ object NavigationRoutingService {
     return poly
   }
 }
+
+data class OsmRoadInfo(
+  val roadName: String,
+  val suburb: String = "",
+  val city: String = "",
+  val highwayType: String = "residential",
+  val maxSpeedKmh: Int? = null,
+  val fullAddress: String = ""
+)
+

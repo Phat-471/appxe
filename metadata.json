@@ -1,0 +1,6 @@
+{
+  "name": "Cảnh Báo Tốc Độ",
+  "description": "Cảnh báo tốc độ xe máy theo GPS thực tế, camera phạt nguội, biển báo giao thông bằng giọng nói và bản đồ ngoại tuyến.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

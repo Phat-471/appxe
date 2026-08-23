@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Cảnh Báo Tốc Độ</string>
+    <string name="dashboard_title">Buồng Lái Xe Máy</string>
+    <string name="overspeed_alert">VƯỢT QUÁ TỐC ĐỘ CHO PHÉP!</string>
+    <string name="camera_alert">Phía trước có Camera Giám Sát</string>
+    <string name="speed_limit_label">Giới hạn</string>
+    <string name="current_speed_unit">km/h</string>
+</resources>

@@ -443,21 +443,7 @@ fun OfflineMapCanvas(
           drawCircle(color = Color.White, radius = 5.5.dp.toPx(), center = destPos)
         }
 
-        // 5. CAMERA WARNING TETHER & SPEED SIGNS
-        if (nearestCamera != null && nearestCameraDistance != null && nearestCameraDistance <= 600) {
-          val userPos = project(locationState.latitude, locationState.longitude)
-          val targetCamPos = project(nearestCamera.latitude, nearestCamera.longitude)
-          val tetherColor = if (activeWarning?.isOverspeeding == true) AlertCrimsonDanger else AlertAmberPrimary
-
-          drawLine(
-            color = tetherColor.copy(alpha = 0.8f),
-            start = userPos,
-            end = targetCamPos,
-            strokeWidth = 2.5.dp.toPx(),
-            cap = StrokeCap.Round
-          )
-        }
-
+        // 5. CAMERA SPEED SIGNS ON MAP
         for (cam in cameras) {
           val camPos = project(cam.latitude, cam.longitude)
           val isNear = nearestCamera?.id == cam.id

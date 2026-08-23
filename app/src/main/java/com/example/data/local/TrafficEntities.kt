@@ -70,6 +70,7 @@ data class UserSettingsEntity(
   val autoScreenOn: Boolean = true,              // Giữ màn hình sáng khi lái
   val showBreadcrumbs: Boolean = true,           // Hiện vết đi trên bản đồ
   val chimeOnAlert: Boolean = true,              // Tiếng bíp khi cảnh báo
-  val speedUnit: String = "km/h"                 // Đơn vị tốc độ
+  val speedUnit: String = "km/h",                // Đơn vị tốc độ
+  val vehicleIconType: String = "SCOOTER"        // Loại biểu tượng xe trên bản đồ: ARROW, MOTORBIKE, SCOOTER, CAR, TRUCK
 )
 

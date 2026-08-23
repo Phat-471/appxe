@@ -42,6 +42,14 @@ import com.example.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlin.math.*
 
+enum class VehicleIconType {
+  ARROW,      // Classic navigation triangle (default)
+  MOTORBIKE,  // 🏍️ Xe máy phân khối lớn
+  SCOOTER,    // 🛵 Xe tay ga / xe số
+  CAR,        // 🚗 Ô tô
+  TRUCK       // 🚛 Xe tải
+}
+
 enum class MapOrientationMode {
   TRACK_UP, // Vehicle forward heading points UP
   NORTH_UP, // North is always UP
@@ -69,6 +77,7 @@ fun OfflineMapCanvas(
   compassEnabled: Boolean = true,
   darkMapMode: Boolean = false,
   showBreadcrumbs: Boolean = true,
+  vehicleIconType: VehicleIconType = VehicleIconType.MOTORBIKE,
   modifier: Modifier = Modifier
 ) {
   val coroutineScope = rememberCoroutineScope()
@@ -475,232 +484,186 @@ fun OfflineMapCanvas(
           drawCircle(color = Color.White, radius = 5.5.dp.toPx(), center = destPos)
         }
 
-        // 5. ENHANCED SPECIFIC CAMERA MARKERS ON MAP
+        // 5. ENHANCED SPECIFIC CAMERA MARKERS ON MAP (Vietmap-style speedometer cards)
         for (cam in cameras) {
           val camPos = project(cam.latitude, cam.longitude)
           val isNear = nearestCamera?.id == cam.id
+          val distLabel = if (isNear && nearestCameraDistance != null) "${nearestCameraDistance}m" else null
 
-          // Outer beacon alert glow for nearby cameras
+          // Alert pulse for closest camera
           if (isNear) {
-            drawCircle(
-              color = (if (activeWarning?.isOverspeeding == true) AlertCrimsonDanger else Color(0xFF0284C7)).copy(alpha = pulseAlpha),
-              radius = pulseRadius * 1.1f,
-              center = camPos
-            )
-            drawCircle(
-              color = Color(0xFF0284C7).copy(alpha = 0.25f),
-              radius = 22.dp.toPx(),
-              center = camPos
-            )
+            val pulseColor = if (activeWarning?.isOverspeeding == true) AlertCrimsonDanger else Color(0xFF0284C7)
+            drawCircle(color = pulseColor.copy(alpha = pulseAlpha * 0.6f), radius = pulseRadius * 1.4f, center = camPos)
           }
 
           when (cam.type) {
-            CameraType.SPEED_CAMERA, CameraType.SPEED_LIMIT_SIGN -> {
-              // Standard Vietnamese P.127 Speed Limit Sign
-              drawCircle(color = Color(0xFF0F172A).copy(alpha = 0.15f), radius = 14.5.dp.toPx(), center = Offset(camPos.x, camPos.y + 2.dp.toPx()))
-              drawCircle(color = SignBackgroundWhite, radius = 13.5.dp.toPx(), center = camPos)
-              drawCircle(
-                color = SignBorderRed,
-                radius = 13.5.dp.toPx(),
-                center = camPos,
-                style = Stroke(width = 3.dp.toPx())
-              )
-
-              val speedPaint = Paint().apply {
-                isAntiAlias = true
-                textSize = 10.5.sp.toPx()
-                color = android.graphics.Color.BLACK
-                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                textAlign = Paint.Align.CENTER
-              }
-              drawContext.canvas.nativeCanvas.drawText("${cam.speedLimit}", camPos.x, camPos.y + 3.8.dp.toPx(), speedPaint)
-
-              // Video camera lens badge on top right for speed cameras
-              if (cam.type == CameraType.SPEED_CAMERA) {
-                val tagCenter = Offset(camPos.x + 9.5.dp.toPx(), camPos.y - 9.5.dp.toPx())
-                drawCircle(color = Color(0xFF0284C7), radius = 5.dp.toPx(), center = tagCenter)
-                drawCircle(color = Color.White, radius = 5.dp.toPx(), center = tagCenter, style = Stroke(width = 1.dp.toPx()))
-                drawCircle(color = Color.White, radius = 2.dp.toPx(), center = tagCenter)
-              }
-            }
-
-            CameraType.RED_LIGHT_CAMERA -> {
-              // Traffic Light Post Icon
-              val w = 15.dp.toPx()
-              val h = 25.dp.toPx()
-              val left = camPos.x - w / 2f
-              val top = camPos.y - h / 2f
+            CameraType.SPEED_CAMERA, CameraType.COLD_FINE_SURVEILLANCE, CameraType.COMMUNITY_REPORT -> {
+              // Vietmap-style black card with speedometer icon (matches reference screenshot exactly)
+              val cardW = 40.dp.toPx()
+              val cardH = 40.dp.toPx()
+              val left = camPos.x - cardW / 2f
+              val top = camPos.y - cardH / 2f
 
               val bgPaint = Paint().apply {
                 isAntiAlias = true
-                color = android.graphics.Color.argb(240, 15, 23, 42)
+                color = if (isNear && activeWarning?.isOverspeeding == true)
+                  android.graphics.Color.argb(255, 185, 28, 28) // red when over speed
+                else android.graphics.Color.argb(255, 20, 20, 30) // near-black normally
                 style = Paint.Style.FILL
               }
               val borderPaint = Paint().apply {
                 isAntiAlias = true
-                color = android.graphics.Color.argb(255, 100, 116, 139)
+                color = if (isNear) android.graphics.Color.argb(255, 2, 180, 255) else android.graphics.Color.argb(200, 200, 210, 220)
                 style = Paint.Style.STROKE
-                strokeWidth = 1.5.dp.toPx()
+                strokeWidth = if (isNear) 2.5.dp.toPx() else 1.5.dp.toPx()
               }
 
-              drawContext.canvas.nativeCanvas.drawRoundRect(left, top, left + w, top + h, 6.dp.toPx(), 6.dp.toPx(), bgPaint)
-              drawContext.canvas.nativeCanvas.drawRoundRect(left, top, left + w, top + h, 6.dp.toPx(), 6.dp.toPx(), borderPaint)
+              // Card body with rounded corners
+              drawContext.canvas.nativeCanvas.drawRoundRect(left, top, left + cardW, top + cardH, 8.dp.toPx(), 8.dp.toPx(), bgPaint)
+              drawContext.canvas.nativeCanvas.drawRoundRect(left, top, left + cardW, top + cardH, 8.dp.toPx(), 8.dp.toPx(), borderPaint)
 
-              // 3 lights: Red, Yellow, Green
-              drawCircle(color = Color(0xFFEF4444), radius = 2.8.dp.toPx(), center = Offset(camPos.x, camPos.y - 6.5.dp.toPx()))
-              drawCircle(color = Color(0xFFF59E0B), radius = 2.8.dp.toPx(), center = Offset(camPos.x, camPos.y))
-              drawCircle(color = Color(0xFF10B981), radius = 2.8.dp.toPx(), center = Offset(camPos.x, camPos.y + 6.5.dp.toPx()))
-            }
-
-            CameraType.COLD_FINE_SURVEILLANCE -> {
-              // Cold fine dome / blue surveillance shield
-              val sizePx = 22.dp.toPx()
-              val left = camPos.x - sizePx / 2f
-              val top = camPos.y - sizePx / 2f
-
-              val bgPaint = Paint().apply {
-                isAntiAlias = true
-                color = android.graphics.Color.argb(240, 2, 132, 199)
-                style = Paint.Style.FILL
-              }
-              val borderPaint = Paint().apply {
+              // Speedometer arc icon inside (like reference screenshot)
+              val arcPaint = Paint().apply {
                 isAntiAlias = true
                 color = android.graphics.Color.WHITE
                 style = Paint.Style.STROKE
                 strokeWidth = 1.8.dp.toPx()
+                strokeCap = Paint.Cap.ROUND
               }
+              val arcCenterX = camPos.x
+              val arcCenterY = camPos.y - 2.dp.toPx()
+              val arcRadius = 11.dp.toPx()
+              val arcRect = android.graphics.RectF(arcCenterX - arcRadius, arcCenterY - arcRadius, arcCenterX + arcRadius, arcCenterY + arcRadius)
+              drawContext.canvas.nativeCanvas.drawArc(arcRect, 210f, 120f, false, arcPaint)
 
-              drawContext.canvas.nativeCanvas.drawRoundRect(left, top, left + sizePx, top + sizePx, 6.dp.toPx(), 6.dp.toPx(), bgPaint)
-              drawContext.canvas.nativeCanvas.drawRoundRect(left, top, left + sizePx, top + sizePx, 6.dp.toPx(), 6.dp.toPx(), borderPaint)
+              // Speedometer needle
+              val needleAngle = Math.toRadians(270.0) // pointing straight up = normal speed
+              val needlePaint = Paint().apply { isAntiAlias = true; color = if (isNear && activeWarning?.isOverspeeding == true) android.graphics.Color.argb(255, 255, 80, 80) else android.graphics.Color.WHITE; strokeWidth = 1.5.dp.toPx(); strokeCap = Paint.Cap.ROUND; style = Paint.Style.STROKE }
+              val needleEndX = arcCenterX + (arcRadius * 0.7f * cos(needleAngle).toFloat())
+              val needleEndY = arcCenterY + (arcRadius * 0.7f * sin(needleAngle).toFloat())
+              drawContext.canvas.nativeCanvas.drawLine(arcCenterX, arcCenterY, needleEndX, needleEndY, needlePaint)
 
-              val iconPaint = Paint().apply {
+              // Blue dot in the center (like reference screenshot)
+              val dotPaint = Paint().apply { isAntiAlias = true; color = if (isNear) android.graphics.Color.argb(255, 0, 180, 255) else android.graphics.Color.argb(200, 100, 180, 255); style = Paint.Style.FILL }
+              drawContext.canvas.nativeCanvas.drawCircle(arcCenterX, arcCenterY, 3.5.dp.toPx(), dotPaint)
+
+              // Speed limit text below speedometer
+              val speedPaint = Paint().apply {
                 isAntiAlias = true
-                textSize = 10.sp.toPx()
+                textSize = 8.5.sp.toPx()
+                color = android.graphics.Color.WHITE
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 textAlign = Paint.Align.CENTER
               }
-              drawContext.canvas.nativeCanvas.drawText("📷", camPos.x, camPos.y + 3.5.dp.toPx(), iconPaint)
+              if (cam.speedLimit > 0) {
+                drawContext.canvas.nativeCanvas.drawText("${cam.speedLimit}", camPos.x, camPos.y + 15.dp.toPx(), speedPaint)
+              }
+
+              // Real-time countdown distance bubble BELOW card (exactly like reference screenshot)
+              if (distLabel != null) {
+                val distPaint = Paint().apply {
+                  isAntiAlias = true
+                  textSize = 11.sp.toPx()
+                  color = android.graphics.Color.WHITE
+                  typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                  textAlign = Paint.Align.CENTER
+                }
+                val distBubbleY = top + cardH + 18.dp.toPx()
+                drawContext.canvas.nativeCanvas.drawText(distLabel, camPos.x, distBubbleY, distPaint)
+              }
             }
 
-            CameraType.SECURITY_MONITORING -> {
-              // Security & Surveillance Dome (Royal Blue + Shield)
-              val sizePx = 22.dp.toPx()
-              drawCircle(color = Color(0xFF1E40AF), radius = sizePx / 2f, center = camPos)
-              drawCircle(color = Color(0xFF93C5FD), radius = sizePx / 2f, center = camPos, style = Stroke(width = 1.8.dp.toPx()))
+            CameraType.RED_LIGHT_CAMERA -> {
+              // Vietmap-style: traffic light card
+              val cardW = 30.dp.toPx()
+              val cardH = 44.dp.toPx()
+              val left = camPos.x - cardW / 2f
+              val top = camPos.y - cardH / 2f
 
-              val iconPaint = Paint().apply {
-                isAntiAlias = true
-                textSize = 10.sp.toPx()
-                textAlign = Paint.Align.CENTER
+              val bgPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.argb(240, 20, 20, 30); style = Paint.Style.FILL }
+              val borderPaint = Paint().apply { isAntiAlias = true; color = if (isNear) android.graphics.Color.argb(255, 239, 68, 68) else android.graphics.Color.argb(200, 200, 210, 220); style = Paint.Style.STROKE; strokeWidth = if (isNear) 2.5.dp.toPx() else 1.5.dp.toPx() }
+
+              drawContext.canvas.nativeCanvas.drawRoundRect(left, top, left + cardW, top + cardH, 6.dp.toPx(), 6.dp.toPx(), bgPaint)
+              drawContext.canvas.nativeCanvas.drawRoundRect(left, top, left + cardW, top + cardH, 6.dp.toPx(), 6.dp.toPx(), borderPaint)
+
+              drawCircle(color = Color(0xFFEF4444), radius = 3.5.dp.toPx(), center = Offset(camPos.x, camPos.y - 10.dp.toPx()))
+              drawCircle(color = Color(0xFFF59E0B), radius = 3.5.dp.toPx(), center = Offset(camPos.x, camPos.y))
+              drawCircle(color = Color(0xFF10B981), radius = 3.5.dp.toPx(), center = Offset(camPos.x, camPos.y + 10.dp.toPx()))
+
+              if (distLabel != null) {
+                val distPaint = Paint().apply { isAntiAlias = true; textSize = 11.sp.toPx(); color = android.graphics.Color.WHITE; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER }
+                drawContext.canvas.nativeCanvas.drawText(distLabel, camPos.x, top + cardH + 16.dp.toPx(), distPaint)
               }
-              drawContext.canvas.nativeCanvas.drawText("🛡️", camPos.x, camPos.y + 3.5.dp.toPx(), iconPaint)
             }
 
             CameraType.MOTORBIKE_PROHIBITED_ZONE -> {
-              // Prohibited Motorbike Red Warning Circle
-              val r = 13.5.dp.toPx()
-              drawCircle(color = SignBackgroundWhite, radius = r, center = camPos)
+              val r = 14.dp.toPx()
+              drawCircle(color = Color.White, radius = r, center = camPos)
               drawCircle(color = Color(0xFFDC2626), radius = r, center = camPos, style = Stroke(width = 3.dp.toPx()))
-              val iconPaint = Paint().apply {
-                isAntiAlias = true
-                textSize = 10.sp.toPx()
-                textAlign = Paint.Align.CENTER
+              val iconPaint = Paint().apply { isAntiAlias = true; textSize = 11.sp.toPx(); textAlign = Paint.Align.CENTER }
+              drawContext.canvas.nativeCanvas.drawText("🚫", camPos.x, camPos.y + 4.dp.toPx(), iconPaint)
+              if (distLabel != null) {
+                val distPaint = Paint().apply { isAntiAlias = true; textSize = 11.sp.toPx(); color = android.graphics.Color.argb(255, 220, 38, 38); typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER }
+                drawContext.canvas.nativeCanvas.drawText(distLabel, camPos.x, camPos.y + r + 16.dp.toPx(), distPaint)
               }
-              drawContext.canvas.nativeCanvas.drawText("🚫", camPos.x, camPos.y + 3.5.dp.toPx(), iconPaint)
+            }
+
+            CameraType.SECURITY_MONITORING -> {
+              val r = 14.dp.toPx()
+              drawCircle(color = Color(0xFF1E40AF), radius = r, center = camPos)
+              drawCircle(color = Color(0xFF93C5FD), radius = r, center = camPos, style = Stroke(width = 1.8.dp.toPx()))
+              val iconPaint = Paint().apply { isAntiAlias = true; textSize = 11.sp.toPx(); textAlign = Paint.Align.CENTER }
+              drawContext.canvas.nativeCanvas.drawText("🛡️", camPos.x, camPos.y + 4.dp.toPx(), iconPaint)
+              if (distLabel != null) {
+                val distPaint = Paint().apply { isAntiAlias = true; textSize = 11.sp.toPx(); color = android.graphics.Color.WHITE; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER }
+                drawContext.canvas.nativeCanvas.drawText(distLabel, camPos.x, camPos.y + r + 14.dp.toPx(), distPaint)
+              }
+            }
+
+            CameraType.SPEED_LIMIT_SIGN -> {
+              // Standard P.127 Vietnamese Speed Limit Sign
+              drawCircle(color = SignBackgroundWhite, radius = 13.5.dp.toPx(), center = camPos)
+              drawCircle(color = SignBorderRed, radius = 13.5.dp.toPx(), center = camPos, style = Stroke(width = 3.dp.toPx()))
+              val speedPaint = Paint().apply { isAntiAlias = true; textSize = 10.5.sp.toPx(); color = android.graphics.Color.BLACK; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER }
+              drawContext.canvas.nativeCanvas.drawText("${cam.speedLimit}", camPos.x, camPos.y + 3.8.dp.toPx(), speedPaint)
             }
 
             CameraType.ZONE_RESIDENTIAL_ENTRY, CameraType.ZONE_RESIDENTIAL_EXIT -> {
-              // Residential Zone Blue Sign (R.420 / R.421)
-              val w = 24.dp.toPx()
-              val h = 18.dp.toPx()
-              val left = camPos.x - w / 2f
-              val top = camPos.y - h / 2f
-
-              val bgPaint = Paint().apply {
-                isAntiAlias = true
-                color = android.graphics.Color.argb(240, 29, 78, 216)
-                style = Paint.Style.FILL
-              }
-              val borderPaint = Paint().apply {
-                isAntiAlias = true
-                color = android.graphics.Color.WHITE
-                style = Paint.Style.STROKE
-                strokeWidth = 1.5.dp.toPx()
-              }
-
+              val w = 24.dp.toPx(); val h = 18.dp.toPx(); val left = camPos.x - w / 2f; val top = camPos.y - h / 2f
+              val bgPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.argb(240, 29, 78, 216); style = Paint.Style.FILL }
+              val borderPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.WHITE; style = Paint.Style.STROKE; strokeWidth = 1.5.dp.toPx() }
               drawContext.canvas.nativeCanvas.drawRoundRect(left, top, left + w, top + h, 4.dp.toPx(), 4.dp.toPx(), bgPaint)
               drawContext.canvas.nativeCanvas.drawRoundRect(left, top, left + w, top + h, 4.dp.toPx(), 4.dp.toPx(), borderPaint)
-
-              val iconPaint = Paint().apply {
-                isAntiAlias = true
-                textSize = 9.sp.toPx()
-                textAlign = Paint.Align.CENTER
-              }
+              val iconPaint = Paint().apply { isAntiAlias = true; textSize = 9.sp.toPx(); textAlign = Paint.Align.CENTER }
               drawContext.canvas.nativeCanvas.drawText("🏙️", camPos.x, camPos.y + 3.5.dp.toPx(), iconPaint)
-
               if (cam.type == CameraType.ZONE_RESIDENTIAL_EXIT) {
                 drawLine(color = Color(0xFFEF4444), start = Offset(left, top + h), end = Offset(left + w, top), strokeWidth = 2.5.dp.toPx())
               }
+              if (distLabel != null) {
+                val distPaint = Paint().apply { isAntiAlias = true; textSize = 11.sp.toPx(); color = android.graphics.Color.WHITE; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER }
+                drawContext.canvas.nativeCanvas.drawText(distLabel, camPos.x, top + h + 16.dp.toPx(), distPaint)
+              }
             }
 
-            CameraType.HAZARD_ACCIDENT_ZONE -> {
-              val w = 24.dp.toPx()
-              val h = 21.dp.toPx()
+            CameraType.HAZARD_ACCIDENT_ZONE, CameraType.SCHOOL_ZONE -> {
+              val w = 24.dp.toPx(); val h = 21.dp.toPx()
               val path = Path().apply {
                 moveTo(camPos.x, camPos.y - h / 2f)
                 lineTo(camPos.x + w / 2f, camPos.y + h / 2f)
                 lineTo(camPos.x - w / 2f, camPos.y + h / 2f)
                 close()
               }
-              drawPath(path, color = Color(0xFFF59E0B))
+              val fillColor = if (cam.type == CameraType.SCHOOL_ZONE) Color(0xFF0284C7) else Color(0xFFF59E0B)
+              drawPath(path, color = fillColor)
               drawPath(path, color = Color(0xFF0F172A), style = Stroke(width = 2.dp.toPx()))
-
-              val textPaint = Paint().apply {
-                isAntiAlias = true
-                textSize = 10.sp.toPx()
-                color = android.graphics.Color.BLACK
-                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                textAlign = Paint.Align.CENTER
+              val textPaint = Paint().apply { isAntiAlias = true; textSize = 10.sp.toPx(); color = android.graphics.Color.BLACK; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER }
+              val label = if (cam.type == CameraType.SCHOOL_ZONE) "🏫" else "!"
+              drawContext.canvas.nativeCanvas.drawText(label, camPos.x, camPos.y + 5.dp.toPx(), textPaint)
+              if (distLabel != null) {
+                val distPaint = Paint().apply { isAntiAlias = true; textSize = 11.sp.toPx(); color = android.graphics.Color.WHITE; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); textAlign = Paint.Align.CENTER }
+                drawContext.canvas.nativeCanvas.drawText(distLabel, camPos.x, camPos.y + h + 12.dp.toPx(), distPaint)
               }
-              drawContext.canvas.nativeCanvas.drawText("!", camPos.x, camPos.y + 5.dp.toPx(), textPaint)
             }
-
-            else -> {
-              drawCircle(color = SignBackgroundWhite, radius = 12.dp.toPx(), center = camPos)
-              drawCircle(color = AlertAmberPrimary, radius = 12.dp.toPx(), center = camPos, style = Stroke(width = 2.dp.toPx()))
-              val numberPaint = Paint().apply {
-                isAntiAlias = true
-                textSize = 10.sp.toPx()
-                color = android.graphics.Color.BLACK
-                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                textAlign = Paint.Align.CENTER
-              }
-              drawContext.canvas.nativeCanvas.drawText("${cam.speedLimit}", camPos.x, camPos.y + 3.5.dp.toPx(), numberPaint)
-            }
-          }
-
-          // Proximity floating distance bubble above nearest camera
-          if (isNear && nearestCameraDistance != null) {
-            val distLabel = "${nearestCameraDistance}m"
-            val tagPaint = Paint().apply {
-              isAntiAlias = true
-              textSize = 10.5.sp.toPx()
-              color = android.graphics.Color.WHITE
-              typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-              textAlign = Paint.Align.CENTER
-            }
-            val tagW = tagPaint.measureText(distLabel) + 14.dp.toPx()
-            val tagH = 18.dp.toPx()
-            val tagLeft = camPos.x - tagW / 2f
-            val tagTop = camPos.y - 32.dp.toPx()
-
-            val tagBgPaint = Paint().apply {
-              isAntiAlias = true
-              color = if (activeWarning?.isOverspeeding == true) android.graphics.Color.argb(240, 225, 29, 72) else android.graphics.Color.argb(240, 15, 23, 42)
-              style = Paint.Style.FILL
-            }
-
-            drawContext.canvas.nativeCanvas.drawRoundRect(tagLeft, tagTop, tagLeft + tagW, tagTop + tagH, 8.dp.toPx(), 8.dp.toPx(), tagBgPaint)
-            drawContext.canvas.nativeCanvas.drawText(distLabel, camPos.x, tagTop + 13.dp.toPx(), tagPaint)
           }
         }
 
@@ -771,49 +734,141 @@ fun OfflineMapCanvas(
           )
         }
 
-        // 7. HIGH-PRECISION NAVIGATION VEHICLE CHEVRON (Vietmap 3D Style with Compass Sensor)
+        // 7. HIGH-PRECISION NAVIGATION VEHICLE MARKER (Supports Motorbike, Car, Truck icons)
         val userPos = project(locationState.latitude, locationState.longitude)
         val headingRad = Math.toRadians((resolvedHeading - 90).toDouble())
+        val isMoving = locationState.speedKmh > 2.5f
 
         // Pulsating location accuracy halo
         drawCircle(
-          color = Color(0xFF0284C7).copy(alpha = pulseAlpha),
-          radius = pulseRadius * 1.3f,
-          center = userPos
-        )
-        drawCircle(
-          color = Color(0xFF0284C7).copy(alpha = 0.25f),
-          radius = 24.dp.toPx(),
+          color = Color(0xFF0284C7).copy(alpha = pulseAlpha * 0.7f),
+          radius = pulseRadius * 1.5f,
           center = userPos
         )
 
-        // 3D Navigation Vehicle Chevron
-        val arrowLen = 22.dp.toPx()
-        val arrowWidth = 15.dp.toPx()
-        val forwardX = userPos.x + arrowLen * cos(headingRad).toFloat()
-        val forwardY = userPos.y + arrowLen * sin(headingRad).toFloat()
-        val leftX = userPos.x + arrowWidth * cos(headingRad + Math.toRadians(142.0)).toFloat()
-        val leftY = userPos.y + arrowWidth * sin(headingRad + Math.toRadians(142.0)).toFloat()
-        val rightX = userPos.x + arrowWidth * cos(headingRad - Math.toRadians(142.0)).toFloat()
-        val rightY = userPos.y + arrowWidth * sin(headingRad - Math.toRadians(142.0)).toFloat()
+        when (vehicleIconType) {
+          VehicleIconType.ARROW -> {
+            // Classic navigation chevron (triangle)
+            val arrowLen = 22.dp.toPx()
+            val arrowWidth = 15.dp.toPx()
+            val forwardX = userPos.x + arrowLen * cos(headingRad).toFloat()
+            val forwardY = userPos.y + arrowLen * sin(headingRad).toFloat()
+            val leftX = userPos.x + arrowWidth * cos(headingRad + Math.toRadians(142.0)).toFloat()
+            val leftY = userPos.y + arrowWidth * sin(headingRad + Math.toRadians(142.0)).toFloat()
+            val rightX = userPos.x + arrowWidth * cos(headingRad - Math.toRadians(142.0)).toFloat()
+            val rightY = userPos.y + arrowWidth * sin(headingRad - Math.toRadians(142.0)).toFloat()
+            val arrowPath = Path().apply {
+              moveTo(forwardX, forwardY)
+              lineTo(leftX, leftY)
+              lineTo(userPos.x, userPos.y)
+              lineTo(rightX, rightY)
+              close()
+            }
+            drawPath(arrowPath, color = Color.White, style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+            drawPath(arrowPath, color = if (activeWarning?.isOverspeeding == true) AlertCrimsonDanger else Color(0xFF00B4D8))
+          }
 
-        val arrowPath = Path().apply {
-          moveTo(forwardX, forwardY)
-          lineTo(leftX, leftY)
-          lineTo(userPos.x, userPos.y)
-          lineTo(rightX, rightY)
-          close()
+          VehicleIconType.MOTORBIKE, VehicleIconType.SCOOTER -> {
+            // Motorbike icon: Circular badge + 🏍️ emoji rotated to heading
+            val r = 17.dp.toPx()
+            val shadowPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.argb(80, 0, 0, 0); style = Paint.Style.FILL }
+            val bgPaint = Paint().apply {
+              isAntiAlias = true
+              color = if (activeWarning?.isOverspeeding == true) android.graphics.Color.argb(255, 220, 38, 38)
+              else android.graphics.Color.argb(255, 0, 180, 216)
+              style = Paint.Style.FILL
+            }
+            val borderPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.WHITE; style = Paint.Style.STROKE; strokeWidth = 2.8.dp.toPx() }
+            val emojiPaint = Paint().apply { isAntiAlias = true; textSize = 14.sp.toPx(); textAlign = Paint.Align.CENTER }
+            val arrowPaint = Paint().apply {
+              isAntiAlias = true
+              color = android.graphics.Color.WHITE
+              style = Paint.Style.FILL
+            }
+
+            // Shadow
+            drawContext.canvas.nativeCanvas.drawCircle(userPos.x, userPos.y + 2.dp.toPx(), r, shadowPaint)
+            // Main circle
+            drawContext.canvas.nativeCanvas.drawCircle(userPos.x, userPos.y, r, bgPaint)
+            // White border
+            drawContext.canvas.nativeCanvas.drawCircle(userPos.x, userPos.y, r, borderPaint)
+
+            // Rotating heading mini-arrow on top
+            if (isMoving) {
+              drawContext.canvas.nativeCanvas.save()
+              drawContext.canvas.nativeCanvas.translate(userPos.x, userPos.y)
+              drawContext.canvas.nativeCanvas.rotate(resolvedHeading)
+              val triPath = android.graphics.Path().apply {
+                moveTo(0f, -r - 6.dp.toPx())
+                lineTo(-4.dp.toPx(), -r)
+                lineTo(4.dp.toPx(), -r)
+                close()
+              }
+              drawContext.canvas.nativeCanvas.drawPath(triPath, arrowPaint)
+              drawContext.canvas.nativeCanvas.restore()
+            }
+
+            // Motorbike emoji
+            val iconStr = if (vehicleIconType == VehicleIconType.SCOOTER) "🛵" else "🏍️"
+            drawContext.canvas.nativeCanvas.drawText(iconStr, userPos.x, userPos.y + 5.dp.toPx(), emojiPaint)
+          }
+
+          VehicleIconType.CAR -> {
+            val r = 17.dp.toPx()
+            val bgPaint = Paint().apply {
+              isAntiAlias = true
+              color = if (activeWarning?.isOverspeeding == true) android.graphics.Color.argb(255, 220, 38, 38) else android.graphics.Color.argb(255, 2, 132, 199)
+              style = Paint.Style.FILL
+            }
+            val borderPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.WHITE; style = Paint.Style.STROKE; strokeWidth = 2.8.dp.toPx() }
+            val emojiPaint = Paint().apply { isAntiAlias = true; textSize = 14.sp.toPx(); textAlign = Paint.Align.CENTER }
+            val arrowPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.WHITE; style = Paint.Style.FILL }
+
+            drawContext.canvas.nativeCanvas.drawCircle(userPos.x, userPos.y, r, bgPaint)
+            drawContext.canvas.nativeCanvas.drawCircle(userPos.x, userPos.y, r, borderPaint)
+
+            if (isMoving) {
+              drawContext.canvas.nativeCanvas.save()
+              drawContext.canvas.nativeCanvas.translate(userPos.x, userPos.y)
+              drawContext.canvas.nativeCanvas.rotate(resolvedHeading)
+              val triPath = android.graphics.Path().apply {
+                moveTo(0f, -r - 6.dp.toPx()); lineTo(-4.dp.toPx(), -r); lineTo(4.dp.toPx(), -r); close()
+              }
+              drawContext.canvas.nativeCanvas.drawPath(triPath, arrowPaint)
+              drawContext.canvas.nativeCanvas.restore()
+            }
+
+            drawContext.canvas.nativeCanvas.drawText("🚗", userPos.x, userPos.y + 5.dp.toPx(), emojiPaint)
+          }
+
+          VehicleIconType.TRUCK -> {
+            val r = 17.dp.toPx()
+            val bgPaint = Paint().apply {
+              isAntiAlias = true
+              color = if (activeWarning?.isOverspeeding == true) android.graphics.Color.argb(255, 220, 38, 38) else android.graphics.Color.argb(255, 100, 116, 139)
+              style = Paint.Style.FILL
+            }
+            val borderPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.WHITE; style = Paint.Style.STROKE; strokeWidth = 2.8.dp.toPx() }
+            val emojiPaint = Paint().apply { isAntiAlias = true; textSize = 14.sp.toPx(); textAlign = Paint.Align.CENTER }
+            val arrowPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.WHITE; style = Paint.Style.FILL }
+
+            drawContext.canvas.nativeCanvas.drawCircle(userPos.x, userPos.y, r, bgPaint)
+            drawContext.canvas.nativeCanvas.drawCircle(userPos.x, userPos.y, r, borderPaint)
+
+            if (isMoving) {
+              drawContext.canvas.nativeCanvas.save()
+              drawContext.canvas.nativeCanvas.translate(userPos.x, userPos.y)
+              drawContext.canvas.nativeCanvas.rotate(resolvedHeading)
+              val triPath = android.graphics.Path().apply {
+                moveTo(0f, -r - 6.dp.toPx()); lineTo(-4.dp.toPx(), -r); lineTo(4.dp.toPx(), -r); close()
+              }
+              drawContext.canvas.nativeCanvas.drawPath(triPath, arrowPaint)
+              drawContext.canvas.nativeCanvas.restore()
+            }
+
+            drawContext.canvas.nativeCanvas.drawText("🚛", userPos.x, userPos.y + 5.dp.toPx(), emojiPaint)
+          }
         }
-
-        drawPath(
-          path = arrowPath,
-          color = Color.White,
-          style = Stroke(width = 3.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-        )
-        drawPath(
-          path = arrowPath,
-          color = if (activeWarning?.isOverspeeding == true) AlertCrimsonDanger else Color(0xFF00B4D8)
-        )
       }
     }
 

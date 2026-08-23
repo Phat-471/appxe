@@ -105,8 +105,14 @@ fun SettingsScreen(
           RowDivider()
           SettingsNavigationRow(
             icon = Icons.Default.TwoWheeler,
-            title = "Loại phương tiện",
-            valueText = "Xe máy (Ưu tiên)",
+            title = "Biểu tượng xe trên bản đồ",
+            valueText = when (settings.vehicleIconType) {
+              "SCOOTER" -> "🛵 Xe tay ga"
+              "MOTORBIKE" -> "🏍️ Xe máy"
+              "CAR" -> "🚗 Ô tô"
+              "TRUCK" -> "🚛 Xe tải"
+              else -> "↑ Mũi tên"
+            },
             onClick = { showVehicleTypeDialog = true }
           )
           RowDivider()
@@ -340,25 +346,45 @@ fun SettingsScreen(
     )
   }
 
-  // Vehicle Type Dialog
+  // Vehicle Type Dialog - Icon Picker
   if (showVehicleTypeDialog) {
     AlertDialog(
       onDismissRequest = { showVehicleTypeDialog = false },
-      title = { Text("Loại phương tiện", fontWeight = FontWeight.Bold) },
+      title = { Text("Biểu tượng xe trên bản đồ", fontWeight = FontWeight.Bold) },
       text = {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-          Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-              .fillMaxWidth()
-              .clickable { showVehicleTypeDialog = false }
-              .padding(vertical = 10.dp)
-          ) {
-            RadioButton(selected = true, onClick = { showVehicleTypeDialog = false })
-            Spacer(modifier = Modifier.width(8.dp))
-            Column {
-              Text("🏍️ Xe máy (Mặc định)", fontWeight = FontWeight.Bold)
-              Text("Tự động tránh cao tốc & cảnh báo đường cấm xe 2 bánh", fontSize = 12.sp, color = Color.Gray)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+          listOf(
+            Triple("SCOOTER", "🛵", "Xe tay ga / xe số (Mặc định)"),
+            Triple("MOTORBIKE", "🏍️", "Xe máy phân khối lớn"),
+            Triple("CAR", "🚗", "Ô tô"),
+            Triple("TRUCK", "🚛", "Xe tải"),
+            Triple("ARROW", "↑", "Mũi tên cổ điển")
+          ).forEach { (type, icon, label) ->
+            Row(
+              verticalAlignment = Alignment.CenterVertically,
+              modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                  onUpdateSettings(settings.copy(vehicleIconType = type))
+                  showVehicleTypeDialog = false
+                }
+                .padding(vertical = 10.dp, horizontal = 4.dp)
+            ) {
+              RadioButton(
+                selected = settings.vehicleIconType == type,
+                onClick = {
+                  onUpdateSettings(settings.copy(vehicleIconType = type))
+                  showVehicleTypeDialog = false
+                }
+              )
+              Spacer(modifier = Modifier.width(8.dp))
+              Text(
+                text = icon,
+                fontSize = 22.sp,
+                modifier = Modifier.width(36.dp)
+              )
+              Spacer(modifier = Modifier.width(4.dp))
+              Text(label, style = MaterialTheme.typography.bodyMedium)
             }
           }
         }

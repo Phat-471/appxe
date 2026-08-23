@@ -76,18 +76,64 @@ class TrafficWarningEngine(
       }
     }
 
-    // 3. Determine Legal Speed Limit (Tốc độ Nhà nước cho phép theo TT 31/2019/TT-BGTVT)
+    // 3. Determine Legal Speed Limit (Chuẩn theo Thông tư 31/2019/TT-BGTVT & QCVN 41:2019)
     val effectiveSpeedLimit = when {
-      nearestCamera != null && minDistance < 500 -> nearestCamera.speedLimit
-      currentRoadName.contains("Cao tốc", ignoreCase = true) || currentRoadName.contains("Expressway", ignoreCase = true) -> 80
+      // Ưu tiên 1: Biển báo tốc độ hoặc Camera gần nhất
+      nearestCamera != null && minDistance < 550 -> nearestCamera.speedLimit
+
+      // Ưu tiên 2: Đường Cao Tốc (Expressway) -> 100 - 120 km/h
+      currentRoadName.contains("Cao tốc", ignoreCase = true) ||
+      currentRoadName.contains("Cao toc", ignoreCase = true) ||
+      currentRoadName.contains("Expressway", ignoreCase = true) ||
+      currentRoadName.contains("CT.01", ignoreCase = true) ||
+      currentRoadName.contains("CT.02", ignoreCase = true) ||
+      currentRoadName.contains("Long Thành", ignoreCase = true) ||
+      currentRoadName.contains("Dầu Giây", ignoreCase = true) ||
+      currentRoadName.contains("Trung Lương", ignoreCase = true) ||
+      currentRoadName.contains("Pháp Vân", ignoreCase = true) ||
+      currentRoadName.contains("Hải Phòng", ignoreCase = true) -> 100
+
+      // Ưu tiên 3: Quốc Lộ ngoài đô thị (QL1A, QL51, QL13, QL22, QL14, QL20, QL5...) -> 80 km/h
+      currentRoadName.contains("Quốc Lộ", ignoreCase = true) ||
+      currentRoadName.contains("Quoc lo", ignoreCase = true) ||
+      currentRoadName.contains("QL1", ignoreCase = true) ||
+      currentRoadName.contains("QL51", ignoreCase = true) ||
+      currentRoadName.contains("QL13", ignoreCase = true) ||
+      currentRoadName.contains("QL22", ignoreCase = true) ||
+      currentRoadName.contains("QL14", ignoreCase = true) ||
+      currentRoadName.contains("QL20", ignoreCase = true) ||
+      currentRoadName.contains("QL5", ignoreCase = true) ||
+      currentRoadName.contains("QL18", ignoreCase = true) ||
+      currentRoadName.contains("Xa Lộ Hà Nội", ignoreCase = true) ||
+      currentRoadName.contains("Xa Lo", ignoreCase = true) ||
+      currentRoadName.contains("AH1", ignoreCase = true) ||
+      currentRoadName.contains("AH17", ignoreCase = true) -> {
+        // Nếu gần biển báo bắt đầu khu dân cư thì 60 km/h, còn lại ngoài quốc lộ là 80 km/h
+        if (nearestCamera?.type == CameraType.ZONE_RESIDENTIAL_ENTRY && minDistance < 750) 60 else 80
+      }
+
+      // Ưu tiên 4: Đại lộ, đường đôi có dải phân cách giữa trong đô thị -> 60 km/h
       currentRoadName.contains("Võ Văn Kiệt", ignoreCase = true) ||
       currentRoadName.contains("Phạm Văn Đồng", ignoreCase = true) ||
       currentRoadName.contains("Nguyễn Văn Linh", ignoreCase = true) ||
+      currentRoadName.contains("Mai Chí Thọ", ignoreCase = true) ||
+      currentRoadName.contains("Võ Nguyên Giáp", ignoreCase = true) ||
       currentRoadName.contains("Vành Đai", ignoreCase = true) ||
-      currentRoadName.contains("Quốc Lộ 51", ignoreCase = true) ||
-      currentRoadName.contains("Quốc Lộ 1A", ignoreCase = true) ||
-      currentRoadName.contains("Đại Lộ", ignoreCase = true) -> 60
-      else -> 50 // Standard Vietnam urban road limit for motorbikes/cars
+      currentRoadName.contains("Đại Lộ", ignoreCase = true) ||
+      currentRoadName.contains("Đại lộ Thăng Long", ignoreCase = true) ||
+      currentRoadName.contains("Trường Chinh", ignoreCase = true) ||
+      currentRoadName.contains("Điện Biên Phủ", ignoreCase = true) ||
+      currentRoadName.contains("Nam Kỳ Khởi Nghĩa", ignoreCase = true) ||
+      currentRoadName.contains("Nguyễn Hữu Thọ", ignoreCase = true) -> 60
+
+      // Ưu tiên 5: Đường Tỉnh / Tỉnh Lộ (ĐT, TL) -> 70 km/h ngoài đô thị
+      currentRoadName.contains("Đường tỉnh", ignoreCase = true) ||
+      currentRoadName.contains("Tỉnh lộ", ignoreCase = true) ||
+      currentRoadName.contains("ĐT", ignoreCase = true) ||
+      currentRoadName.contains("TL", ignoreCase = true) -> 70
+
+      // Mặc định: Đường phố nội thị 2 chiều thông thường -> 50 km/h
+      else -> 50
     }
 
     // 4. Compare current speed with state limit

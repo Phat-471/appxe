@@ -163,14 +163,14 @@ fun OfflineMapCanvas(
 
   // Base tile size adapting to screen density (256.dp) for large, sharp text & road details
   val baseTileSize = with(density) { 256.dp.toPx() }
-  val anchorZoom = zoomLevel.toInt().coerceIn(2, currentTileSource.maxZoom)
+  val anchorZoom = zoomLevel.toInt().coerceIn(2, 18)
   val zoomFraction = zoomLevel - anchorZoom
   val zoomMultiplier = 2.0.pow(zoomFraction.toDouble()).toFloat()
 
   Box(
     modifier = modifier
       .fillMaxSize()
-      .background(Color(0xFFE8E8E8))
+      .background(Color(0xFFF1F5F9))
       .pointerInput(orientationMode) {
         detectTapGestures(
           onDoubleTap = { tapOffset ->
@@ -182,7 +182,7 @@ fun OfflineMapCanvas(
               val originY = canvasH / 2f + vehicleBias
 
               val oldZ = animatedZoom.value
-              val targetZ = (oldZ + 1.2f).coerceAtMost(21.5f)
+              val targetZ = (oldZ + 1.2f).coerceIn(12.0f, 19.5f)
               val actualScale = 2.0.pow((targetZ - oldZ).toDouble()).toFloat()
 
               panOffsetX = panOffsetX * actualScale + (tapOffset.x - originX) * (1f - actualScale)
@@ -256,7 +256,7 @@ fun OfflineMapCanvas(
             // Mercator tile scale delta: deltaZ = log2(zoom) = ln(zoom)/ln(2)
             val deltaZ = (ln(zoom.toDouble()) / ln(2.0)).toFloat()
             val oldZ = animatedZoom.value
-            val newZ = (oldZ + deltaZ).coerceIn(3.0f, 21.5f)
+            val newZ = (oldZ + deltaZ).coerceIn(3.0f, 19.5f)
             val actualScaleRatio = 2.0.pow((newZ - oldZ).toDouble()).toFloat()
 
             // Shift pan offset around exact touch centroid
@@ -306,9 +306,7 @@ fun OfflineMapCanvas(
       // Rotate entire canvas smoothly
       rotate(degrees = animatedRotation, pivot = Offset(midX, midY)) {
 
-        // Grid lines removed - they caused unwanted yellow/orange stripes on some devices
-
-        // 2. OPENSTREETMAP TILE RENDERING
+        // 2. OPENSTREETMAP TILE RENDERING WITH MULTI-LEVEL DEEP FALLBACK
         val maxTileIndex = (1 shl anchorZoom) - 1
         val diagonal = hypot(canvasWidth, canvasHeight)
         val tilesMargin = ceil(diagonal / tileSizePx / 2.0).toInt() + 2
@@ -329,30 +327,18 @@ fun OfflineMapCanvas(
                 image = tileBitmap,
                 dstOffset = IntOffset(tileScreenX.toInt(), tileScreenY.toInt()),
                 dstSize = IntSize(ceil(tileSizePx).toInt() + 1, ceil(tileSizePx).toInt() + 1),
-                filterQuality = FilterQuality.Low
+                filterQuality = FilterQuality.Medium
               )
             } else {
-              val fallback = OsmTileManager.getParentFallbackTile(currentTileSource, anchorZoom, tx, ty)
+              val fallback = OsmTileManager.getDeepFallbackTile(currentTileSource, anchorZoom, tx, ty)
               if (fallback != null) {
-                val (parentBmp, quadrant) = fallback
-                val halfW = parentBmp.width / 2
-                val halfH = parentBmp.height / 2
-                val srcX = if (quadrant % 2 == 1) halfW else 0
-                val srcY = if (quadrant >= 2) halfH else 0
-
                 drawImage(
-                  image = parentBmp,
-                  srcOffset = IntOffset(srcX, srcY),
-                  srcSize = IntSize(halfW, halfH),
+                  image = fallback.image,
+                  srcOffset = IntOffset(fallback.srcX, fallback.srcY),
+                  srcSize = IntSize(fallback.srcW, fallback.srcH),
                   dstOffset = IntOffset(tileScreenX.toInt(), tileScreenY.toInt()),
                   dstSize = IntSize(ceil(tileSizePx).toInt() + 1, ceil(tileSizePx).toInt() + 1),
-                  filterQuality = FilterQuality.Low
-                )
-              } else {
-                drawRect(
-                  color = Color(0xFFE2E8F0),
-                  topLeft = Offset(tileScreenX, tileScreenY),
-                  size = Size(tileSizePx, tileSizePx)
+                  filterQuality = FilterQuality.Medium
                 )
               }
             }

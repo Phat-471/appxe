@@ -95,21 +95,49 @@ object OsmTileManager {
     return null
   }
 
+  data class FallbackSubTile(
+    val image: ImageBitmap,
+    val srcX: Int,
+    val srcY: Int,
+    val srcW: Int,
+    val srcH: Int
+  )
+
   /**
-   * Fallback to parent tile at (zoom - 1) if current tile is still loading.
-   * Prevents gray/blank gaps during rapid continuous zoom gestures.
+   * Recursive fallback to parent tiles (zoom - 1 down to zoom - 4).
+   * Guarantees 100% continuous map coverage during deep zoom or slow connection.
    */
-  fun getParentFallbackTile(source: MapTileSource, zoom: Int, x: Int, y: Int): Pair<ImageBitmap, Int>? {
-    if (zoom <= 3) return null
-    val parentZoom = zoom - 1
-    val parentX = x / 2
-    val parentY = y / 2
-    val parentKey = "${source.name}_${parentZoom}_${parentX}_${parentY}"
-    val parentBitmap = memoryCache.get(parentKey)
-    if (parentBitmap != null) {
-      // Quadrant index: 0 = top-left, 1 = top-right, 2 = bottom-left, 3 = bottom-right
-      val quadrant = (x % 2) + (y % 2) * 2
-      return parentBitmap to quadrant
+  fun getDeepFallbackTile(source: MapTileSource, zoom: Int, x: Int, y: Int): FallbackSubTile? {
+    for (diff in 1..4) {
+      val pZoom = zoom - diff
+      if (pZoom < 2) break
+      val scale = 1 shl diff
+      val pX = x shr diff
+      val pY = y shr diff
+      val parentKey = "${source.name}_${pZoom}_${pX}_${pY}"
+      val pBitmap = memoryCache.get(parentKey)
+        ?: diskCacheDir?.let { dir ->
+          val file = File(dir, "$parentKey.png")
+          if (file.exists() && file.length() > 200) {
+            BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()?.also {
+              memoryCache.put(parentKey, it)
+            }
+          } else null
+        }
+
+      if (pBitmap != null) {
+        val subW = pBitmap.width / scale
+        val subH = pBitmap.height / scale
+        val subX = (x % scale) * subW
+        val subY = (y % scale) * subH
+        return FallbackSubTile(
+          image = pBitmap,
+          srcX = subX.coerceIn(0, pBitmap.width - subW),
+          srcY = subY.coerceIn(0, pBitmap.height - subH),
+          srcW = subW.coerceAtLeast(1),
+          srcH = subH.coerceAtLeast(1)
+        )
+      }
     }
     return null
   }

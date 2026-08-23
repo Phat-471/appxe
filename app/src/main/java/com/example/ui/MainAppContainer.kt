@@ -21,7 +21,7 @@ import com.example.viewmodel.SpeedAlertViewModel
 
 enum class NavigationTab(val title: String, val icon: ImageVector) {
   MAP("Bản Đồ & Cảnh Báo", Icons.Default.Map),
-  HISTORY("Lịch Sử", Icons.Default.History),
+  COCKPIT("Đồng Hồ HUD", Icons.Default.Speed),
   SETTINGS("Cài Đặt", Icons.Default.Settings)
 }
 
@@ -133,12 +133,27 @@ fun MainAppContainer(
             )
           }
 
-          NavigationTab.HISTORY -> {
-            TripHistoryScreen(
-              trips = trips,
-              cloudSyncStatus = cloudSyncStatus,
-              onSyncCloud = { viewModel.syncWithCloud() },
-              onDeleteTrip = { id -> viewModel.deleteTrip(id) }
+          NavigationTab.COCKPIT -> {
+            CockpitDashboardScreen(
+              locationState = locationState,
+              trafficEvaluation = trafficEvaluation,
+              tripStats = tripStats,
+              isRecordingTrip = isRecordingTrip,
+              voiceEnabled = userSettings.voiceAlertsEnabled,
+              hudMirrorMode = userSettings.hudMirrorMode,
+              onToggleVoice = { viewModel.toggleVoiceAlerts() },
+              onToggleHudMirror = {
+                viewModel.updateSettings(userSettings.copy(hudMirrorMode = !userSettings.hudMirrorMode))
+              },
+              onToggleTripRecording = {
+                if (isRecordingTrip) viewModel.stopTripRecording()
+                else viewModel.startTripRecording()
+              },
+              onToggleGpsOrSimulation = { useReal -> viewModel.toggleGpsOrSimulation(useReal) },
+              onSelectSimulationRoute = { idx -> viewModel.setSimulationRoute(idx) },
+              onSetSimulatedSpeed = { speed -> viewModel.setSimulatedSpeed(speed) },
+              onSetCustomRoad = { road -> viewModel.setCustomTestRoad(road) },
+              onOpenReportDialog = { showReportDialog = true }
             )
           }
 

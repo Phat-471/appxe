@@ -432,19 +432,46 @@ fun OfflineMapCanvas(
               navPath.lineTo(pos.x, pos.y)
             }
 
-            // Dark blue route outline casing
+            // Dark route outline casing
             drawPath(
               path = navPath,
-              color = Color(0xFF0C4A6E),
+              color = Color(0xFF0F172A),
               style = Stroke(width = 15.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
             )
 
-            // Electric Blue Polyline
-            drawPath(
-              path = navPath,
-              color = Color(0xFF0284C7),
-              style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-            )
+            // Dynamic Traffic Flow Polyline (Green = Clear, Yellow = Slow, Red = Congested)
+            if (activeRoute.trafficSegments.isNotEmpty()) {
+              for (seg in activeRoute.trafficSegments) {
+                val segPath = Path()
+                var started = false
+                val segColor = Color(seg.congestion.colorHex)
+
+                for (idx in seg.startIndex..seg.endIndex.coerceAtMost(activeRoute.waypoints.size - 1)) {
+                  val wp = activeRoute.waypoints[idx]
+                  val pos = project(wp.first, wp.second)
+                  if (!started) {
+                    segPath.moveTo(pos.x, pos.y)
+                    started = true
+                  } else {
+                    segPath.lineTo(pos.x, pos.y)
+                  }
+                }
+                if (started) {
+                  drawPath(
+                    path = segPath,
+                    color = segColor,
+                    style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+                  )
+                }
+              }
+            } else {
+              // Default Electric Blue Polyline
+              drawPath(
+                path = navPath,
+                color = Color(0xFF0284C7),
+                style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+              )
+            }
 
             // Moving chevrons along forward remaining route only
             for (i in 0 until forwardWaypoints.size - 1) {

@@ -156,6 +156,19 @@ data class NavigationStep(
   val longitude: Double
 )
 
+enum class TrafficCongestion(val label: String, val colorHex: Long) {
+  CLEAR("Thông thoáng", 0xFF10B981),      // Emerald Green
+  MODERATE("Di chuyển chậm", 0xFFF59E0B), // Amber / Yellow
+  HEAVY("Ùn tắc", 0xFFEF4444),            // Red
+  BLOCKED("Kẹt xe nghiêm trọng", 0xFF991B1B) // Dark Red
+}
+
+data class RouteTrafficSegment(
+  val startIndex: Int,
+  val endIndex: Int,
+  val congestion: TrafficCongestion = TrafficCongestion.CLEAR
+)
+
 data class NavigationRoute(
   val destinationName: String,
   val destinationAddress: String,
@@ -166,7 +179,9 @@ data class NavigationRoute(
   val waypoints: List<Pair<Double, Double>>,
   val steps: List<NavigationStep>,
   val currentStepIndex: Int = 0,
-  val isNavigating: Boolean = false
+  val isNavigating: Boolean = false,
+  val trafficSegments: List<RouteTrafficSegment> = emptyList(),
+  val overallCongestion: TrafficCongestion = TrafficCongestion.CLEAR
 )
 
 data class DestinationPlace(

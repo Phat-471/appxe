@@ -229,7 +229,8 @@ fun LiveMapScreen(
       ) {
         VietmapTopLaneGuidanceBanner(
           turnDistanceMeters = currentStep?.distanceMeters ?: activeRoute.totalDistanceMeters,
-          turnInstruction = currentStep?.instruction ?: "Đi thẳng"
+          turnInstruction = currentStep?.instruction ?: "Đi thẳng",
+          overallCongestion = activeRoute.overallCongestion
         )
       }
     } else {

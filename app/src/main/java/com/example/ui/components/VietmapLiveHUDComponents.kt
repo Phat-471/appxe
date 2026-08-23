@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.ActiveWarning
 import com.example.data.model.CameraType
 import com.example.data.model.TrafficCamera
+import com.example.data.model.TrafficCongestion
 import com.example.data.model.WarningLevel
 import com.example.ui.theme.*
 
@@ -234,6 +235,7 @@ fun VietmapHazardBadge(
 fun VietmapTopLaneGuidanceBanner(
   turnDistanceMeters: Int,
   turnInstruction: String,
+  overallCongestion: TrafficCongestion = TrafficCongestion.CLEAR,
   modifier: Modifier = Modifier
 ) {
   val turnIcon = when {
@@ -250,7 +252,7 @@ fun VietmapTopLaneGuidanceBanner(
     shape = RoundedCornerShape(20.dp),
     color = Color(0xFF0F172A).copy(alpha = 0.96f),
     shadowElevation = 12.dp,
-    border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFF0284C7)),
+    border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(overallCongestion.colorHex)),
     modifier = modifier
       .fillMaxWidth(0.94f)
       .padding(horizontal = 4.dp)
@@ -262,7 +264,7 @@ fun VietmapTopLaneGuidanceBanner(
       // Maneuver Icon Badge
       Surface(
         shape = CircleShape,
-        color = Color(0xFF0284C7),
+        color = Color(overallCongestion.colorHex),
         modifier = Modifier.size(46.dp)
       ) {
         Box(contentAlignment = Alignment.Center) {
@@ -274,7 +276,7 @@ fun VietmapTopLaneGuidanceBanner(
 
       // Instruction & Countdown Distance
       Column(modifier = Modifier.weight(1f)) {
-        Row(verticalAlignment = Alignment.Bottom) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
           Text(
             text = if (turnDistanceMeters >= 1000) {
               String.format(java.util.Locale.US, "%.1f", turnDistanceMeters / 1000f)
@@ -294,6 +296,19 @@ fun VietmapTopLaneGuidanceBanner(
             color = Color(0xFF94A3B8),
             modifier = Modifier.padding(bottom = 3.dp)
           )
+          Spacer(modifier = Modifier.width(8.dp))
+          // Traffic status pill
+          Surface(
+            shape = RoundedCornerShape(10.dp),
+            color = Color(overallCongestion.colorHex).copy(alpha = 0.25f)
+          ) {
+            Text(
+              text = overallCongestion.label,
+              style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+              color = Color(overallCongestion.colorHex),
+              modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+            )
+          }
         }
 
         Text(

@@ -85,12 +85,33 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
 
   init {
     startEvaluationLoop()
+    startLiveOsmCameraSyncLoop()
     // Start compass sensor for phone rotation heading
     compassEngine.startListening()
 
     // Connect real-time navigation turn voice guidance
     gpsLocationEngine.onTurnVoicePrompt = { prompt ->
       voiceAlertEngine.alertNavigationTurn(prompt)
+    }
+  }
+
+  private fun startLiveOsmCameraSyncLoop() {
+    viewModelScope.launch {
+      var lastSyncLat = 0.0
+      var lastSyncLng = 0.0
+      locationState.collect { loc ->
+        if (loc.latitude != 0.0 && loc.longitude != 0.0) {
+          val dist = com.example.data.VietnamTrafficData.calculateDistanceMeters(
+            loc.latitude, loc.longitude,
+            lastSyncLat, lastSyncLng
+          )
+          if (dist > 3000.0 || lastSyncLat == 0.0) {
+            lastSyncLat = loc.latitude
+            lastSyncLng = loc.longitude
+            repository.syncLiveOsmCameras(loc.latitude, loc.longitude)
+          }
+        }
+      }
     }
   }
 

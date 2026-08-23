@@ -251,6 +251,7 @@ object NavigationRoutingService {
 
                 if (steps.isNotEmpty() && waypoints.size >= 2) {
                   Log.d(TAG, "OSRM Route fetched successfully: ${waypoints.size} waypoints, $totalDistanceMeters m")
+                  val (trafficSegments, overallCongestion) = TrafficFlowService.computeRouteTrafficFlow(waypoints, destName)
                   return@withContext NavigationRoute(
                     destinationName = destName,
                     destinationAddress = destAddress,
@@ -261,7 +262,9 @@ object NavigationRoutingService {
                     waypoints = waypoints,
                     steps = steps,
                     currentStepIndex = 0,
-                    isNavigating = true
+                    isNavigating = true,
+                    trafficSegments = trafficSegments,
+                    overallCongestion = overallCongestion
                   )
                 }
               }
@@ -274,13 +277,18 @@ object NavigationRoutingService {
     }
 
     // Fallback to high-fidelity local route generator
-    return@withContext VietnamTrafficData.generateTurnByTurnRoute(
+    val localRoute = VietnamTrafficData.generateTurnByTurnRoute(
       startLat = startLat,
       startLng = startLng,
       destLat = destLat,
       destLng = destLng,
       destName = destName,
       destAddress = destAddress
+    )
+    val (localTraffic, localCongestion) = TrafficFlowService.computeRouteTrafficFlow(localRoute.waypoints, destName)
+    return@withContext localRoute.copy(
+      trafficSegments = localTraffic,
+      overallCongestion = localCongestion
     )
   }
 

@@ -11,15 +11,23 @@ import com.example.data.model.TrafficCamera
 import com.example.data.model.TripSummary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import com.example.data.datasource.OsmLiveCameraDataSource
 
 class TrafficRepository(private val dao: TrafficDao) {
 
-  // Combined flow of base built-in cameras and user/community added cameras
-  val allCamerasFlow: Flow<List<TrafficCamera>> = dao.getAllCommunityCameras().map { communityList ->
-    val converted = communityList.map { entity ->
+  // Dynamic live cameras fetched from OpenStreetMap Overpass API
+  private val _liveOsmCameras = MutableStateFlow<List<TrafficCamera>>(emptyList())
+
+  // Combined flow of base built-in cameras, live OSM cameras, and user/community added cameras
+  val allCamerasFlow: Flow<List<TrafficCamera>> = combine(
+    dao.getAllCommunityCameras(),
+    _liveOsmCameras
+  ) { communityList, liveOsmList ->
+    val convertedCommunity = communityList.map { entity ->
       TrafficCamera(
         id = entity.id,
         latitude = entity.latitude,
@@ -34,10 +42,22 @@ class TrafficRepository(private val dao: TrafficDao) {
         description = entity.description,
         districtCity = entity.districtCity,
         verified = true,
-        votesCount = 8
+        votesCount = 12
       )
     }
-    VietnamTrafficData.ALL_CAMERAS_FULL + converted
+    // Merge: Built-in + Live OSM + Community reports (distinct by approximate coordinates or ID)
+    (VietnamTrafficData.ALL_CAMERAS_FULL + liveOsmList + convertedCommunity).distinctBy { it.id }
+  }
+
+  suspend fun syncLiveOsmCameras(centerLat: Double, centerLng: Double) = withContext(Dispatchers.IO) {
+    try {
+      val liveCameras = OsmLiveCameraDataSource.fetchNearbyEnforcementCameras(centerLat, centerLng)
+      if (liveCameras.isNotEmpty()) {
+        _liveOsmCameras.value = liveCameras
+      }
+    } catch (e: Exception) {
+      // Non-fatal, fallback to offline DB
+    }
   }
 
   val allTripsFlow: Flow<List<TripSummary>> = dao.getAllTrips().map { entities ->

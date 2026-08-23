@@ -37,7 +37,7 @@ class TrafficRepository(private val dao: TrafficDao) {
         votesCount = 8
       )
     }
-    VietnamTrafficData.ALL_CAMERAS + converted
+    VietnamTrafficData.ALL_CAMERAS_FULL + converted
   }
 
   val allTripsFlow: Flow<List<TripSummary>> = dao.getAllTrips().map { entities ->

@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
     OfflineMapPackEntity::class,
     UserSettingsEntity::class
   ],
-  version = 3,
+  version = 4,
   exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -36,6 +36,24 @@ abstract class AppDatabase : RoomDatabase() {
       }
     }
 
+    val MIGRATION_2_3 = object : Migration(2, 3) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE user_settings ADD COLUMN compassEnabled INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE user_settings ADD COLUMN backgroundServiceEnabled INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE user_settings ADD COLUMN darkMapMode INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE user_settings ADD COLUMN autoScreenOn INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE user_settings ADD COLUMN showBreadcrumbs INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE user_settings ADD COLUMN chimeOnAlert INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE user_settings ADD COLUMN speedUnit TEXT NOT NULL DEFAULT 'km/h'")
+      }
+    }
+
+    val MIGRATION_3_4 = object : Migration(3, 4) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE user_settings ADD COLUMN vehicleIconType TEXT NOT NULL DEFAULT 'SCOOTER'")
+      }
+    }
+
     fun getDatabase(context: Context): AppDatabase {
       return INSTANCE ?: synchronized(this) {
         val instance = Room.databaseBuilder(
@@ -43,7 +61,7 @@ abstract class AppDatabase : RoomDatabase() {
           AppDatabase::class.java,
           "speed_alert_vietnam.db"
         )
-          .addMigrations(MIGRATION_1_2)
+          .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
           .addCallback(object : Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
               super.onCreate(db)

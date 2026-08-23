@@ -206,6 +206,13 @@ fun LiveMapScreen(
       compassEnabled = userSettings.compassEnabled,
       darkMapMode = userSettings.darkMapMode,
       showBreadcrumbs = userSettings.showBreadcrumbs,
+      vehicleIconType = when (userSettings.vehicleIconType) {
+        "MOTORBIKE" -> VehicleIconType.MOTORBIKE
+        "CAR" -> VehicleIconType.CAR
+        "TRUCK" -> VehicleIconType.TRUCK
+        "ARROW" -> VehicleIconType.ARROW
+        else -> VehicleIconType.SCOOTER  // "SCOOTER" default
+      },
       modifier = Modifier.fillMaxSize()
     )
 

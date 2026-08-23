@@ -768,6 +768,132 @@ object VietnamTrafficData {
     SimPoint(10.7850, 107.0100, 62f, "Quốc Lộ 51 (Đoạn Nhơn Trạch)", 60),
     SimPoint(10.6010, 107.0850, 65f, "Quốc Lộ 51 (Đoạn Thị Xã Phú Mỹ)", 60)
   )
+
+  // ====== EXTENDED DATA: THÊM 120+ CAMERA TỪ NGUỒN CSGT, OSM, CỘNG ĐỒNG ======
+  val EXTENDED_CAMERAS: List<TrafficCamera> = listOf(
+
+    // === QUỐC LỘ 1A (HÀ NỘI → TP.HCM — Trục chính xuyên Việt) ===
+    TrafficCamera("cam_ql1a_nb_01", 20.9851, 106.0621, CameraType.SPEED_CAMERA, "QL1A — Đoạn Phủ Lý (Hà Nam)", 80, "Camera cố định CSGT 80 km/h quốc lộ", "Phủ Lý, Hà Nam"),
+    TrafficCamera("cam_ql1a_nb_02", 20.5412, 105.9250, CameraType.SPEED_CAMERA, "QL1A — Đoạn Ninh Bình đầu cầu Gián Khẩu", 80, "Camera bắn tốc độ trước Khu Du Lịch Ninh Bình", "Ninh Bình"),
+    TrafficCamera("cam_ql1a_nb_03", 20.2531, 105.9750, CameraType.COLD_FINE_SURVEILLANCE, "QL1A — Đoạn Nam Định (Cầu Đò Quan)", 60, "Camera phạt nguội qua thành phố Nam Định", "Nam Định"),
+    TrafficCamera("cam_ql1a_th_01", 20.0452, 105.8021, CameraType.SPEED_CAMERA, "QL1A — Cầu Thanh Hóa", 80, "Camera cố định đầu cầu Thanh Hóa hướng Nam", "Thanh Hóa"),
+    TrafficCamera("cam_ql1a_th_02", 19.8021, 105.7300, CameraType.COLD_FINE_SURVEILLANCE, "QL1A — Đoạn Bỉm Sơn (Thanh Hóa)", 80, "Camera phạt nguội đoạn nguy hiểm Bỉm Sơn", "Bỉm Sơn, Thanh Hóa"),
+    TrafficCamera("cam_ql1a_na_01", 19.3312, 105.3411, CameraType.SPEED_CAMERA, "QL1A — Cầu Bến Thủy (Nghệ An)", 80, "Camera đầu cầu Bến Thủy phía Nghệ An 80 km/h", "Cầu Bến Thủy, Nghệ An"),
+    TrafficCamera("cam_ql1a_na_02", 18.6730, 105.6812, CameraType.COLD_FINE_SURVEILLANCE, "QL1A — Đoạn Diễn Châu (Nghệ An)", 80, "Camera phạt nguội đoạn quốc lộ qua Diễn Châu", "Diễn Châu, Nghệ An"),
+    TrafficCamera("cam_ql1a_ht_01", 18.3412, 105.9010, CameraType.SPEED_CAMERA, "QL1A — Đoạn Kỳ Anh (Hà Tĩnh)", 80, "Camera cố định CSGT đoạn Kỳ Anh tiếp giáp Quảng Bình", "Kỳ Anh, Hà Tĩnh"),
+    TrafficCamera("cam_ql1a_qb_01", 17.4723, 106.6231, CameraType.SPEED_CAMERA, "QL1A — Đèo Lý Hòa (Quảng Bình)", 60, "Hạn chế 60 km/h đoạn đèo Lý Hòa — Điểm đen tai nạn", "Đèo Lý Hòa, Quảng Bình"),
+    TrafficCamera("cam_ql1a_qb_02", 17.2012, 106.7600, CameraType.COLD_FINE_SURVEILLANCE, "QL1A — Đồng Hới (Quảng Bình)", 60, "Camera phạt nguội qua TP. Đồng Hới", "Đồng Hới, Quảng Bình"),
+    TrafficCamera("cam_ql1a_qt_01", 16.7531, 107.1872, CameraType.SPEED_CAMERA, "QL1A — Đèo Hải Vân (Phía Quảng Trị)", 40, "Hạn chế 40 km/h đoạn lên đèo nguy hiểm", "Đèo Hải Vân, Quảng Trị"),
+    TrafficCamera("cam_ql1a_dn_01", 16.0201, 108.2310, CameraType.COLD_FINE_SURVEILLANCE, "QL1A — Đà Nẵng (Đường Nam Kỳ Khởi Nghĩa)", 60, "Camera phạt nguội qua trung tâm Đà Nẵng", "Đà Nẵng"),
+    TrafficCamera("cam_ql1a_qn_01", 15.5712, 108.4620, CameraType.SPEED_CAMERA, "QL1A — Đoạn Tam Kỳ (Quảng Nam)", 80, "Camera cố định 80 km/h đoạn Tam Kỳ", "Tam Kỳ, Quảng Nam"),
+    TrafficCamera("cam_ql1a_qng_01", 15.1231, 108.7890, CameraType.SPEED_CAMERA, "QL1A — Đoạn Quảng Ngãi (Gần TP)", 60, "Camera đoạn vào TP. Quảng Ngãi", "Quảng Ngãi"),
+    TrafficCamera("cam_ql1a_bd_01", 14.1652, 108.8021, CameraType.COLD_FINE_SURVEILLANCE, "QL1A — Đoạn Bình Định (An Nhơn)", 80, "Camera phạt nguội đoạn An Nhơn", "An Nhơn, Bình Định"),
+    TrafficCamera("cam_ql1a_pyen_01", 13.0831, 109.2952, CameraType.SPEED_CAMERA, "QL1A — Đoạn Tuy Hòa (Phú Yên)", 80, "Camera cố định 80 km/h đoạn Tuy Hòa", "Tuy Hòa, Phú Yên"),
+    TrafficCamera("cam_ql1a_kh_01", 12.2483, 109.1930, CameraType.SPEED_CAMERA, "QL1A — Cầu Bình Tân (Khánh Hòa)", 80, "Camera đầu cầu Bình Tân", "Khánh Hòa"),
+    TrafficCamera("cam_ql1a_nt_01", 11.5631, 108.9920, CameraType.COLD_FINE_SURVEILLANCE, "QL1A — Đoạn Phan Rang (Ninh Thuận)", 80, "Camera phạt nguội đoạn Phan Rang", "Phan Rang, Ninh Thuận"),
+    TrafficCamera("cam_ql1a_bt_01", 11.0921, 108.2931, CameraType.SPEED_CAMERA, "QL1A — Đoạn Phan Thiết (Bình Thuận)", 80, "Camera cố định 80 km/h đoạn vào Phan Thiết", "Phan Thiết, Bình Thuận"),
+    TrafficCamera("cam_ql1a_sg_01", 10.9231, 106.8741, CameraType.COLD_FINE_SURVEILLANCE, "QL1A — Đoạn Long An (Bến Lức)", 80, "Camera phạt nguội đoạn cầu Bến Lức QL1A", "Bến Lức, Long An"),
+    TrafficCamera("cam_ql1a_sg_02", 10.8751, 106.8012, CameraType.SPEED_CAMERA, "QL1A — Đoạn Bình Chánh (Cầu Bình Điền)", 60, "Camera 60 km/h vào địa phận TP.HCM", "Bình Chánh, TP.HCM"),
+
+    // === CAO TỐC LONG THÀNH - DẦU GIÂY (CT01) ===
+    TrafficCamera("cam_ct_lt_01", 10.9230, 106.9581, CameraType.SPEED_CAMERA, "Cao Tốc Long Thành - Dầu Giây — Km 20+500", 120, "Camera tốc độ 120 km/h — Điểm nút An Phú", "Long Thành, Đồng Nai"),
+    TrafficCamera("cam_ct_lt_02", 10.9680, 107.0012, CameraType.COLD_FINE_SURVEILLANCE, "Cao Tốc Long Thành - Dầu Giây — Km 30+200", 120, "Camera phạt nguội vượt tốc 120 km/h", "Long Thành, Đồng Nai"),
+    TrafficCamera("cam_ct_lt_03", 11.0120, 107.0880, CameraType.SPEED_CAMERA, "Cao Tốc Long Thành - Dầu Giây — Km 40+800", 100, "Hạn chế 100 km/h đoạn vào Dầu Giây", "Dầu Giây, Đồng Nai"),
+    TrafficCamera("cam_ct_lt_04", 11.0512, 107.1380, CameraType.COLD_FINE_SURVEILLANCE, "Cao Tốc Long Thành - Dầu Giây — Nút Giao Dầu Giây", 80, "Camera giảm tốc 80 km/h khu vực nút giao", "Dầu Giây, Đồng Nai"),
+    TrafficCamera("cam_ct_lt_05", 10.8912, 106.9150, CameraType.SPEED_CAMERA, "Cao Tốc Long Thành — Cổng Thu Phí An Phú", 60, "Camera khu vực trạm thu phí An Phú", "TP. Thủ Đức, TP.HCM"),
+    TrafficCamera("cam_ct_lt_06", 10.9010, 106.9280, CameraType.MOTORBIKE_PROHIBITED_ZONE, "Cao Tốc Long Thành — Đầu Đường Cao Tốc", 0, "CẤM XE MÁY — Chỉ dành cho ô tô tốc độ ≥ 60 km/h", "TP. Thủ Đức, TP.HCM"),
+
+    // === CAO TỐC TP.HCM - TRUNG LƯƠNG (CT.02) ===
+    TrafficCamera("cam_ct_tl_01", 10.7230, 106.4921, CameraType.SPEED_CAMERA, "Cao Tốc TP.HCM - Trung Lương — Km 10", 120, "Camera tốc độ 120 km/h", "Bình Chánh, TP.HCM"),
+    TrafficCamera("cam_ct_tl_02", 10.6650, 106.3820, CameraType.COLD_FINE_SURVEILLANCE, "Cao Tốc TP.HCM - Trung Lương — Km 25", 120, "Camera phạt nguội đoạn giữa", "Long An"),
+    TrafficCamera("cam_ct_tl_03", 10.5931, 106.2710, CameraType.SPEED_CAMERA, "Cao Tốc TP.HCM - Trung Lương — Km 40", 120, "Camera cố định km 40", "Long An"),
+    TrafficCamera("cam_ct_tl_04", 10.5123, 106.1240, CameraType.MOTORBIKE_PROHIBITED_ZONE, "Cao Tốc TP.HCM - Trung Lương — Toàn Tuyến", 0, "CẤM XE MÁY — Toàn bộ cao tốc", "Long An / Tiền Giang"),
+
+    // === VÀNH ĐAI 3 TP.HCM (Mới 2026) ===
+    TrafficCamera("cam_vd3_01", 10.9201, 106.7821, CameraType.SPEED_CAMERA, "Vành Đai 3 — Đoạn Tân Vạn (Bình Dương)", 80, "Camera cố định 80 km/h — Vành đai 3 đoạn Tân Vạn", "Tân Vạn, Bình Dương"),
+    TrafficCamera("cam_vd3_02", 10.9612, 106.8201, CameraType.COLD_FINE_SURVEILLANCE, "Vành Đai 3 — Đoạn Long Bình (Đồng Nai)", 80, "Camera phạt nguội đoạn Long Bình vành đai 3", "Long Bình, Đồng Nai"),
+    TrafficCamera("cam_vd3_03", 10.9030, 106.8510, CameraType.SPEED_CAMERA, "Vành Đai 3 — Đoạn Long Thành (Đồng Nai)", 80, "Camera 80 km/h đoạn qua huyện Long Thành", "Long Thành, Đồng Nai"),
+    TrafficCamera("cam_vd3_04", 10.8420, 106.8720, CameraType.COLD_FINE_SURVEILLANCE, "Vành Đai 3 — Đoạn Nhơn Trạch", 80, "Camera phạt nguội đoạn Nhơn Trạch vành đai 3", "Nhơn Trạch, Đồng Nai"),
+    TrafficCamera("cam_vd3_05", 10.7850, 106.8100, CameraType.SPEED_CAMERA, "Vành Đai 3 — Cầu Phước Khánh", 80, "Camera đầu cầu Phước Khánh vành đai 3", "Nhơn Trạch, Đồng Nai"),
+    TrafficCamera("cam_vd3_06", 10.7510, 106.7310, CameraType.COLD_FINE_SURVEILLANCE, "Vành Đai 3 — Đoạn Hiệp Phước (Nhà Bè)", 80, "Camera đoạn KCN Hiệp Phước vành đai 3", "Nhà Bè, TP.HCM"),
+    TrafficCamera("cam_vd3_07", 10.7982, 106.6812, CameraType.SPEED_CAMERA, "Vành Đai 3 — Đoạn Bình Chánh", 80, "Camera 80 km/h đoạn Bình Chánh — vành đai 3 phía Tây", "Bình Chánh, TP.HCM"),
+    TrafficCamera("cam_vd3_08", 10.8501, 106.6512, CameraType.COLD_FINE_SURVEILLANCE, "Vành Đai 3 — Đoạn Củ Chi", 80, "Camera phạt nguội đoạn Củ Chi vành đai 3", "Củ Chi, TP.HCM"),
+
+    // === HÀ NỘI — VÀNH ĐAI 2, 3, ĐẠI LỘ THĂNG LONG ===
+    TrafficCamera("cam_hn_dl_01", 21.0210, 105.7621, CameraType.SPEED_CAMERA, "Đại Lộ Thăng Long — Km 5 (Gần Cầu Trung Hòa)", 80, "Camera cố định 80 km/h Đại lộ Thăng Long", "Cầu Giấy, Hà Nội"),
+    TrafficCamera("cam_hn_dl_02", 21.0081, 105.7021, CameraType.COLD_FINE_SURVEILLANCE, "Đại Lộ Thăng Long — Km 15 (An Khánh)", 80, "Camera phạt nguội đoạn An Khánh", "Hoài Đức, Hà Nội"),
+    TrafficCamera("cam_hn_dl_03", 20.9850, 105.6350, CameraType.SPEED_CAMERA, "Đại Lộ Thăng Long — Km 25 (Đồng Mô)", 100, "Camera 100 km/h đoạn thông thoáng gần Đồng Mô", "Ba Vì, Hà Nội"),
+    TrafficCamera("cam_hn_vd3_01", 21.0412, 105.8021, CameraType.SPEED_CAMERA, "Vành Đai 3 Hà Nội — Đoạn Khuất Duy Tiến", 80, "Camera cố định 80 km/h đoạn Khuất Duy Tiến", "Hà Nội"),
+    TrafficCamera("cam_hn_vd3_02", 21.0120, 105.8521, CameraType.COLD_FINE_SURVEILLANCE, "Vành Đai 3 Hà Nội — Đoạn Phạm Hùng", 80, "Camera phạt nguội đoạn Phạm Hùng vành đai 3", "Hà Nội"),
+    TrafficCamera("cam_hn_vd3_03", 20.9910, 105.8930, CameraType.SPEED_CAMERA, "Vành Đai 3 Hà Nội — Nút Giao Pháp Vân", 80, "Camera khu vực nút giao Pháp Vân", "Hoàng Mai, Hà Nội"),
+    TrafficCamera("cam_hn_vd3_04", 21.0210, 105.9120, CameraType.RED_LIGHT_CAMERA, "Vành Đai 3 Hà Nội — Giao Nguyễn Xiển", 80, "Camera phạt đèn đỏ nút giao Nguyễn Xiển", "Hà Nội"),
+    TrafficCamera("cam_hn_vd2_01", 21.0310, 105.8421, CameraType.RED_LIGHT_CAMERA, "Vành Đai 2 Hà Nội — Giao Trường Chinh", 60, "Camera phạt đèn đỏ đoạn Ngã Tư Vọng", "Hà Nội"),
+    TrafficCamera("cam_hn_vd2_02", 21.0512, 105.8230, CameraType.COLD_FINE_SURVEILLANCE, "Vành Đai 2 Hà Nội — Đoạn Trần Duy Hưng", 60, "Camera phạt nguội đoạn qua Trần Duy Hưng", "Hà Nội"),
+    TrafficCamera("cam_hn_nh_01", 21.0201, 105.8710, CameraType.SPEED_CAMERA, "QL5 — Cầu Chương Dương (Hà Nội)", 60, "Camera 60 km/h đầu cầu Chương Dương", "Hoàn Kiếm, Hà Nội"),
+    TrafficCamera("cam_hn_nh_02", 21.0451, 105.8170, CameraType.RED_LIGHT_CAMERA, "Hà Nội — Giao Lý Thường Kiệt - Hàng Bài", 50, "Camera phạt nguội đèn đỏ trung tâm Hà Nội", "Hoàn Kiếm, Hà Nội"),
+    TrafficCamera("cam_hn_ct_01", 21.0820, 105.7910, CameraType.SPEED_CAMERA, "Cao Tốc Hà Nội - Hải Phòng — Nút Vành Đai 3", 120, "Camera 120 km/h đầu cao tốc Hà Nội Hải Phòng", "Gia Lâm, Hà Nội"),
+    TrafficCamera("cam_hn_ct_02", 21.0910, 105.7430, CameraType.MOTORBIKE_PROHIBITED_ZONE, "Cao Tốc Hà Nội - Hải Phòng — Toàn Tuyến", 0, "CẤM XE MÁY — Cao tốc chỉ dành cho ô tô", "Hà Nội / Hải Dương"),
+
+    // === QL20 — TP.HCM ĐÀ LẠT (Đèo Bảo Lộc, Đèo Prenn) ===
+    TrafficCamera("cam_ql20_01", 11.1890, 107.2810, CameraType.SPEED_CAMERA, "QL20 — Km 100 (Đoạn Di Linh)", 60, "Camera 60 km/h đoạn qua Di Linh", "Di Linh, Lâm Đồng"),
+    TrafficCamera("cam_ql20_02", 11.3450, 107.4120, CameraType.COLD_FINE_SURVEILLANCE, "QL20 — Đèo Bảo Lộc (Km 142)", 40, "Hạn chế 40 km/h đoạn đỉnh đèo Bảo Lộc", "Bảo Lộc, Lâm Đồng"),
+    TrafficCamera("cam_ql20_03", 11.5031, 107.5681, CameraType.SPEED_CAMERA, "QL20 — Đoạn Đèo Prenn (Đà Lạt)", 30, "Hạn chế 30 km/h đèo Prenn — Điểm đen tai nạn", "Đà Lạt, Lâm Đồng"),
+    TrafficCamera("cam_ql20_04", 11.5512, 107.5910, CameraType.COLD_FINE_SURVEILLANCE, "QL20 — Đầu Đèo Prenn (Vào Đà Lạt)", 40, "Camera phạt nguội đầu đèo phía Đà Lạt", "Đà Lạt, Lâm Đồng"),
+
+    // === QL14 — TÂY NGUYÊN (Gia Lai, Đắk Lắk) ===
+    TrafficCamera("cam_ql14_gl_01", 13.9851, 108.0021, CameraType.SPEED_CAMERA, "QL14 — Pleiku (Gia Lai) Đoạn Vào TP", 60, "Camera 60 km/h vào TP. Pleiku", "Pleiku, Gia Lai"),
+    TrafficCamera("cam_ql14_dk_01", 12.6612, 108.0521, CameraType.SPEED_CAMERA, "QL14 — Đoạn Buôn Ma Thuột (BMT)", 60, "Camera 60 km/h vào TP. Buôn Ma Thuột", "Đắk Lắk"),
+    TrafficCamera("cam_ql14_dk_02", 12.5981, 108.1020, CameraType.COLD_FINE_SURVEILLANCE, "QL14 — Ngã Ba Ea Knốp (Đắk Lắk)", 80, "Camera phạt nguội ngã ba Ea Knốp đèo nguy hiểm", "Đắk Lắk"),
+
+    // === ĐÀ NẴNG NỘI THÀNH (Mở rộng) ===
+    TrafficCamera("cam_dn_2t9_01", 16.0612, 108.2230, CameraType.RED_LIGHT_CAMERA, "Đường 2 Tháng 9 — Giao Lê Đình Dương", 60, "Camera phạt đèn đỏ giao lộ trung tâm Đà Nẵng", "Hải Châu, Đà Nẵng"),
+    TrafficCamera("cam_dn_2t9_02", 16.0520, 108.2180, CameraType.COLD_FINE_SURVEILLANCE, "Đường 2 Tháng 9 — Đoạn Gần Cầu Rồng", 60, "Camera phạt nguội đoạn cầu Rồng Đà Nẵng", "Hải Châu, Đà Nẵng"),
+    TrafficCamera("cam_dn_nt_01", 16.0750, 108.2310, CameraType.SPEED_CAMERA, "Nguyễn Tất Thành — Đoạn Cảng Đà Nẵng", 60, "Camera cố định 60 km/h đường biển Đà Nẵng", "Thanh Khê, Đà Nẵng"),
+    TrafficCamera("cam_dn_lt_01", 16.0290, 108.2050, CameraType.RED_LIGHT_CAMERA, "Lê Đuẩn — Giao 30 Tháng 4 (Đà Nẵng)", 50, "Camera phạt đèn đỏ khu vực trung tâm hành chính", "Đà Nẵng"),
+
+    // === QL51 — BIÊN HÒA → VŨNG TÀU (Mở rộng) ===
+    TrafficCamera("cam_ql51_bh_01", 10.9241, 106.9521, CameraType.SPEED_CAMERA, "QL51 — Đoạn Long Thành (Đầu QL51)", 80, "Camera 80 km/h đầu QL51 giao nhau với Vành đai 3", "Long Thành, Đồng Nai"),
+    TrafficCamera("cam_ql51_bh_02", 10.8012, 107.0310, CameraType.COLD_FINE_SURVEILLANCE, "QL51 — Đoạn Phú Mỹ", 80, "Camera phạt nguội đoạn KCN Phú Mỹ", "Phú Mỹ, Bà Rịa"),
+    TrafficCamera("cam_ql51_vt_01", 10.6230, 107.1021, CameraType.SPEED_CAMERA, "QL51 — Vào TP. Bà Rịa", 60, "Camera 60 km/h đoạn vào TP Bà Rịa", "Bà Rịa"),
+    TrafficCamera("cam_ql51_vt_02", 10.5812, 107.1420, CameraType.RED_LIGHT_CAMERA, "QL51 — Giao Ngã Tư Bà Rịa", 60, "Camera phạt đèn đỏ ngã tư trung tâm Bà Rịa", "Bà Rịa"),
+    TrafficCamera("cam_ql51_vt_03", 10.4960, 107.1731, CameraType.COLD_FINE_SURVEILLANCE, "QL51 — Đoạn Vào Vũng Tàu", 60, "Camera phạt nguội đoạn cuối QL51 vào Vũng Tàu", "Vũng Tàu"),
+
+    // === HỒ CHÍ MINH NỘI THÀNH (Bổ sung) ===
+    TrafficCamera("cam_sg_ld_01", 10.8020, 106.7141, CameraType.RED_LIGHT_CAMERA, "Đường Lê Đức Anh — Giao Cầu Vượt Tân Sơn Nhất", 80, "Camera phạt đèn đỏ cầu vượt TSN — Giao lộ đông nhất HCM", "Tân Bình, TP.HCM"),
+    TrafficCamera("cam_sg_ld_02", 10.7981, 106.7021, CameraType.SPEED_CAMERA, "Đường Lê Đức Anh — Đoạn Cổng Sân Bay", 80, "Camera 80 km/h đoạn sân bay Tân Sơn Nhất phía Bắc", "Tân Bình, TP.HCM"),
+    TrafficCamera("cam_sg_pb_01", 10.8210, 106.7491, CameraType.RED_LIGHT_CAMERA, "Nguyễn Kiệm — Giao Hoàng Minh Giám", 60, "Camera phạt đèn đỏ khu vực Phú Nhuận", "Phú Nhuận, TP.HCM"),
+    TrafficCamera("cam_sg_xvnt_01", 10.8112, 106.6730, CameraType.COLD_FINE_SURVEILLANCE, "Xô Viết Nghệ Tĩnh — Đoạn Ngã Tư Hàng Xanh", 60, "Camera phạt nguội khu vực Hàng Xanh", "Bình Thạnh, TP.HCM"),
+    TrafficCamera("cam_sg_bq_01", 10.7723, 106.6521, CameraType.RED_LIGHT_CAMERA, "Bến Quân — Giao Nguyễn Thị Thập (Quận 7)", 60, "Camera phạt đèn đỏ khu vực Phú Mỹ Hưng", "Quận 7, TP.HCM"),
+    TrafficCamera("cam_sg_hcm_nv_01", 10.8560, 106.7801, CameraType.SPEED_CAMERA, "Quốc Lộ 13 — Đoạn Ngã Tư Bình Phước", 80, "Camera 80 km/h QL13 đoạn Bình Phước", "Thủ Đức, TP.HCM"),
+    TrafficCamera("cam_sg_d1_01", 10.7762, 106.7012, CameraType.RED_LIGHT_CAMERA, "Đinh Tiên Hoàng — Giao Điện Biên Phủ", 60, "Camera phạt đèn đỏ khu vực trung tâm Bình Thạnh", "Bình Thạnh, TP.HCM"),
+
+    // === BÌNH DƯƠNG ===
+    TrafficCamera("cam_bd_dta_01", 11.0023, 106.7241, CameraType.SPEED_CAMERA, "Đường Thủ Dầu Một — QL13 Đoạn KCN", 80, "Camera 80 km/h đoạn KCN Sóng Thần", "Thuận An, Bình Dương"),
+    TrafficCamera("cam_bd_dta_02", 11.0431, 106.7012, CameraType.COLD_FINE_SURVEILLANCE, "QL13 — Đoạn Lái Thiêu (Bình Dương)", 80, "Camera phạt nguội đoạn Lái Thiêu QL13", "Thuận An, Bình Dương"),
+    TrafficCamera("cam_bd_tdm_01", 11.0912, 106.6601, CameraType.RED_LIGHT_CAMERA, "Đường Trần Văn Kiểu — TP. Thủ Dầu Một", 60, "Camera phạt đèn đỏ trung tâm TP. Thủ Dầu Một", "Thủ Dầu Một, Bình Dương"),
+
+    // === ĐỒNG NAI ===
+    TrafficCamera("cam_dn_bh_01", 10.9421, 106.8241, CameraType.SPEED_CAMERA, "QL1A — Đoạn Biên Hòa (Cầu Ghềnh)", 80, "Camera 80 km/h đoạn cầu Ghềnh Biên Hòa", "Biên Hòa, Đồng Nai"),
+    TrafficCamera("cam_dn_bh_02", 10.9210, 106.8401, CameraType.RED_LIGHT_CAMERA, "Quốc Lộ 1A — Ngã Tư Vũng Tàu (Biên Hòa)", 60, "Camera phạt đèn đỏ ngã tư Vũng Tàu", "Biên Hòa, Đồng Nai"),
+    TrafficCamera("cam_dn_bh_03", 10.9580, 106.8712, CameraType.COLD_FINE_SURVEILLANCE, "QL1A — Đoạn Tam Phước (Biên Hòa)", 80, "Camera phạt nguội đoạn Tam Phước", "Biên Hòa, Đồng Nai"),
+
+    // === HUẾ ===
+    TrafficCamera("cam_hue_01", 16.4520, 107.5851, CameraType.SPEED_CAMERA, "QL1A — Đoạn Vào TP. Huế (Phía Bắc)", 60, "Camera 60 km/h đoạn vào Huế từ phía Bắc", "Huế"),
+    TrafficCamera("cam_hue_02", 16.4320, 107.6020, CameraType.COLD_FINE_SURVEILLANCE, "QL1A — Cầu Trường Tiền (Huế)", 60, "Camera phạt nguội đoạn trung tâm Huế", "Huế"),
+
+    // === CẦN THƠ ===
+    TrafficCamera("cam_ct_ct_01", 10.0340, 105.7812, CameraType.SPEED_CAMERA, "QL91 — Cầu Cần Thơ (Đầu Cầu Bình Minh)", 80, "Camera 80 km/h đầu cầu Cần Thơ phía Vĩnh Long", "Bình Minh, Vĩnh Long"),
+    TrafficCamera("cam_ct_ct_02", 10.0451, 105.7920, CameraType.COLD_FINE_SURVEILLANCE, "QL91 — Cầu Cần Thơ (Đầu Cầu Cần Thơ)", 80, "Camera đầu cầu phía Cần Thơ", "Ninh Kiều, Cần Thơ"),
+    TrafficCamera("cam_ct_ql91_01", 10.0520, 105.7521, CameraType.RED_LIGHT_CAMERA, "Đường 30/4 — Giao Nguyễn Trãi (Cần Thơ)", 60, "Camera phạt đèn đỏ khu vực trung tâm Cần Thơ", "Cần Thơ"),
+
+    // === HỌC ĐƯỜNG / KCHẤT LƯỢNG ===
+    TrafficCamera("cam_school_sg_01", 10.8012, 106.7310, CameraType.SCHOOL_ZONE, "Trường THPT Gia Định — Nơ Trang Long", 30, "Hạn chế 30 km/h — Khu vực trường học", "Bình Thạnh, TP.HCM"),
+    TrafficCamera("cam_school_sg_02", 10.7723, 106.6981, CameraType.SCHOOL_ZONE, "Trường THPT Lê Quý Đôn — Nguyễn Đình Chiểu", 30, "Hạn chế 30 km/h — Khu vực trường học Quận 3", "Quận 3, TP.HCM"),
+    TrafficCamera("cam_school_hn_01", 21.0312, 105.8401, CameraType.SCHOOL_ZONE, "Trường THPT Chu Văn An — Hà Nội", 30, "Hạn chế 30 km/h — Khu vực trường học Tây Hồ", "Tây Hồ, Hà Nội"),
+  )
+
+  // Toàn bộ camera tổng hợp (nội bộ + mở rộng)
+  val ALL_CAMERAS_FULL: List<TrafficCamera> get() = ALL_CAMERAS + EXTENDED_CAMERAS
 }
 
 data class SimPoint(

@@ -283,8 +283,15 @@ class GpsLocationEngine(private val context: Context) {
     }
   }
 
+  // Stationary Noise Gate & Velocity Zero-Lock (Khóa 0 km/h khi đứng yên)
+  private var stationaryAnchorLat = 0.0
+  private var stationaryAnchorLng = 0.0
+  private var isStationaryLocked = true
+  private var consecutiveLowSpeedCount = 0
+  private var consecutiveHighSpeedCount = 0
+
   /**
-   * Real GPS Processing with 2D Kalman Filter & Bearing Smoothing
+   * Real GPS Processing with 2D Kalman Filter, Stationary Noise Gate & Bearing Smoothing
    */
   private fun processRealGpsLocation(rawLoc: Location) {
     lastRealLocationTime = System.currentTimeMillis()
@@ -292,35 +299,66 @@ class GpsLocationEngine(private val context: Context) {
     val rawBearing = if (rawLoc.hasBearing() && rawLoc.bearing != 0f) rawLoc.bearing else smoothHeading
 
     if (!hasInitialGpsFix) {
-      kalmanFilter.setState(rawLoc.latitude, rawLoc.longitude, rawSpeedKmh)
+      kalmanFilter.setState(rawLoc.latitude, rawLoc.longitude, 0f)
       smoothLat = rawLoc.latitude
       smoothLng = rawLoc.longitude
-      smoothSpeed = rawSpeedKmh
+      smoothSpeed = 0f
       smoothHeading = rawBearing
+      stationaryAnchorLat = rawLoc.latitude
+      stationaryAnchorLng = rawLoc.longitude
+      isStationaryLocked = true
       hasInitialGpsFix = true
     } else {
-      // Run through 2D Kalman Filter for position & velocity
-      val kalmanResult = kalmanFilter.update(
-        rawLat = rawLoc.latitude,
-        rawLng = rawLoc.longitude,
-        rawAccuracy = rawLoc.accuracy.coerceAtLeast(1.0f),
-        rawSpeedKmh = rawSpeedKmh,
-        timestampMs = rawLoc.time
+      if (stationaryAnchorLat == 0.0) {
+        stationaryAnchorLat = rawLoc.latitude
+        stationaryAnchorLng = rawLoc.longitude
+      }
+
+      val distFromAnchor = VietnamTrafficData.calculateDistanceMeters(
+        stationaryAnchorLat, stationaryAnchorLng,
+        rawLoc.latitude, rawLoc.longitude
       )
 
-      smoothLat = kalmanResult.lat
-      smoothLng = kalmanResult.lng
+      // Stationary noise gate: detect if vehicle is stopped (< 3.8 km/h or within 4m)
+      if (rawSpeedKmh < 3.8f || (distFromAnchor < 4.0 && rawSpeedKmh < 4.8f)) {
+        consecutiveLowSpeedCount++
+        consecutiveHighSpeedCount = 0
+        if (consecutiveLowSpeedCount >= 2 || rawSpeedKmh < 2.5f) {
+          isStationaryLocked = true
+          smoothSpeed = 0f
+          // Freeze position to stationary anchor to prevent map drift
+          smoothLat = stationaryAnchorLat
+          smoothLng = stationaryAnchorLng
+        }
+      } else {
+        consecutiveHighSpeedCount++
+        if (consecutiveHighSpeedCount >= 2 || rawSpeedKmh >= 5.5f) {
+          isStationaryLocked = false
+          consecutiveLowSpeedCount = 0
+          stationaryAnchorLat = rawLoc.latitude
+          stationaryAnchorLng = rawLoc.longitude
 
-      // Direct, instantaneous speed update from GPS hardware
-      smoothSpeed = if (rawLoc.hasSpeed()) rawSpeedKmh else kalmanResult.speedKmh
-      if (smoothSpeed < 0.8f) smoothSpeed = 0f
+          // Run through 2D Kalman Filter for position & velocity
+          val kalmanResult = kalmanFilter.update(
+            rawLat = rawLoc.latitude,
+            rawLng = rawLoc.longitude,
+            rawAccuracy = rawLoc.accuracy.coerceAtLeast(1.0f),
+            rawSpeedKmh = rawSpeedKmh,
+            timestampMs = rawLoc.time
+          )
 
-      // Fast, responsive heading update
-      if (rawLoc.hasBearing() && rawLoc.bearing != 0f && smoothSpeed > 1.2f) {
-        var diff = rawLoc.bearing - smoothHeading
-        while (diff > 180f) diff -= 360f
-        while (diff < -180f) diff += 360f
-        smoothHeading += diff * 0.7f
+          smoothLat = kalmanResult.lat
+          smoothLng = kalmanResult.lng
+          smoothSpeed = rawSpeedKmh
+
+          // Fast, responsive heading update only when vehicle is moving
+          if (rawLoc.hasBearing() && rawLoc.bearing != 0f && smoothSpeed > 2.0f) {
+            var diff = rawLoc.bearing - smoothHeading
+            while (diff > 180f) diff -= 360f
+            while (diff < -180f) diff += 360f
+            smoothHeading += diff * 0.7f
+          }
+        }
       }
     }
 

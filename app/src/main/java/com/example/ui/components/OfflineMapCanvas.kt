@@ -567,6 +567,20 @@ fun OfflineMapCanvas(
               drawContext.canvas.nativeCanvas.drawText("📷", camPos.x, camPos.y + 3.5.dp.toPx(), iconPaint)
             }
 
+            CameraType.SECURITY_MONITORING -> {
+              // Security & Surveillance Dome (Royal Blue + Shield)
+              val sizePx = 22.dp.toPx()
+              drawCircle(color = Color(0xFF1E40AF), radius = sizePx / 2f, center = camPos)
+              drawCircle(color = Color(0xFF93C5FD), radius = sizePx / 2f, center = camPos, style = Stroke(width = 1.8.dp.toPx()))
+
+              val iconPaint = Paint().apply {
+                isAntiAlias = true
+                textSize = 10.sp.toPx()
+                textAlign = Paint.Align.CENTER
+              }
+              drawContext.canvas.nativeCanvas.drawText("🛡️", camPos.x, camPos.y + 3.5.dp.toPx(), iconPaint)
+            }
+
             CameraType.ZONE_RESIDENTIAL_ENTRY, CameraType.ZONE_RESIDENTIAL_EXIT -> {
               // Residential Zone Blue Sign (R.420 / R.421)
               val w = 24.dp.toPx()

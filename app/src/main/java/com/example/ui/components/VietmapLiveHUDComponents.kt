@@ -188,6 +188,9 @@ fun VietmapHazardBadge(
           CameraType.COLD_FINE_SURVEILLANCE -> {
             Icon(Icons.Default.Videocam, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(24.dp))
           }
+          CameraType.SECURITY_MONITORING -> {
+            Icon(Icons.Default.Security, contentDescription = null, tint = Color(0xFF93C5FD), modifier = Modifier.size(24.dp))
+          }
           CameraType.ZONE_RESIDENTIAL_ENTRY -> {
             Text("🏙️", fontSize = 20.sp)
           }

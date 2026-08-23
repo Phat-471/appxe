@@ -173,6 +173,8 @@ class VoiceAlertEngine(private val context: Context) : TextToSpeech.OnInitListen
         "Chú ý: Phía trước $roundedDist mét có Camera phạt nguội vượt đèn đỏ $locClause."
       CameraType.COLD_FINE_SURVEILLANCE ->
         "Chú ý: Phía trước $roundedDist mét có Camera phạt nguội lấn làn $locClause."
+      CameraType.SECURITY_MONITORING ->
+        "Phía trước $roundedDist mét có Camera an ninh và giám sát trật tự $locClause."
       CameraType.HAZARD_ACCIDENT_ZONE ->
         "Cảnh báo: Phía trước $roundedDist mét là đoạn đường nguy hiểm $locClause. Xin chú ý quan sát!"
       CameraType.SCHOOL_ZONE ->

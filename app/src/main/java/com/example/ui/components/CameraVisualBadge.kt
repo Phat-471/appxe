@@ -48,6 +48,9 @@ fun CameraVisualBadge(
       CameraType.COLD_FINE_SURVEILLANCE -> {
         ColdFineCameraBadge(size = size)
       }
+      CameraType.SECURITY_MONITORING -> {
+        SecurityCameraBadge(size = size)
+      }
       CameraType.ZONE_RESIDENTIAL_ENTRY -> {
         ResidentialZoneBadge(isEntry = true, size = size)
       }
@@ -66,6 +69,43 @@ fun CameraVisualBadge(
       CameraType.COMMUNITY_REPORT -> {
         CommunityReportBadge(size = size)
       }
+    }
+  }
+}
+
+@Composable
+fun SecurityCameraBadge(size: Dp) {
+  Box(
+    modifier = Modifier
+      .size(size)
+      .clip(CircleShape)
+      .background(Color(0xFF1E40AF))
+      .border(2.5.dp, Color(0xFF93C5FD), CircleShape),
+    contentAlignment = Alignment.Center
+  ) {
+    Icon(
+      imageVector = Icons.Default.Security,
+      contentDescription = null,
+      tint = Color.White,
+      modifier = Modifier.size(size * 0.55f)
+    )
+
+    Box(
+      modifier = Modifier
+        .align(Alignment.BottomEnd)
+        .offset(x = 1.dp, y = 1.dp)
+        .size(size * 0.38f)
+        .clip(CircleShape)
+        .background(Color(0xFF0284C7))
+        .border(1.dp, Color.White, CircleShape),
+      contentAlignment = Alignment.Center
+    ) {
+      Icon(
+        imageVector = Icons.Default.Videocam,
+        contentDescription = null,
+        tint = Color.White,
+        modifier = Modifier.size(size * 0.22f)
+      )
     }
   }
 }

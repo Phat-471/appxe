@@ -44,9 +44,10 @@ fun CameraAlertCard(
       val bgColor = if (isDanger) AlertCrimsonDanger.copy(alpha = 0.08f) else AlertAmberPrimary.copy(alpha = 0.08f)
 
       val (icon, typeTitle) = when (cam.type) {
-        CameraType.SPEED_CAMERA -> Icons.Default.Videocam to "CAMERA ĐO TỐC ĐỘ"
+        CameraType.SPEED_CAMERA -> Icons.Default.Videocam to "CAMERA BẮN TỐC ĐỘ"
         CameraType.RED_LIGHT_CAMERA -> Icons.Default.Traffic to "PHẠT NGUỘI VƯỢT ĐÈN ĐỎ"
         CameraType.COLD_FINE_SURVEILLANCE -> Icons.Default.CameraAlt to "CAMERA PHẠT NGUỘI LẤN LÀN"
+        CameraType.SECURITY_MONITORING -> Icons.Default.Security to "CAMERA AN NINH & GIÁM SÁT"
         CameraType.ZONE_RESIDENTIAL_ENTRY -> Icons.Default.LocationCity to "BẮT ĐẦU KHU DÂN CƯ"
         CameraType.ZONE_RESIDENTIAL_EXIT -> Icons.Default.DirectionsCar to "HẾT KHU DÂN CƯ"
         CameraType.HAZARD_ACCIDENT_ZONE -> Icons.Default.Warning to "ĐOẠN ĐƯỜNG NGUY HIỂM"

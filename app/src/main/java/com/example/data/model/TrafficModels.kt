@@ -1,9 +1,10 @@
 package com.example.data.model
 
 enum class CameraType(val displayName: String, val iconDescription: String) {
-  SPEED_CAMERA("Camera Đo Tốc Độ", "Camera bắn tốc độ cố định"),
-  RED_LIGHT_CAMERA("Camera Phạt Nguội Đèn Đỏ", "Camera phạt nguội vượt đèn đỏ"),
-  COLD_FINE_SURVEILLANCE("Camera Giám Sát Làn Đường", "Camera phạt nguội lấn làn & dừng đỗ"),
+  SPEED_CAMERA("Camera Bắn Tốc Độ", "Camera đo tốc độ tự động, phạt vi phạm tốc độ"),
+  RED_LIGHT_CAMERA("Camera Phạt Nguội Đèn Đỏ", "Camera phạt nguội vượt đèn đỏ / đèn vàng"),
+  COLD_FINE_SURVEILLANCE("Camera Phạt Nguội Lấn Làn", "Camera phạt nguội lấn làn, đè vạch liền, đi sai làn"),
+  SECURITY_MONITORING("Camera An Ninh & Giám Sát", "Camera an ninh đô thị, giám sát trật tự và luồng giao thông"),
   SPEED_LIMIT_SIGN("Biển Báo Tốc Độ", "Biển báo giới hạn tốc độ xe máy"),
   ZONE_RESIDENTIAL_ENTRY("Bắt Đầu Khu Dân Cư", "Biển báo vào khu đông dân cư (Tối đa 50 km/h)"),
   ZONE_RESIDENTIAL_EXIT("Hết Khu Dân Cư", "Biển báo hết khu dân cư (Tối đa 60 km/h)"),

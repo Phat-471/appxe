@@ -112,16 +112,20 @@ fun LiveMapScreen(
 
   // Layer filtered lists for canvas
   val filteredCameras = remember(cameras, userSettings, selectedLayerFilter) {
-    if (selectedLayerFilter in listOf("Cây xăng", "Trạm BOT", "Cứu hộ/Y tế", "Điểm đen")) {
-      emptyList()
-    } else {
-      cameras.filter { cam ->
-        when (cam.type) {
-          CameraType.SPEED_CAMERA, CameraType.COLD_FINE_SURVEILLANCE -> userSettings.showSpeedCamerasOnMap
-          CameraType.RED_LIGHT_CAMERA -> userSettings.showRedLightCamerasOnMap
-          CameraType.SPEED_LIMIT_SIGN, CameraType.ZONE_RESIDENTIAL_ENTRY, CameraType.ZONE_RESIDENTIAL_EXIT -> userSettings.showSpeedLimitsOnMap
-          CameraType.COMMUNITY_REPORT -> userSettings.showCommunityReportsOnMap
-          else -> true
+    when (selectedLayerFilter) {
+      "Bắn tốc độ" -> cameras.filter { it.type == CameraType.SPEED_CAMERA || it.type == CameraType.SPEED_LIMIT_SIGN }
+      "Phạt nguội" -> cameras.filter { it.type == CameraType.RED_LIGHT_CAMERA || it.type == CameraType.COLD_FINE_SURVEILLANCE }
+      "Camera an ninh" -> cameras.filter { it.type == CameraType.SECURITY_MONITORING }
+      "Cây xăng", "Trạm BOT", "Cứu hộ/Y tế", "Điểm đen" -> emptyList()
+      else -> {
+        cameras.filter { cam ->
+          when (cam.type) {
+            CameraType.SPEED_CAMERA, CameraType.COLD_FINE_SURVEILLANCE -> userSettings.showSpeedCamerasOnMap
+            CameraType.RED_LIGHT_CAMERA -> userSettings.showRedLightCamerasOnMap
+            CameraType.SPEED_LIMIT_SIGN, CameraType.ZONE_RESIDENTIAL_ENTRY, CameraType.ZONE_RESIDENTIAL_EXIT -> userSettings.showSpeedLimitsOnMap
+            CameraType.COMMUNITY_REPORT -> userSettings.showCommunityReportsOnMap
+            else -> true
+          }
         }
       }
     }
@@ -134,7 +138,7 @@ fun LiveMapScreen(
       "Trạm BOT" -> allPois.filter { it.type == PoiType.TOLL_BOOTH }
       "Cứu hộ/Y tế" -> allPois.filter { it.type == PoiType.HOSPITAL || it.type == PoiType.TIRE_REPAIR }
       "Điểm đen" -> allPois.filter { it.type == PoiType.ACCIDENT_HOTSPOT }
-      "Camera" -> emptyList()
+      "Bắn tốc độ", "Phạt nguội", "Camera an ninh" -> emptyList()
       else -> allPois
     }
   }
@@ -279,11 +283,13 @@ fun LiveMapScreen(
           horizontalArrangement = Arrangement.spacedBy(6.dp),
           modifier = Modifier.fillMaxWidth()
         ) {
-          val filterOptions = listOf("Tất cả", "Camera", "Cây xăng", "Trạm BOT", "Cứu hộ/Y tế", "Điểm đen")
+          val filterOptions = listOf("Tất cả", "Bắn tốc độ", "Phạt nguội", "Camera an ninh", "Cây xăng", "Trạm BOT", "Cứu hộ/Y tế", "Điểm đen")
           items(filterOptions) { filter ->
             val isSelected = selectedLayerFilter == filter
             val (icon, badgeColor) = when (filter) {
-              "Camera" -> "📷" to Color(0xFFEF4444)
+              "Bắn tốc độ" -> "🔴" to Color(0xFFEF4444)
+              "Phạt nguội" -> "🚦" to Color(0xFFDC2626)
+              "Camera an ninh" -> "🛡️" to Color(0xFF1E40AF)
               "Cây xăng" -> "⛽" to Color(0xFFF97316)
               "Trạm BOT" -> "🚧" to Color(0xFF0284C7)
               "Cứu hộ/Y tế" -> "🏥" to Color(0xFF10B981)

@@ -109,6 +109,7 @@ class TrafficWarningEngine(
         CameraType.SPEED_CAMERA -> "Camera bắn tốc độ ($distInt m): ${nearestCamera.roadName} (Tối đa ${nearestCamera.speedLimit} km/h)"
         CameraType.RED_LIGHT_CAMERA -> "Camera phạt nguội vượt đèn đỏ ($distInt m): ${nearestCamera.roadName}"
         CameraType.COLD_FINE_SURVEILLANCE -> "Camera phạt nguội lấn làn ($distInt m): ${nearestCamera.roadName}"
+        CameraType.SECURITY_MONITORING -> "Camera an ninh & giám sát ($distInt m): ${nearestCamera.roadName}"
         CameraType.ZONE_RESIDENTIAL_ENTRY -> "Vào khu đông dân cư ($distInt m): ${nearestCamera.roadName} (Tối đa 50 km/h)"
         CameraType.ZONE_RESIDENTIAL_EXIT -> "Hết khu đông dân cư ($distInt m): ${nearestCamera.roadName} (Tối đa 60 km/h)"
         CameraType.HAZARD_ACCIDENT_ZONE -> "Đoạn đường nguy hiểm ($distInt m): ${nearestCamera.roadName}"

@@ -170,6 +170,26 @@ object VietnamTrafficData {
       districtCity = "Quận 5, TP.HCM"
     ),
     TrafficCamera(
+      id = "cam_sg_sec_01",
+      latitude = 10.7745,
+      longitude = 106.7035,
+      type = CameraType.SECURITY_MONITORING,
+      roadName = "Phố Đi Bộ Nguyễn Huệ",
+      speedLimit = 50,
+      description = "Camera an ninh đô thị và giám sát trật tự công cộng",
+      districtCity = "Quận 1, TP.HCM"
+    ),
+    TrafficCamera(
+      id = "cam_sg_sec_02",
+      latitude = 10.7985,
+      longitude = 106.7210,
+      type = CameraType.SECURITY_MONITORING,
+      roadName = "Cầu Sài Gòn (Đoạn nối Bình Thạnh - TP. Thủ Đức)",
+      speedLimit = 60,
+      description = "Camera giám sát luồng phương tiện và tình trạng kẹt xe",
+      districtCity = "Bình Thạnh, TP.HCM"
+    ),
+    TrafficCamera(
       id = "cam_sg_zone_01",
       latitude = 10.7760,
       longitude = 106.6950,

@@ -42,9 +42,10 @@ fun CameraDetailBottomSheet(
   ).toInt()
 
   val (typeName, penaltyInfo) = when (camera.type) {
-    CameraType.SPEED_CAMERA -> "Camera Đo Tốc Độ Tự Động" to "Phạt quá tốc độ: 800.000đ - 12.000.000đ, tước GPLX 1-4 tháng theo NĐ 100/123/NĐ-CP."
+    CameraType.SPEED_CAMERA -> "Camera Bắn Tốc Độ Tự Động" to "Phạt quá tốc độ: 800.000đ - 12.000.000đ, tước GPLX 1-4 tháng theo NĐ 100/123/NĐ-CP."
     CameraType.RED_LIGHT_CAMERA -> "Camera Phạt Nguội Vượt Đèn Đỏ" to "Phạt vượt đèn đỏ/vàng: 4.000.000đ - 6.000.000đ (ô tô) / 800.000đ - 1.000.000đ (xe máy)."
     CameraType.COLD_FINE_SURVEILLANCE -> "Camera Phạt Nguội Lấn Làn & Đè Vạch" to "Phạt đi sai làn, đè vạch liền: 3.000.000đ - 5.000.000đ (ô tô) / 400.000đ - 600.000đ (xe máy)."
+    CameraType.SECURITY_MONITORING -> "Camera An Ninh & Giám Sát Đô Thị" to "Camera an ninh trật tự công an và quan sát luồng giao thông VOV. Không đo phạt bắn tốc độ."
     CameraType.ZONE_RESIDENTIAL_ENTRY -> "Biển Báo Khu Đông Dân Cư (R.420)" to "Tốc độ tối đa quy định: 50 km/h (đường đôi/1 chiều 2 làn) hoặc 60 km/h theo TT 31/2019."
     CameraType.ZONE_RESIDENTIAL_EXIT -> "Hết Khu Đông Dân Cư (R.421)" to "Được phép tăng tốc độ lên tối đa 60 km/h (xe máy) / 80 km/h (ô tô ngoài đô thị)."
     CameraType.HAZARD_ACCIDENT_ZONE -> "Đoạn Đường Thường Xảy Ra Tai Nạn" to "Khu vực điểm đen giao thông, giảm tốc độ và chú ý quan sát xe qua lại."

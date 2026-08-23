@@ -16,7 +16,7 @@ object VietnamTrafficData {
       type = CameraType.SPEED_CAMERA,
       roadName = "Đại lộ Võ Văn Kiệt (Gần Cầu Chữ Y)",
       speedLimit = 60,
-      description = "Camera đo tốc độ làn xe máy 2 chiều, ghi hình tự động",
+      description = "Camera bắn tốc độ cố định 60 km/h làn hỗn hợp gần Cầu Chữ Y",
       districtCity = "Quận 5, TP.HCM"
     ),
     TrafficCamera(
@@ -26,8 +26,18 @@ object VietnamTrafficData {
       type = CameraType.RED_LIGHT_CAMERA,
       roadName = "Võ Văn Kiệt giao An Dương Vương",
       speedLimit = 60,
-      description = "Phạt nguội vượt đèn đỏ, không bật xi nhan rẽ nhánh",
+      description = "Camera phạt nguội vượt đèn đỏ và đè vạch rẽ nhánh",
       districtCity = "Quận 6, TP.HCM"
+    ),
+    TrafficCamera(
+      id = "cam_sg_vvk_03",
+      latitude = 10.7650,
+      longitude = 106.7020,
+      type = CameraType.COLD_FINE_SURVEILLANCE,
+      roadName = "Đầu Hầm Vượt Sông Sài Gòn (Phía Quận 1)",
+      speedLimit = 60,
+      description = "Camera phạt nguội tốc độ và bật đèn chiếu gần trong hầm",
+      districtCity = "Quận 1, TP.HCM"
     ),
     TrafficCamera(
       id = "cam_sg_pvd_01",
@@ -36,7 +46,7 @@ object VietnamTrafficData {
       type = CameraType.SPEED_CAMERA,
       roadName = "Đường Phạm Văn Đồng (Gần Cầu Bình Lợi)",
       speedLimit = 60,
-      description = "Camera bắn tốc độ cố định làn xe 2 bánh",
+      description = "Camera bắn tốc độ tự động 60 km/h làn xe máy",
       districtCity = "Bình Thạnh, TP.HCM"
     ),
     TrafficCamera(
@@ -46,8 +56,18 @@ object VietnamTrafficData {
       type = CameraType.COLD_FINE_SURVEILLANCE,
       roadName = "Phạm Văn Đồng giao Tô Ngọc Vân",
       speedLimit = 60,
-      description = "Phạt nguội chạy sai làn đường và lấn tuyến",
+      description = "Camera phạt nguội chạy sai làn đường và lấn tuyến",
       districtCity = "TP. Thủ Đức, TP.HCM"
+    ),
+    TrafficCamera(
+      id = "cam_sg_pvd_03",
+      latitude = 10.8160,
+      longitude = 106.6780,
+      type = CameraType.RED_LIGHT_CAMERA,
+      roadName = "Phạm Văn Đồng giao Phan Văn Trị",
+      speedLimit = 60,
+      description = "Camera phạt nguội không tuân thủ đèn tín hiệu",
+      districtCity = "Gò Vấp, TP.HCM"
     ),
     TrafficCamera(
       id = "cam_sg_nvl_01",
@@ -56,7 +76,7 @@ object VietnamTrafficData {
       type = CameraType.RED_LIGHT_CAMERA,
       roadName = "Nguyễn Văn Linh giao Nguyễn Hữu Thọ",
       speedLimit = 50,
-      description = "Phạt nguội đè vạch, vượt đèn tín hiệu ngã tư",
+      description = "Phạt nguội vượt đèn đỏ và đè vạch ngã tư lớn",
       districtCity = "Quận 7, TP.HCM"
     ),
     TrafficCamera(
@@ -64,9 +84,9 @@ object VietnamTrafficData {
       latitude = 10.7198,
       longitude = 106.6610,
       type = CameraType.SPEED_CAMERA,
-      roadName = "Đại lộ Nguyễn Văn Linh (Khu vực Quốc Lộ 50)",
+      roadName = "Đại lộ Nguyễn Văn Linh (Gần Quốc Lộ 50)",
       speedLimit = 60,
-      description = "Camera đo tốc độ tự động đoạn đường thẳng",
+      description = "Camera đo tốc độ tự động 60 km/h đoạn đường thẳng",
       districtCity = "Bình Chánh, TP.HCM"
     ),
     TrafficCamera(
@@ -86,7 +106,7 @@ object VietnamTrafficData {
       type = CameraType.COLD_FINE_SURVEILLANCE,
       roadName = "Quốc Lộ 1A (Đoạn Cầu Bình Điền)",
       speedLimit = 50,
-      description = "Khu đông dân cư, giám sát tốc độ và lấn làn",
+      description = "Giám sát tốc độ 50 km/h khu đông dân cư và lấn làn",
       districtCity = "Bình Chánh, TP.HCM"
     ),
     TrafficCamera(
@@ -96,8 +116,58 @@ object VietnamTrafficData {
       type = CameraType.SPEED_CAMERA,
       roadName = "Đại Lộ Mai Chí Thọ (Gần Nút Giao An Phú)",
       speedLimit = 50,
-      description = "Camera bắn tốc độ làn xe hỗn hợp",
+      description = "Camera bắn tốc độ 50 km/h làn đường gom",
       districtCity = "TP. Thủ Đức, TP.HCM"
+    ),
+    TrafficCamera(
+      id = "cam_sg_cmt8_01",
+      latitude = 10.7760,
+      longitude = 106.6850,
+      type = CameraType.RED_LIGHT_CAMERA,
+      roadName = "Cách Mạng Tháng 8 (Ngã 6 Dân Chủ)",
+      speedLimit = 50,
+      description = "Camera phạt nguội vượt đèn và lấn vạch vòng xoay",
+      districtCity = "Quận 3, TP.HCM"
+    ),
+    TrafficCamera(
+      id = "cam_sg_cmt8_02",
+      latitude = 10.7920,
+      longitude = 106.6570,
+      type = CameraType.COLD_FINE_SURVEILLANCE,
+      roadName = "Cách Mạng Tháng 8 giao Tô Hiến Thành",
+      speedLimit = 50,
+      description = "Camera giám sát lấn làn và dừng đỗ sai quy định",
+      districtCity = "Quận 10, TP.HCM"
+    ),
+    TrafficCamera(
+      id = "cam_sg_ch_01",
+      latitude = 10.8030,
+      longitude = 106.6470,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Đường Cộng Hòa (Cầu vượt Hoàng Hoa Thám)",
+      speedLimit = 50,
+      description = "Camera bắn tốc độ tự động 50 km/h trên cầu vượt",
+      districtCity = "Tân Bình, TP.HCM"
+    ),
+    TrafficCamera(
+      id = "cam_sg_dbp_01",
+      latitude = 10.8010,
+      longitude = 106.7150,
+      type = CameraType.RED_LIGHT_CAMERA,
+      roadName = "Điện Biên Phủ (Ngã Tư Hàng Xanh)",
+      speedLimit = 50,
+      description = "Camera phạt nguội vượt đèn tín hiệu và đè vạch dừng",
+      districtCity = "Bình Thạnh, TP.HCM"
+    ),
+    TrafficCamera(
+      id = "cam_sg_ntr_01",
+      latitude = 10.7605,
+      longitude = 106.6775,
+      type = CameraType.SPEED_LIMIT_SIGN,
+      roadName = "Đường Nguyễn Trãi",
+      speedLimit = 50,
+      description = "Khu vực đô thị đông dân cư, tốc độ tối đa 50 km/h",
+      districtCity = "Quận 5, TP.HCM"
     ),
     TrafficCamera(
       id = "cam_sg_zone_01",
@@ -128,7 +198,7 @@ object VietnamTrafficData {
       type = CameraType.SPEED_CAMERA,
       roadName = "Đại Lộ Thăng Long (Đường gom xe máy)",
       speedLimit = 50,
-      description = "Bắn tốc độ đường gom, phạt xe máy đi vào làn cao tốc",
+      description = "Bắn tốc độ 50 km/h đường gom, phạt xe máy đi vào cao tốc",
       districtCity = "Nam Từ Liêm, Hà Nội"
     ),
     TrafficCamera(
@@ -136,9 +206,9 @@ object VietnamTrafficData {
       latitude = 21.1350,
       longitude = 105.8080,
       type = CameraType.SPEED_CAMERA,
-      roadName = "Đường Võ Nguyên Giáp (Đoạn Cầu Nhật Tân - Nội Bài)",
+      roadName = "Đường Võ Nguyên Giáp (Cầu Nhật Tân - Nội Bài)",
       speedLimit = 60,
-      description = "Camera đo tốc độ tự động đường gom xe 2 bánh",
+      description = "Camera đo tốc độ tự động 60 km/h đường gom xe 2 bánh",
       districtCity = "Đông Anh, Hà Nội"
     ),
     TrafficCamera(
@@ -158,8 +228,18 @@ object VietnamTrafficData {
       type = CameraType.COLD_FINE_SURVEILLANCE,
       roadName = "Đường Giải Phóng (Gần Bến Xe Nước Ngầm)",
       speedLimit = 50,
-      description = "Giám sát tốc độ và dừng đỗ sai quy định",
+      description = "Giám sát tốc độ 50 km/h và dừng đỗ sai quy định",
       districtCity = "Hoàng Mai, Hà Nội"
+    ),
+    TrafficCamera(
+      id = "cam_hn_nts_01",
+      latitude = 21.0030,
+      longitude = 105.8200,
+      type = CameraType.RED_LIGHT_CAMERA,
+      roadName = "Ngã Tư Sở (Nguyễn Trãi - Trường Chinh)",
+      speedLimit = 50,
+      description = "Camera phạt nguội vượt đèn đỏ và đè vạch ngã tư lớn",
+      districtCity = "Đống Đa, Hà Nội"
     ),
 
     // ====== QUỐC LỘ 51 & ĐỒNG NAI - BÀ RỊA VŨNG TÀU ======
@@ -170,7 +250,7 @@ object VietnamTrafficData {
       type = CameraType.SPEED_CAMERA,
       roadName = "Quốc Lộ 51 (Đoạn Long Thành - Đồng Nai)",
       speedLimit = 60,
-      description = "Camera phạt nguội tốc độ toàn tuyến tự động",
+      description = "Camera phạt nguội tốc độ 60 km/h toàn tuyến tự động",
       districtCity = "Long Thành, Đồng Nai"
     ),
     TrafficCamera(
@@ -178,9 +258,9 @@ object VietnamTrafficData {
       latitude = 10.6010,
       longitude = 107.0850,
       type = CameraType.SPEED_CAMERA,
-      roadName = "Quốc Lộ 51 (Đoạn Phú Mỹ)",
+      roadName = "Quốc Lộ 51 (Đoạn Thị Xã Phú Mỹ)",
       speedLimit = 60,
-      description = "Đoạn đông dân cư, camera giám sát cố định",
+      description = "Khu đông dân cư, camera đo tốc độ 60 km/h cố định",
       districtCity = "Thị xã Phú Mỹ, BR-VT"
     ),
 
@@ -192,7 +272,7 @@ object VietnamTrafficData {
       type = CameraType.SPEED_CAMERA,
       roadName = "Đường Nguyễn Tất Thành (Đà Nẵng)",
       speedLimit = 50,
-      description = "Camera đo tốc độ dọc tuyến ven biển",
+      description = "Camera đo tốc độ 50 km/h dọc tuyến đường ven biển",
       districtCity = "Thanh Khê, Đà Nẵng"
     ),
     TrafficCamera(

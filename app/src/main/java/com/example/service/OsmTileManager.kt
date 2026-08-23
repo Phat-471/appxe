@@ -157,29 +157,30 @@ object OsmTileManager {
           .build()
 
         val response = httpClient.newCall(request).execute()
-        if (response.isSuccessful) {
-          val bytes = response.body?.bytes()
-          if (bytes != null && bytes.size > 150) {
-            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-            if (bitmap != null) {
-              val imgBitmap = bitmap.asImageBitmap()
-              memoryCache.put(key, imgBitmap)
+        response.use { resp ->
+          if (resp.isSuccessful) {
+            val bytes = resp.body?.bytes()
+            if (bytes != null && bytes.size > 150) {
+              val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+              if (bitmap != null) {
+                val imgBitmap = bitmap.asImageBitmap()
+                memoryCache.put(key, imgBitmap)
 
-              diskFile?.let { file ->
-                try {
-                  FileOutputStream(file).use { out ->
-                    out.write(bytes)
-                  }
-                } catch (_: Exception) {}
-              }
+                diskFile?.let { file ->
+                  try {
+                    FileOutputStream(file).use { out ->
+                      out.write(bytes)
+                    }
+                  } catch (_: Exception) {}
+                }
 
-              withContext(Dispatchers.Main) {
-                _tileUpdateSignal.value = System.currentTimeMillis()
+                withContext(Dispatchers.Main) {
+                  _tileUpdateSignal.value = System.currentTimeMillis()
+                }
               }
             }
           }
         }
-        response.close()
       } catch (_: Exception) {
       } finally {
         synchronized(activeRequests) {
@@ -252,16 +253,16 @@ object OsmTileManager {
                   .replace("{y}", y.toString())
 
                 val request = Request.Builder().url(url).header("User-Agent", "SpeedAlertVietnamApp/2.0").build()
-                val response = httpClient.newCall(request).execute()
-                if (response.isSuccessful) {
-                  val bytes = response.body?.bytes()
-                  if (bytes != null && bytes.size > 150) {
-                    diskFile?.let { file ->
-                      FileOutputStream(file).use { out -> out.write(bytes) }
+                httpClient.newCall(request).execute().use { response ->
+                  if (response.isSuccessful) {
+                    val bytes = response.body?.bytes()
+                    if (bytes != null && bytes.size > 150) {
+                      diskFile?.let { file ->
+                        FileOutputStream(file).use { out -> out.write(bytes) }
+                      }
                     }
                   }
                 }
-                response.close()
               } catch (_: Exception) { }
             }
 

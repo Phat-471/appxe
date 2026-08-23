@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -64,7 +65,6 @@ fun LiveMapScreen(
   modifier: Modifier = Modifier
 ) {
   val coroutineScope = rememberCoroutineScope()
-  var isExpandedControls by remember { mutableStateOf(false) }
   var inspectingCamera by remember { mutableStateOf<TrafficCamera?>(null) }
   var showDestinationSearchDialog by remember { mutableStateOf(false) }
   var searchQuery by remember { mutableStateOf("") }
@@ -82,7 +82,6 @@ fun LiveMapScreen(
   val nearestCam = trafficEvaluation.nearestCamera
   val currentSpeedLimit = trafficEvaluation.currentSpeedLimit.coerceAtLeast(50)
   val isOverspeed = trafficEvaluation.isOverspeeding
-  val speedInt = locationState.speedKmh.toInt()
 
   val allPlaces = remember { VietnamTrafficData.POPULAR_PLACES }
 
@@ -523,7 +522,7 @@ fun LiveMapScreen(
                             "Cây xăng" -> Icons.Default.LocalGasStation
                             "Sân bay" -> Icons.Default.Flight
                             "Bệnh viện" -> Icons.Default.LocalHospital
-                            "Tuyến đường" -> Icons.Default.AltRoute
+                            "Tuyến đường" -> Icons.AutoMirrored.Filled.AltRoute
                             else -> Icons.Default.LocationOn
                           }
                           Icon(iconVec, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))

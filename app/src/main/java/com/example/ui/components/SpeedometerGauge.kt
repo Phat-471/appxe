@@ -41,7 +41,7 @@ fun SpeedometerGauge(
 ) {
   val animatedSpeed by animateFloatAsState(
     targetValue = currentSpeed,
-    animationSpec = spring(stiffness = Spring.StiffnessLow, dampingRatio = Spring.DampingRatioMediumBouncy),
+    animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioNoBouncy),
     label = "speedAnimation"
   )
 

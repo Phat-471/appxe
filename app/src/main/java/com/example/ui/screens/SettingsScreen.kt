@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -132,7 +133,7 @@ fun SettingsScreen(
           shape = RoundedCornerShape(10.dp),
           modifier = Modifier.fillMaxWidth()
         ) {
-          Icon(Icons.Default.VolumeUp, contentDescription = null, modifier = Modifier.size(18.dp))
+          Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = null, modifier = Modifier.size(18.dp))
           Spacer(modifier = Modifier.width(8.dp))
           Text("Nghe thử giọng mẫu thông báo", fontWeight = FontWeight.Bold)
         }
@@ -277,7 +278,7 @@ fun SettingsScreen(
 
     Spacer(modifier = Modifier.height(20.dp))
 
-    // SECTION 4: GÓI DỮ LIỆU BẢN ĐỒ NGOẠI TUYẾN
+    // SECTION 5: GÓI DỮ LIỆU BẢN ĐỒ NGOẠI TUYẾN
     SettingsSectionHeader(icon = Icons.Default.DownloadForOffline, title = "GÓI BẢN ĐỒ & CAMERA NGOẠI TUYẾN")
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

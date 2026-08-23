@@ -175,9 +175,9 @@ class SpeedLimitTrackingService : Service() {
   @SuppressLint("MissingPermission")
   private fun initLocationTracking() {
     try {
-      val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L)
-        .setMinUpdateIntervalMillis(500L)
-        .setMinUpdateDistanceMeters(0.5f)
+      val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 250L)
+        .setMinUpdateIntervalMillis(150L)
+        .setMinUpdateDistanceMeters(0f)
         .build()
 
       locationCallback = object : LocationCallback() {
@@ -204,7 +204,7 @@ class SpeedLimitTrackingService : Service() {
       locationManager?.let { mgr ->
         if (mgr.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
           fallbackLocationListener?.let { lsnr ->
-            mgr.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0.5f, lsnr, Looper.getMainLooper())
+            mgr.requestLocationUpdates(LocationManager.GPS_PROVIDER, 250L, 0f, lsnr, Looper.getMainLooper())
           }
         }
       }
@@ -215,7 +215,7 @@ class SpeedLimitTrackingService : Service() {
 
   private fun processNewLocation(location: Location) {
     serviceScope.launch {
-      // 1. Calculate speed in km/h from location API
+      // 1. Calculate speed in km/h immediately
       val speedKmh = if (location.hasSpeed()) {
         location.speed * 3.6f
       } else {
@@ -226,28 +226,11 @@ class SpeedLimitTrackingService : Service() {
       val lng = location.longitude
       val heading = if (location.hasBearing()) location.bearing else 0f
 
-      // 2. Query Mock Speed Limit Data Source & Road name
-      var detectedRoad: String? = null
-      try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-          geocoder?.getFromLocation(lat, lng, 1) { addrs ->
-            if (addrs.isNotEmpty()) {
-              detectedRoad = addrs[0].thoroughfare ?: addrs[0].featureName
-            }
-          }
-        } else {
-          @Suppress("DEPRECATION")
-          val addrs = geocoder?.getFromLocation(lat, lng, 1)
-          if (!addrs.isNullOrEmpty()) {
-            detectedRoad = addrs[0].thoroughfare ?: addrs[0].featureName
-          }
-        }
-      } catch (_: Exception) {}
-
-      val (mockLimit, roadName) = MockSpeedLimitDataSource.getSpeedLimitForLocation(lat, lng, detectedRoad)
+      val currentRoad = _visualAlertState.value.roadName
+      val (mockLimit, roadName) = MockSpeedLimitDataSource.getSpeedLimitForLocation(lat, lng, currentRoad)
       val effectiveLimit = manualLimitOverride ?: mockLimit
 
-      // 3. Compare speed vs limit and evaluate visual alert level
+      // 2. Compare speed vs limit and evaluate visual alert level instantly
       val currentSpeedInt = speedKmh.roundToInt().coerceAtLeast(0)
       val speedDelta = currentSpeedInt - effectiveLimit
       val isOverspeeding = speedDelta > 0
@@ -287,9 +270,21 @@ class SpeedLimitTrackingService : Service() {
       )
 
       _visualAlertState.value = newState
-
-      // 4. Update system notification
       updateNotification(newState)
+
+      // 3. Asynchronous background reverse geocoding
+      try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+          geocoder?.getFromLocation(lat, lng, 1) { addrs ->
+            if (addrs.isNotEmpty()) {
+              val detected = addrs[0].thoroughfare ?: addrs[0].featureName
+              if (!detected.isNullOrBlank() && detected != roadName) {
+                _visualAlertState.value = _visualAlertState.value.copy(roadName = detected)
+              }
+            }
+          }
+        }
+      } catch (_: Exception) {}
     }
   }
 

@@ -53,6 +53,9 @@ class GpsLocationEngine(private val context: Context) {
   var onTurnVoicePrompt: ((String) -> Unit)? = null
   private var lastAlertedStepIndex = -1
   private var lastAlertedDistanceBand = -1 // 300, 100, 30
+  private var isRerouting = false
+  private var lastRerouteTime = 0L
+  private var offRouteCount = 0
 
   // Geocoder & Reverse Geocoding Cache
   private val geocoder = try {
@@ -133,9 +136,9 @@ class GpsLocationEngine(private val context: Context) {
         processRealGpsLocation(bestLast)
       }
 
-      // 3. High-precision Real-time Fused location stream (300ms interval, 0m displacement)
-      val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 350L)
-        .setMinUpdateIntervalMillis(200L)
+      // 3. High-precision Real-time Fused location stream (200ms interval, 0m displacement)
+      val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 200L)
+        .setMinUpdateIntervalMillis(150L)
         .setMinUpdateDistanceMeters(0f)
         .setWaitForAccurateLocation(false)
         .build()
@@ -308,17 +311,16 @@ class GpsLocationEngine(private val context: Context) {
       smoothLat = kalmanResult.lat
       smoothLng = kalmanResult.lng
 
-      // Smooth Speed with zero-clamp for stationary drift
-      val targetSpeed = if (rawLoc.hasSpeed() && rawLoc.speed > 0.4f) rawSpeedKmh else kalmanResult.speedKmh
-      smoothSpeed += (targetSpeed - smoothSpeed) * 0.7f
-      if (smoothSpeed < 1.2f) smoothSpeed = 0f
+      // Direct, instantaneous speed update from GPS hardware
+      smoothSpeed = if (rawLoc.hasSpeed()) rawSpeedKmh else kalmanResult.speedKmh
+      if (smoothSpeed < 0.8f) smoothSpeed = 0f
 
-      // Smooth Heading
-      if (rawLoc.hasBearing() && rawLoc.bearing != 0f && smoothSpeed > 2.0f) {
+      // Fast, responsive heading update
+      if (rawLoc.hasBearing() && rawLoc.bearing != 0f && smoothSpeed > 1.2f) {
         var diff = rawLoc.bearing - smoothHeading
         while (diff > 180f) diff -= 360f
         while (diff < -180f) diff += 360f
-        smoothHeading += diff * 0.45f
+        smoothHeading += diff * 0.7f
       }
     }
 
@@ -586,6 +588,54 @@ class GpsLocationEngine(private val context: Context) {
     ).toInt()
 
     val durationMinutes = ((distToDest / 1000.0) / 30.0 * 60.0).toInt().coerceAtLeast(1)
+
+    // Check if vehicle has deviated from the route polyline (Off-route detection)
+    var minDistanceToRoute = Double.MAX_VALUE
+    val waypoints = route.waypoints
+    if (waypoints.isNotEmpty()) {
+      for (i in 0 until waypoints.size) {
+        val dist = VietnamTrafficData.calculateDistanceMeters(
+          currentLat, currentLng,
+          waypoints[i].first, waypoints[i].second
+        )
+        if (dist < minDistanceToRoute) {
+          minDistanceToRoute = dist
+        }
+      }
+    }
+
+    val now = System.currentTimeMillis()
+    if (minDistanceToRoute > 45.0 && distToDest > 60 && !isRerouting && (now - lastRerouteTime) > 4000) {
+      offRouteCount++
+      if (offRouteCount >= 2) {
+        offRouteCount = 0
+        isRerouting = true
+        lastRerouteTime = now
+        scope.launch {
+          try {
+            onTurnVoicePrompt?.invoke("Bạn đã đi chệch tuyến đường. Đang tự động tính toán lại lộ trình mới!")
+            val newRoute = NavigationRoutingService.fetchRoute(
+              startLat = currentLat,
+              startLng = currentLng,
+              destLat = route.destinationLat,
+              destLng = route.destinationLng,
+              destName = route.destinationName,
+              destAddress = route.destinationAddress
+            )
+            _activeRoute.value = newRoute
+            lastAlertedStepIndex = -1
+            lastAlertedDistanceBand = -1
+          } catch (e: Exception) {
+            Log.w("GpsLocationEngine", "Auto-reroute failed: ${e.message}")
+          } finally {
+            isRerouting = false
+          }
+        }
+        return
+      }
+    } else if (minDistanceToRoute <= 40.0) {
+      offRouteCount = 0
+    }
 
     // Find nearest step index
     var currentStepIndex = route.currentStepIndex

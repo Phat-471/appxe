@@ -359,8 +359,11 @@ fun OfflineMapCanvas(
         val calHour = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("GMT+7")).get(java.util.Calendar.HOUR_OF_DAY)
         val isEffectiveDark = darkMapMode || (calHour >= 18 || calHour < 6)
         if (isEffectiveDark) {
+          val diagCover = hypot(canvasWidth, canvasHeight) * 4f
           drawRect(
-            color = Color(0xFF0F172A).copy(alpha = 0.55f),
+            color = Color(0xFF0F172A).copy(alpha = 0.60f),
+            topLeft = Offset(midX - diagCover / 2f, midY - diagCover / 2f),
+            size = Size(diagCover, diagCover),
             blendMode = BlendMode.Multiply
           )
         }
@@ -386,22 +389,24 @@ fun OfflineMapCanvas(
             color = android.graphics.Color.argb(235, 15, 23, 42)
             style = Paint.Style.FILL
           }
+          val borderBubblePaint = Paint().apply {
+            isAntiAlias = true
+            color = android.graphics.Color.argb(255, 56, 189, 248)
+            style = Paint.Style.STROKE
+            strokeWidth = 1.5.dp.toPx()
+          }
 
-          val labelText = "📍 ${targetFocusPlace.name}"
-          val textWidth = titlePaint.measureText(labelText)
-          val bubbleH = 26.dp.toPx()
-          val bubbleW = textWidth + 22.dp.toPx()
-          val bubbleLeft = focusPos.x - bubbleW / 2f
-          val bubbleTop = focusPos.y - 46.dp.toPx()
+          val textW = titlePaint.measureText(targetFocusPlace.name) + 20.dp.toPx()
+          val textH = 24.dp.toPx()
+          val bLeft = focusPos.x - textW / 2f
+          val bTop = focusPos.y - 42.dp.toPx()
 
-          drawContext.canvas.nativeCanvas.drawRoundRect(
-            bubbleLeft, bubbleTop, bubbleLeft + bubbleW, bubbleTop + bubbleH,
-            12.dp.toPx(), 12.dp.toPx(), bgBubblePaint
-          )
+          drawContext.canvas.nativeCanvas.drawRoundRect(bLeft, bTop, bLeft + textW, bTop + textH, 12.dp.toPx(), 12.dp.toPx(), bgBubblePaint)
+          drawContext.canvas.nativeCanvas.drawRoundRect(bLeft, bTop, bLeft + textW, bTop + textH, 12.dp.toPx(), 12.dp.toPx(), borderBubblePaint)
           drawContext.canvas.nativeCanvas.drawText(
-            labelText,
+            targetFocusPlace.name,
             focusPos.x,
-            bubbleTop + 17.dp.toPx(),
+            bTop + 16.dp.toPx(),
             titlePaint
           )
         }
@@ -535,9 +540,8 @@ fun OfflineMapCanvas(
 
           when (cam.type) {
             CameraType.SPEED_CAMERA, CameraType.COLD_FINE_SURVEILLANCE, CameraType.COMMUNITY_REPORT -> {
-              // Vietmap-style black card with speedometer icon (matches reference screenshot exactly)
-              val cardW = 40.dp.toPx()
-              val cardH = 40.dp.toPx()
+              val cardW = 44.dp.toPx()
+              val cardH = 44.dp.toPx()
               val left = camPos.x - cardW / 2f
               val top = camPos.y - cardH / 2f
 
@@ -545,68 +549,84 @@ fun OfflineMapCanvas(
                 isAntiAlias = true
                 color = if (isNear && activeWarning?.isOverspeeding == true)
                   android.graphics.Color.argb(255, 185, 28, 28) // red when over speed
-                else android.graphics.Color.argb(255, 20, 20, 30) // near-black normally
+                else android.graphics.Color.argb(250, 15, 23, 42) // sleek dark blue-black
                 style = Paint.Style.FILL
               }
               val borderPaint = Paint().apply {
                 isAntiAlias = true
-                color = if (isNear) android.graphics.Color.argb(255, 2, 180, 255) else android.graphics.Color.argb(200, 200, 210, 220)
+                color = if (isNear) android.graphics.Color.argb(255, 2, 180, 255) else android.graphics.Color.argb(220, 148, 163, 184)
                 style = Paint.Style.STROKE
                 strokeWidth = if (isNear) 2.5.dp.toPx() else 1.5.dp.toPx()
               }
 
               // Card body with rounded corners
-              drawContext.canvas.nativeCanvas.drawRoundRect(left, top, left + cardW, top + cardH, 8.dp.toPx(), 8.dp.toPx(), bgPaint)
-              drawContext.canvas.nativeCanvas.drawRoundRect(left, top, left + cardW, top + cardH, 8.dp.toPx(), 8.dp.toPx(), borderPaint)
+              drawContext.canvas.nativeCanvas.drawRoundRect(left, top, left + cardW, top + cardH, 10.dp.toPx(), 10.dp.toPx(), bgPaint)
+              drawContext.canvas.nativeCanvas.drawRoundRect(left, top, left + cardW, top + cardH, 10.dp.toPx(), 10.dp.toPx(), borderPaint)
 
-              // Speedometer arc icon inside (like reference screenshot)
+              // Speedometer arc icon inside (upper half)
               val arcPaint = Paint().apply {
                 isAntiAlias = true
                 color = android.graphics.Color.WHITE
                 style = Paint.Style.STROKE
-                strokeWidth = 1.8.dp.toPx()
+                strokeWidth = 2.0.dp.toPx()
                 strokeCap = Paint.Cap.ROUND
               }
               val arcCenterX = camPos.x
-              val arcCenterY = camPos.y - 2.dp.toPx()
-              val arcRadius = 11.dp.toPx()
+              val arcCenterY = camPos.y - 4.dp.toPx()
+              val arcRadius = 11.5.dp.toPx()
               val arcRect = android.graphics.RectF(arcCenterX - arcRadius, arcCenterY - arcRadius, arcCenterX + arcRadius, arcCenterY + arcRadius)
-              drawContext.canvas.nativeCanvas.drawArc(arcRect, 210f, 120f, false, arcPaint)
+              drawContext.canvas.nativeCanvas.drawArc(arcRect, 200f, 140f, false, arcPaint)
 
               // Speedometer needle
-              val needleAngle = Math.toRadians(270.0) // pointing straight up = normal speed
-              val needlePaint = Paint().apply { isAntiAlias = true; color = if (isNear && activeWarning?.isOverspeeding == true) android.graphics.Color.argb(255, 255, 80, 80) else android.graphics.Color.WHITE; strokeWidth = 1.5.dp.toPx(); strokeCap = Paint.Cap.ROUND; style = Paint.Style.STROKE }
+              val needleAngle = Math.toRadians(270.0)
+              val needlePaint = Paint().apply {
+                isAntiAlias = true
+                color = if (isNear && activeWarning?.isOverspeeding == true) android.graphics.Color.argb(255, 255, 80, 80) else android.graphics.Color.WHITE
+                strokeWidth = 1.8.dp.toPx()
+                strokeCap = Paint.Cap.ROUND
+                style = Paint.Style.STROKE
+              }
               val needleEndX = arcCenterX + (arcRadius * 0.7f * cos(needleAngle).toFloat())
               val needleEndY = arcCenterY + (arcRadius * 0.7f * sin(needleAngle).toFloat())
               drawContext.canvas.nativeCanvas.drawLine(arcCenterX, arcCenterY, needleEndX, needleEndY, needlePaint)
 
-              // Blue dot in the center (like reference screenshot)
-              val dotPaint = Paint().apply { isAntiAlias = true; color = if (isNear) android.graphics.Color.argb(255, 0, 180, 255) else android.graphics.Color.argb(200, 100, 180, 255); style = Paint.Style.FILL }
-              drawContext.canvas.nativeCanvas.drawCircle(arcCenterX, arcCenterY, 3.5.dp.toPx(), dotPaint)
+              // Blue dot in center
+              val dotPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.argb(255, 0, 180, 255); style = Paint.Style.FILL }
+              drawContext.canvas.nativeCanvas.drawCircle(arcCenterX, arcCenterY, 3.2.dp.toPx(), dotPaint)
 
-              // Speed limit text below speedometer
+              // Speed limit text cleanly below arc (lower half of card)
               val speedPaint = Paint().apply {
                 isAntiAlias = true
-                textSize = 8.5.sp.toPx()
+                textSize = 9.5.sp.toPx()
                 color = android.graphics.Color.WHITE
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 textAlign = Paint.Align.CENTER
               }
               if (cam.speedLimit > 0) {
-                drawContext.canvas.nativeCanvas.drawText("${cam.speedLimit}", camPos.x, camPos.y + 15.dp.toPx(), speedPaint)
+                drawContext.canvas.nativeCanvas.drawText("${cam.speedLimit}", camPos.x, top + cardH - 5.dp.toPx(), speedPaint)
               }
 
-              // Real-time countdown distance bubble BELOW card (exactly like reference screenshot)
+              // Real-time countdown distance capsule below card
               if (distLabel != null) {
                 val distPaint = Paint().apply {
                   isAntiAlias = true
-                  textSize = 11.sp.toPx()
+                  textSize = 10.5.sp.toPx()
                   color = android.graphics.Color.WHITE
                   typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                   textAlign = Paint.Align.CENTER
                 }
-                val distBubbleY = top + cardH + 18.dp.toPx()
-                drawContext.canvas.nativeCanvas.drawText(distLabel, camPos.x, distBubbleY, distPaint)
+                val distW = distPaint.measureText(distLabel) + 12.dp.toPx()
+                val distH = 16.dp.toPx()
+                val distLeft = camPos.x - distW / 2f
+                val distTop = top + cardH + 4.dp.toPx()
+
+                val distBgPaint = Paint().apply {
+                  isAntiAlias = true
+                  color = if (activeWarning?.isOverspeeding == true) android.graphics.Color.argb(235, 220, 38, 38) else android.graphics.Color.argb(235, 2, 132, 199)
+                  style = Paint.Style.FILL
+                }
+                drawContext.canvas.nativeCanvas.drawRoundRect(distLeft, distTop, distLeft + distW, distTop + distH, 8.dp.toPx(), 8.dp.toPx(), distBgPaint)
+                drawContext.canvas.nativeCanvas.drawText(distLabel, camPos.x, distTop + 12.dp.toPx(), distPaint)
               }
             }
 

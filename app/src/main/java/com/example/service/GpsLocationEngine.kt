@@ -798,12 +798,19 @@ class GpsLocationEngine(private val context: Context) {
           OsmRoadSpeedLimits.cacheAnchorLat = lat
           OsmRoadSpeedLimits.cacheAnchorLng = lng
 
-          val fullRoadName = if (osmInfo.roadName.startsWith("Đường", ignoreCase = true) ||
-            osmInfo.roadName.startsWith("Đại lộ", ignoreCase = true) ||
-            osmInfo.roadName.startsWith("Quốc lộ", ignoreCase = true)) {
-            osmInfo.roadName
+          val rawName = osmInfo.roadName.trim()
+          val fullRoadName = if (rawName.startsWith("Đường", ignoreCase = true) ||
+            rawName.startsWith("Đại lộ", ignoreCase = true) ||
+            rawName.startsWith("Quốc lộ", ignoreCase = true) ||
+            rawName.startsWith("Hẻm", ignoreCase = true) ||
+            rawName.startsWith("Ngõ", ignoreCase = true) ||
+            rawName.startsWith("Ngách", ignoreCase = true) ||
+            rawName.startsWith("Cầu", ignoreCase = true) ||
+            rawName.startsWith("Tỉnh lộ", ignoreCase = true) ||
+            rawName.startsWith("Phố", ignoreCase = true)) {
+            rawName
           } else {
-            "Đường ${osmInfo.roadName}"
+            "Đường $rawName"
           }
 
           val fullAddr = listOf(osmInfo.suburb, osmInfo.city).filter { it.isNotBlank() }.joinToString(", ")
@@ -823,10 +830,16 @@ class GpsLocationEngine(private val context: Context) {
           val addresses = geocoder.getFromLocation(lat, lng, 1)
           if (!addresses.isNullOrEmpty()) {
             val addr = addresses[0]
-            val street = addr.thoroughfare ?: addr.featureName ?: addr.subLocality
+            val street = (addr.thoroughfare ?: addr.featureName ?: addr.subLocality)?.trim()
             val districtCity = listOfNotNull(addr.subAdminArea, addr.adminArea).joinToString(", ")
             val fullRoadName = if (!street.isNullOrBlank()) {
-              if (street.startsWith("Đường", ignoreCase = true) || street.startsWith("Đại lộ", ignoreCase = true) || street.startsWith("Quốc lộ", ignoreCase = true)) {
+              if (street.startsWith("Đường", ignoreCase = true) ||
+                street.startsWith("Đại lộ", ignoreCase = true) ||
+                street.startsWith("Quốc lộ", ignoreCase = true) ||
+                street.startsWith("Hẻm", ignoreCase = true) ||
+                street.startsWith("Ngõ", ignoreCase = true) ||
+                street.startsWith("Cầu", ignoreCase = true) ||
+                street.startsWith("Phố", ignoreCase = true)) {
                 street
               } else {
                 "Đường $street"

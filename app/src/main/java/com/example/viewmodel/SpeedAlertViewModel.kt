@@ -129,7 +129,15 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
           allCameras = cameras,
           speedBufferKmh = settings.speedBufferKmh,
           alertMaxDistanceMeters = settings.alertDistanceMeters,
-          voiceEnabled = settings.voiceAlertsEnabled
+          voiceEnabled = settings.voiceAlertsEnabled,
+          showSpeedCameras = settings.showSpeedCamerasOnMap,
+          showRedLightCameras = settings.showRedLightCamerasOnMap,
+          showProhibitedZones = settings.showProhibitedZones,
+          showSecurityCameras = settings.showSecurityCameras,
+          showHazards = settings.showHazards,
+          showCommunityReports = settings.showCommunityReportsOnMap,
+          showSpeedLimits = settings.showSpeedLimitsOnMap,
+          appLanguage = settings.appLanguage
         )
         _trafficEvaluation.value = eval
 

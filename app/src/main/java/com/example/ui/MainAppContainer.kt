@@ -70,8 +70,13 @@ fun MainAppContainer(
               )
             },
             label = {
+              val tabTitle = when (tab) {
+                NavigationTab.MAP -> com.example.ui.i18n.AppStrings.get("tab_map", userSettings.appLanguage)
+                NavigationTab.COCKPIT -> com.example.ui.i18n.AppStrings.get("tab_hud", userSettings.appLanguage)
+                NavigationTab.SETTINGS -> com.example.ui.i18n.AppStrings.get("tab_settings", userSettings.appLanguage)
+              }
               Text(
-                text = tab.title,
+                text = tabTitle,
                 style = MaterialTheme.typography.labelSmall.copy(
                   fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                   fontSize = 11.sp

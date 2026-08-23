@@ -355,13 +355,11 @@ fun OfflineMapCanvas(
           }
         }
 
-        // Night Mode Multi-layer Shader Overlay (Auto Night Mode & Dark Mode)
-        val calHour = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("GMT+7")).get(java.util.Calendar.HOUR_OF_DAY)
-        val isEffectiveDark = darkMapMode || (calHour >= 18 || calHour < 6)
-        if (isEffectiveDark) {
+        // Optional User-Selected Dark Map Mode Overlay (Only if explicitly enabled by user in Settings)
+        if (darkMapMode) {
           val diagCover = hypot(canvasWidth, canvasHeight) * 4f
           drawRect(
-            color = Color(0xFF0F172A).copy(alpha = 0.60f),
+            color = Color(0xFF0F172A).copy(alpha = 0.55f),
             topLeft = Offset(midX - diagCover / 2f, midY - diagCover / 2f),
             size = Size(diagCover, diagCover),
             blendMode = BlendMode.Multiply

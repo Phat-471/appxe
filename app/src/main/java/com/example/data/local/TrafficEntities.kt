@@ -71,6 +71,12 @@ data class UserSettingsEntity(
   val showBreadcrumbs: Boolean = true,           // Hiện vết đi trên bản đồ
   val chimeOnAlert: Boolean = true,              // Tiếng bíp khi cảnh báo
   val speedUnit: String = "km/h",                // Đơn vị tốc độ
-  val vehicleIconType: String = "SCOOTER"        // Loại biểu tượng xe trên bản đồ: ARROW, MOTORBIKE, SCOOTER, CAR, TRUCK
+  val vehicleIconType: String = "SCOOTER",       // Loại biểu tượng xe trên bản đồ: ARROW, MOTORBIKE, SCOOTER, CAR, TRUCK
+  // === SCANNER & ALERT FILTER TOGGLES ===
+  val showProhibitedZones: Boolean = true,       // Quét cảnh báo đường cấm xe máy
+  val showSecurityCameras: Boolean = true,       // Quét cảnh báo camera an ninh
+  val showHazards: Boolean = true,               // Quét cảnh báo điểm đen tai nạn & trường học
+  val showPois: Boolean = true,                  // Quét hiển thị trạm xăng, vá xe, cứu hộ
+  val appLanguage: String = "vi"                 // Ngôn ngữ ứng dụng: "vi" (Tiếng Việt), "en" (English)
 )
 

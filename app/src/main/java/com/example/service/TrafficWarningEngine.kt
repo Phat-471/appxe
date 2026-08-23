@@ -45,18 +45,38 @@ class TrafficWarningEngine(
     allCameras: List<TrafficCamera>,
     speedBufferKmh: Int = 0,
     alertMaxDistanceMeters: Int = 650,
-    voiceEnabled: Boolean = true
+    voiceEnabled: Boolean = true,
+    showSpeedCameras: Boolean = true,
+    showRedLightCameras: Boolean = true,
+    showProhibitedZones: Boolean = true,
+    showSecurityCameras: Boolean = true,
+    showHazards: Boolean = true,
+    showCommunityReports: Boolean = true,
+    showSpeedLimits: Boolean = true,
+    appLanguage: String = "vi"
   ): WarningEvaluationResult {
     val currentSpeed = location.speedKmh.toInt()
     val isMoving = location.speedKmh > 3.5f
 
-    // 1. Find nearest RELEVANT camera ahead (±45° cone, not already passed)
+    // 1. Find nearest RELEVANT camera ahead (±45° cone, enabled in settings, not already passed)
     var nearestCamera: TrafficCamera? = null
     var minDistance = Double.MAX_VALUE
 
     for (cam in allCameras) {
       // Skip cameras that have already been passed
       if (cam.id in passedCameraIds) continue
+
+      // Filter out types disabled by user in Settings
+      val isTypeEnabled = when (cam.type) {
+        CameraType.SPEED_CAMERA -> showSpeedCameras
+        CameraType.RED_LIGHT_CAMERA, CameraType.COLD_FINE_SURVEILLANCE -> showRedLightCameras
+        CameraType.MOTORBIKE_PROHIBITED_ZONE -> showProhibitedZones
+        CameraType.SECURITY_MONITORING -> showSecurityCameras
+        CameraType.HAZARD_ACCIDENT_ZONE, CameraType.SCHOOL_ZONE, CameraType.ZONE_RESIDENTIAL_ENTRY, CameraType.ZONE_RESIDENTIAL_EXIT -> showHazards
+        CameraType.COMMUNITY_REPORT -> showCommunityReports
+        CameraType.SPEED_LIMIT_SIGN -> showSpeedLimits
+      }
+      if (!isTypeEnabled) continue
 
       val dist = VietnamTrafficData.calculateDistanceMeters(
         location.latitude, location.longitude,
@@ -90,12 +110,11 @@ class TrafficWarningEngine(
       }
     }
 
-    // 2. Identify Current Road Name
+    // 2. Resolve Current Road Name
     val currentRoadName = when {
       !location.detectedRoadName.isNullOrBlank() && !location.detectedRoadName.contains("GPS") -> location.detectedRoadName
-      nearestCamera != null && minDistance < 500 -> nearestCamera.roadName
+      nearestCamera != null -> nearestCamera.roadName
       else -> {
-        // Find closest road segment in offline database
         val matchedRoad = VietnamTrafficData.ALL_ROADS.minByOrNull { road ->
           road.coordinates.minOfOrNull { (lat, lng) ->
             VietnamTrafficData.calculateDistanceMeters(location.latitude, location.longitude, lat, lng)
@@ -162,18 +181,19 @@ class TrafficWarningEngine(
         else -> WarningLevel.NORMAL
       }
 
+      val isEn = appLanguage.equals("en", ignoreCase = true)
       val formattedMsg = when (nearestCamera.type) {
-        CameraType.SPEED_CAMERA -> "Camera bắn tốc độ ($distInt m): ${nearestCamera.roadName} (Tối đa ${nearestCamera.speedLimit} km/h)"
-        CameraType.RED_LIGHT_CAMERA -> "Camera phạt nguội vượt đèn đỏ ($distInt m): ${nearestCamera.roadName}"
-        CameraType.COLD_FINE_SURVEILLANCE -> "Camera phạt nguội lấn làn ($distInt m): ${nearestCamera.roadName}"
-        CameraType.SECURITY_MONITORING -> "Camera an ninh & giám sát ($distInt m): ${nearestCamera.roadName}"
-        CameraType.ZONE_RESIDENTIAL_ENTRY -> "Vào khu đông dân cư ($distInt m): ${nearestCamera.roadName} (Tối đa 50 km/h)"
-        CameraType.ZONE_RESIDENTIAL_EXIT -> "Hết khu đông dân cư ($distInt m): ${nearestCamera.roadName} (Tối đa 60 km/h)"
-        CameraType.HAZARD_ACCIDENT_ZONE -> "Đoạn đường nguy hiểm ($distInt m): ${nearestCamera.roadName}"
-        CameraType.MOTORBIKE_PROHIBITED_ZONE -> "🚨 CẤM XE MÁY ($distInt m): ${nearestCamera.roadName} - Không đi vào cao tốc!"
-        CameraType.SCHOOL_ZONE -> "Khu vực trường học ($distInt m): ${nearestCamera.roadName}"
-        CameraType.SPEED_LIMIT_SIGN -> "Biển báo ${nearestCamera.speedLimit} km/h ($distInt m): ${nearestCamera.roadName}"
-        CameraType.COMMUNITY_REPORT -> "Chốt tốc độ theo báo cáo ($distInt m): ${nearestCamera.roadName}"
+        CameraType.SPEED_CAMERA -> if (isEn) "Speed Camera ($distInt m): ${nearestCamera.roadName} (Limit ${nearestCamera.speedLimit} km/h)" else "Camera bắn tốc độ ($distInt m): ${nearestCamera.roadName} (Tối đa ${nearestCamera.speedLimit} km/h)"
+        CameraType.RED_LIGHT_CAMERA -> if (isEn) "Red Light Camera ($distInt m): ${nearestCamera.roadName}" else "Camera phạt nguội vượt đèn đỏ ($distInt m): ${nearestCamera.roadName}"
+        CameraType.COLD_FINE_SURVEILLANCE -> if (isEn) "Lane Surveillance Camera ($distInt m): ${nearestCamera.roadName}" else "Camera phạt nguội lấn làn ($distInt m): ${nearestCamera.roadName}"
+        CameraType.SECURITY_MONITORING -> if (isEn) "Security Camera ($distInt m): ${nearestCamera.roadName}" else "Camera an ninh & giám sát ($distInt m): ${nearestCamera.roadName}"
+        CameraType.ZONE_RESIDENTIAL_ENTRY -> if (isEn) "Residential Zone Entry ($distInt m): ${nearestCamera.roadName}" else "Vào khu đông dân cư ($distInt m): ${nearestCamera.roadName} (Tối đa 50 km/h)"
+        CameraType.ZONE_RESIDENTIAL_EXIT -> if (isEn) "Residential Zone Exit ($distInt m): ${nearestCamera.roadName}" else "Hết khu đông dân cư ($distInt m): ${nearestCamera.roadName} (Tối đa 60 km/h)"
+        CameraType.HAZARD_ACCIDENT_ZONE -> if (isEn) "Hazardous Zone ($distInt m): ${nearestCamera.roadName}" else "Đoạn đường nguy hiểm ($distInt m): ${nearestCamera.roadName}"
+        CameraType.MOTORBIKE_PROHIBITED_ZONE -> if (isEn) "🚨 MOTORBIKE PROHIBITED ($distInt m): ${nearestCamera.roadName}" else "🚨 CẤM XE MÁY ($distInt m): ${nearestCamera.roadName} - Không đi vào cao tốc!"
+        CameraType.SCHOOL_ZONE -> if (isEn) "School Zone ($distInt m): ${nearestCamera.roadName}" else "Khu vực trường học ($distInt m): ${nearestCamera.roadName}"
+        CameraType.SPEED_LIMIT_SIGN -> if (isEn) "Speed Limit ${nearestCamera.speedLimit} km/h ($distInt m)" else "Biển báo ${nearestCamera.speedLimit} km/h ($distInt m): ${nearestCamera.roadName}"
+        CameraType.COMMUNITY_REPORT -> if (isEn) "Community Report ($distInt m): ${nearestCamera.roadName}" else "Chốt tốc độ theo báo cáo ($distInt m): ${nearestCamera.roadName}"
       }
 
       activeWarning = ActiveWarning(

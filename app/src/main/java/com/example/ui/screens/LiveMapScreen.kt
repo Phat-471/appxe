@@ -66,6 +66,8 @@ fun LiveMapScreen(
 ) {
   val coroutineScope = rememberCoroutineScope()
   var inspectingCamera by remember { mutableStateOf<TrafficCamera?>(null) }
+  var inspectingPoi by remember { mutableStateOf<MapPoi?>(null) }
+  var selectedLayerFilter by remember { mutableStateOf("Tất cả") }
   var showDestinationSearchDialog by remember { mutableStateOf(false) }
   var searchQuery by remember { mutableStateOf("") }
   var selectedCategoryFilter by remember { mutableStateOf("Tất cả") }
@@ -84,6 +86,7 @@ fun LiveMapScreen(
   val isOverspeed = trafficEvaluation.isOverspeeding
 
   val allPlaces = remember { VietnamTrafficData.POPULAR_PLACES }
+  val allPois = remember { VietnamTrafficData.ALL_POIS }
 
   // Calculate upcoming cameras list ahead with distances
   val camerasAhead = remember(cameras, locationState) {
@@ -92,8 +95,48 @@ fun LiveMapScreen(
         locationState.latitude, locationState.longitude,
         cam.latitude, cam.longitude
       ).toInt()
-      if (dist in 15..800) cam to dist else null
+      if (dist in 15..950) cam to dist else null
     }.sortedBy { it.second }
+  }
+
+  // Calculate upcoming POIs ahead
+  val poisAhead = remember(allPois, locationState) {
+    allPois.mapNotNull { poi ->
+      val dist = VietnamTrafficData.calculateDistanceMeters(
+        locationState.latitude, locationState.longitude,
+        poi.latitude, poi.longitude
+      ).toInt()
+      if (dist in 15..1500) poi to dist else null
+    }.sortedBy { it.second }
+  }
+
+  // Layer filtered lists for canvas
+  val filteredCameras = remember(cameras, userSettings, selectedLayerFilter) {
+    if (selectedLayerFilter in listOf("Cây xăng", "Trạm BOT", "Cứu hộ/Y tế", "Điểm đen")) {
+      emptyList()
+    } else {
+      cameras.filter { cam ->
+        when (cam.type) {
+          CameraType.SPEED_CAMERA, CameraType.COLD_FINE_SURVEILLANCE -> userSettings.showSpeedCamerasOnMap
+          CameraType.RED_LIGHT_CAMERA -> userSettings.showRedLightCamerasOnMap
+          CameraType.SPEED_LIMIT_SIGN, CameraType.ZONE_RESIDENTIAL_ENTRY, CameraType.ZONE_RESIDENTIAL_EXIT -> userSettings.showSpeedLimitsOnMap
+          CameraType.COMMUNITY_REPORT -> userSettings.showCommunityReportsOnMap
+          else -> true
+        }
+      }
+    }
+  }
+
+  val displayedPois = remember(allPois, selectedLayerFilter) {
+    when (selectedLayerFilter) {
+      "Tất cả" -> allPois
+      "Cây xăng" -> allPois.filter { it.type == PoiType.GAS_STATION }
+      "Trạm BOT" -> allPois.filter { it.type == PoiType.TOLL_BOOTH }
+      "Cứu hộ/Y tế" -> allPois.filter { it.type == PoiType.HOSPITAL || it.type == PoiType.TIRE_REPAIR }
+      "Điểm đen" -> allPois.filter { it.type == PoiType.ACCIDENT_HOTSPOT }
+      "Camera" -> emptyList()
+      else -> allPois
+    }
   }
 
   // Debounced live geocoding search for street names and addresses
@@ -119,18 +162,6 @@ fun LiveMapScreen(
     }
   }
 
-  val filteredCameras = remember(cameras, userSettings) {
-    cameras.filter { cam ->
-      when (cam.type) {
-        CameraType.SPEED_CAMERA, CameraType.COLD_FINE_SURVEILLANCE -> userSettings.showSpeedCamerasOnMap
-        CameraType.RED_LIGHT_CAMERA -> userSettings.showRedLightCamerasOnMap
-        CameraType.SPEED_LIMIT_SIGN, CameraType.ZONE_RESIDENTIAL_ENTRY, CameraType.ZONE_RESIDENTIAL_EXIT -> userSettings.showSpeedLimitsOnMap
-        CameraType.COMMUNITY_REPORT -> userSettings.showCommunityReportsOnMap
-        else -> true
-      }
-    }
-  }
-
   Box(
     modifier = modifier
       .fillMaxSize()
@@ -146,7 +177,9 @@ fun LiveMapScreen(
       nearestCameraDistance = trafficEvaluation.nearestCameraDistance,
       activeWarning = trafficEvaluation.activeWarning,
       targetFocusPlace = previewTapPlace,
+      pois = displayedPois,
       onSelectCamera = { inspectingCamera = it },
+      onSelectPoi = { inspectingPoi = it },
       onMapTapLocation = { lat, lng ->
         coroutineScope.launch {
           val streetName = NavigationRoutingService.reverseGeocode(lat, lng)
@@ -235,6 +268,53 @@ fun LiveMapScreen(
                 tint = Color(0xFFDC2626),
                 modifier = Modifier.size(20.dp)
               )
+            }
+          }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Horizontal Map Layer Filter Chips
+        LazyRow(
+          horizontalArrangement = Arrangement.spacedBy(6.dp),
+          modifier = Modifier.fillMaxWidth()
+        ) {
+          val filterOptions = listOf("Tất cả", "Camera", "Cây xăng", "Trạm BOT", "Cứu hộ/Y tế", "Điểm đen")
+          items(filterOptions) { filter ->
+            val isSelected = selectedLayerFilter == filter
+            val (icon, badgeColor) = when (filter) {
+              "Camera" -> "📷" to Color(0xFFEF4444)
+              "Cây xăng" -> "⛽" to Color(0xFFF97316)
+              "Trạm BOT" -> "🚧" to Color(0xFF0284C7)
+              "Cứu hộ/Y tế" -> "🏥" to Color(0xFF10B981)
+              "Điểm đen" -> "⚠️" to Color(0xFFE11D48)
+              else -> "⭐" to Color(0xFF1E88E5)
+            }
+            Surface(
+              onClick = { selectedLayerFilter = filter },
+              shape = RoundedCornerShape(14.dp),
+              color = if (isSelected) badgeColor else Color.White.copy(alpha = 0.92f),
+              shadowElevation = if (isSelected) 4.dp else 2.dp,
+              border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                if (isSelected) badgeColor else Color(0xFFE2E8F0)
+              )
+            ) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.5.dp)
+              ) {
+                Text(text = icon, fontSize = 10.5.sp)
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                  text = filter,
+                  style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
+                    fontSize = 10.5.sp
+                  ),
+                  color = if (isSelected) Color.White else Color(0xFF334155)
+                )
+              }
             }
           }
         }
@@ -718,6 +798,16 @@ fun LiveMapScreen(
         onDismiss = { inspectingCamera = null },
         onStartNavigation = onStartNavigation,
         onSpeakCamera = onSpeakAlert
+      )
+    }
+
+    // 12. POI DETAIL BOTTOM SHEET (Tapping Gas, BOT, Hospital, Rescue on map)
+    if (inspectingPoi != null) {
+      PoiDetailBottomSheet(
+        poi = inspectingPoi,
+        currentLocation = locationState,
+        onDismiss = { inspectingPoi = null },
+        onStartNavigation = onStartNavigation
       )
     }
   }

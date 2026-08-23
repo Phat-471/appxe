@@ -620,14 +620,40 @@ object VietnamTrafficData {
   )
 
 
-  // Realistic POIs (Vietmap style)
+  // Comprehensive POIs on Map (Gas, Toll, Hospital, Rescue, Danger Blackspots)
   val ALL_POIS: List<com.example.data.model.MapPoi> = listOf(
-    com.example.data.model.MapPoi("poi_petro_01", "Petrolimex Võ Văn Kiệt", com.example.data.model.PoiType.GAS_STATION, 10.7555, 106.6790, "Xăng RON95-V, E5"),
-    com.example.data.model.MapPoi("poi_petro_02", "Petrolimex Phạm Văn Đồng", com.example.data.model.PoiType.GAS_STATION, 10.8290, 106.7020, "Trạm 24/7"),
-    com.example.data.model.MapPoi("poi_bridge_01", "Cầu Chữ Y", com.example.data.model.PoiType.BRIDGE, 10.7515, 106.6718, "Cầu vượt kênh Bến Nghé"),
-    com.example.data.model.MapPoi("poi_bridge_02", "Cầu Bình Lợi", com.example.data.model.PoiType.BRIDGE, 10.8240, 106.6908, "Cầu vượt sông Sài Gòn"),
-    com.example.data.model.MapPoi("poi_bot_01", "Trạm Thu Phí BOT QL51", com.example.data.model.PoiType.TOLL_BOOTH, 10.8650, 106.9180, "Làn ETC tự động"),
-    com.example.data.model.MapPoi("poi_hosp_01", "Bệnh Viện Chợ Rẫy", com.example.data.model.PoiType.HOSPITAL, 10.7570, 106.6590, "Cấp cứu 115")
+    // Cây xăng
+    com.example.data.model.MapPoi("poi_petro_01", "Petrolimex Võ Văn Kiệt", com.example.data.model.PoiType.GAS_STATION, 10.7555, 106.6790, "Xăng RON95-V, E5, Dầu DO 0.001S"),
+    com.example.data.model.MapPoi("poi_petro_02", "Petrolimex Phạm Văn Đồng", com.example.data.model.PoiType.GAS_STATION, 10.8290, 106.7020, "Phục vụ 24/7, có bơm lốp tự động"),
+    com.example.data.model.MapPoi("poi_pvoil_01", "PVOIL Nguyễn Văn Linh", com.example.data.model.PoiType.GAS_STATION, 10.7240, 106.6850, "Cây xăng PVOIL & rửa xe nhanh"),
+    com.example.data.model.MapPoi("poi_petro_hn_01", "Petrolimex Khuất Duy Tiến", com.example.data.model.PoiType.GAS_STATION, 20.9950, 105.7980, "Trạm xăng trung tâm Thanh Xuân, Hà Nội"),
+    com.example.data.model.MapPoi("poi_petro_dn_01", "Petrolimex Nguyễn Tất Thành", com.example.data.model.PoiType.GAS_STATION, 16.0750, 108.2010, "Trạm xăng ven biển Đà Nẵng"),
+
+    // Trạm thu phí BOT
+    com.example.data.model.MapPoi("poi_bot_01", "Trạm Thu Phí BOT QL51", com.example.data.model.PoiType.TOLL_BOOTH, 10.8650, 106.9180, "Làn ETC tự động không dừng"),
+    com.example.data.model.MapPoi("poi_bot_02", "Trạm Thu Phí Long Phước (Cao Tốc)", com.example.data.model.PoiType.TOLL_BOOTH, 10.8050, 106.8450, "Cao tốc TP.HCM - Long Thành - Dầu Giây"),
+    com.example.data.model.MapPoi("poi_bot_03", "Trạm BOT Xa Lộ Hà Nội", com.example.data.model.PoiType.TOLL_BOOTH, 10.8350, 106.7650, "Trạm thu phí Rạch Chiếc"),
+    com.example.data.model.MapPoi("poi_bot_04", "Trạm BOT Pháp Vân - Cầu Giẽ", com.example.data.model.PoiType.TOLL_BOOTH, 20.9520, 105.8560, "Cửa ngõ phía Nam Hà Nội"),
+
+    // Cầu lớn & Nút giao
+    com.example.data.model.MapPoi("poi_bridge_01", "Cầu Chữ Y", com.example.data.model.PoiType.BRIDGE, 10.7515, 106.6718, "Cầu vượt kênh Bến Nghé nối Q5 - Q8"),
+    com.example.data.model.MapPoi("poi_bridge_02", "Cầu Bình Lợi", com.example.data.model.PoiType.BRIDGE, 10.8240, 106.6908, "Cầu vượt sông Sài Gòn trên đường Phạm Văn Đồng"),
+    com.example.data.model.MapPoi("poi_bridge_03", "Cầu Nhật Tân", com.example.data.model.PoiType.BRIDGE, 21.0920, 105.8190, "Cầu dây văng vượt sông Hồng Hà Nội"),
+    com.example.data.model.MapPoi("poi_bridge_04", "Cầu Rồng Đà Nẵng", com.example.data.model.PoiType.BRIDGE, 16.0610, 108.2230, "Cầu biểu tượng sông Hàn"),
+
+    // Bệnh viện & Cứu hộ y tế
+    com.example.data.model.MapPoi("poi_hosp_01", "Bệnh Viện Chợ Rẫy", com.example.data.model.PoiType.HOSPITAL, 10.7570, 106.6590, "Cấp cứu 115 24/7 - Quận 5, TP.HCM"),
+    com.example.data.model.MapPoi("poi_hosp_02", "Bệnh Viện Nhân Dân Gia Định", com.example.data.model.PoiType.HOSPITAL, 10.8030, 106.6950, "Bình Thạnh, TP.HCM"),
+    com.example.data.model.MapPoi("poi_hosp_03", "Bệnh Viện Bạch Mai", com.example.data.model.PoiType.HOSPITAL, 20.9990, 105.8410, "Cấp cứu A9 - Đống Đa, Hà Nội"),
+    com.example.data.model.MapPoi("poi_hosp_04", "Bệnh Viện Đà Nẵng", com.example.data.model.PoiType.HOSPITAL, 16.0710, 108.2170, "Hải Châu, Đà Nẵng"),
+
+    // Cứu hộ lốp & Vá xe 24/7
+    com.example.data.model.MapPoi("poi_tire_01", "Cứu Hộ Lốp & Vá Xe 24/7 Võ Văn Kiệt", com.example.data.model.PoiType.TIRE_REPAIR, 10.7490, 106.6650, "Vá vỏ lưu động, cân mâm bấm chì"),
+    com.example.data.model.MapPoi("poi_tire_02", "Cứu Hộ Ô Tô & Xe Máy Phạm Văn Đồng", com.example.data.model.PoiType.TIRE_REPAIR, 10.8350, 106.7200, "Cứu hộ bình ắc quy, thay lốp khẩn cấp"),
+
+    // Điểm đen tai nạn giao thông (Cảnh báo chú ý quan sát)
+    com.example.data.model.MapPoi("poi_danger_01", "Điểm đen tai nạn: Vòng xoay An Sương", com.example.data.model.PoiType.ACCIDENT_HOTSPOT, 10.8465, 106.6112, "Giao cắt xe tải lớn, chú ý điểm mù và giảm tốc độ"),
+    com.example.data.model.MapPoi("poi_danger_02", "Điểm đen: Ngã tư Bình Phước (QL13 giao QL1A)", com.example.data.model.PoiType.ACCIDENT_HOTSPOT, 10.8710, 106.7180, "Mật độ xe container cao, quan sát kỹ khi chuyển làn")
   )
 
   // Realistic Simulation Waypoints (e.g. Sài Gòn Võ Văn Kiệt -> Quốc lộ 1A test route)

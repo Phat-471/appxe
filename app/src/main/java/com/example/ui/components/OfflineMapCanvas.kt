@@ -57,7 +57,9 @@ fun OfflineMapCanvas(
   nearestCameraDistance: Int? = null,
   activeWarning: ActiveWarning? = null,
   targetFocusPlace: DestinationPlace? = null,
+  pois: List<MapPoi> = emptyList(),
   onSelectCamera: (TrafficCamera) -> Unit = {},
+  onSelectPoi: (MapPoi) -> Unit = {},
   onMapTapLocation: ((lat: Double, lng: Double) -> Unit)? = null,
   onRefreshLocation: (() -> Unit)? = null,
   onToggleVoice: (() -> Unit)? = null,
@@ -214,8 +216,24 @@ fun OfflineMapCanvas(
               }
             }
 
+            // Check POI taps
+            var tappedPoi: MapPoi? = null
+            for (poi in pois) {
+              val poiTileX = OsmTileManager.lon2tileX(poi.longitude, anchorZoom)
+              val poiTileY = OsmTileManager.lat2tileY(poi.latitude, anchorZoom)
+              val px = midX + (poiTileX - cTileX).toFloat() * tileSizePx
+              val py = midY + (poiTileY - cTileY).toFloat() * tileSizePx
+              val dist = hypot(tapOffset.x - px, tapOffset.y - py)
+              if (dist < 42f) {
+                tappedPoi = poi
+                break
+              }
+            }
+
             if (tappedCam != null) {
               onSelectCamera(tappedCam)
+            } else if (tappedPoi != null) {
+              onSelectPoi(tappedPoi)
             } else if (onMapTapLocation != null) {
               val clickTileX = cTileX + (tapOffset.x - midX) / tileSizePx
               val clickTileY = cTileY + (tapOffset.y - midY) / tileSizePx
@@ -642,6 +660,57 @@ fun OfflineMapCanvas(
 
             drawContext.canvas.nativeCanvas.drawRoundRect(tagLeft, tagTop, tagLeft + tagW, tagTop + tagH, 8.dp.toPx(), 8.dp.toPx(), tagBgPaint)
             drawContext.canvas.nativeCanvas.drawText(distLabel, camPos.x, tagTop + 13.dp.toPx(), tagPaint)
+          }
+        }
+
+        // 5.2. POI & HAZARD ICONS ON MAP (Gas, Toll, Hospital, Tire Rescue, Blackspots)
+        for (poi in pois) {
+          val poiPos = project(poi.latitude, poi.longitude)
+
+          val (badgeColor, borderCol, emojiChar) = when (poi.type) {
+            PoiType.GAS_STATION -> Triple(Color(0xFFF97316), Color.White, "⛽")
+            PoiType.TOLL_BOOTH -> Triple(Color(0xFF0284C7), Color.White, "🚧")
+            PoiType.HOSPITAL -> Triple(Color(0xFFDC2626), Color.White, "🏥")
+            PoiType.TIRE_REPAIR -> Triple(Color(0xFFF59E0B), Color.White, "🔧")
+            PoiType.ACCIDENT_HOTSPOT -> Triple(Color(0xFFE11D48), Color.White, "⚠️")
+            PoiType.BRIDGE -> Triple(Color(0xFF64748B), Color.White, "🌉")
+            PoiType.REST_STOP -> Triple(Color(0xFF10B981), Color.White, "🅿️")
+          }
+
+          // Outer shadow & background circle
+          drawCircle(color = Color(0xFF0F172A).copy(alpha = 0.2f), radius = 13.dp.toPx(), center = Offset(poiPos.x, poiPos.y + 1.5.dp.toPx()))
+          drawCircle(color = badgeColor, radius = 12.dp.toPx(), center = poiPos)
+          drawCircle(color = borderCol, radius = 12.dp.toPx(), center = poiPos, style = Stroke(width = 1.8.dp.toPx()))
+
+          val emojiPaint = Paint().apply {
+            isAntiAlias = true
+            textSize = 11.sp.toPx()
+            textAlign = Paint.Align.CENTER
+          }
+          drawContext.canvas.nativeCanvas.drawText(emojiChar, poiPos.x, poiPos.y + 4.dp.toPx(), emojiPaint)
+
+          // Short name label when zoomed in
+          if (zoomLevel >= 15.5f) {
+            val labelPaint = Paint().apply {
+              isAntiAlias = true
+              textSize = 9.5.sp.toPx()
+              color = android.graphics.Color.WHITE
+              typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+              textAlign = Paint.Align.CENTER
+            }
+            val shortName = poi.name.take(18)
+            val lblW = labelPaint.measureText(shortName) + 10.dp.toPx()
+            val lblH = 15.dp.toPx()
+            val lblLeft = poiPos.x - lblW / 2f
+            val lblTop = poiPos.y + 14.dp.toPx()
+
+            val bgLblPaint = Paint().apply {
+              isAntiAlias = true
+              color = android.graphics.Color.argb(220, 15, 23, 42)
+              style = Paint.Style.FILL
+            }
+            drawContext.canvas.nativeCanvas.drawRoundRect(lblLeft, lblTop, lblLeft + lblW, lblTop + lblH, 6.dp.toPx(), 6.dp.toPx(), bgLblPaint)
+            drawContext.canvas.nativeCanvas.drawText(shortName, poiPos.x, lblTop + 11.dp.toPx(), labelPaint)
           }
         }
 

@@ -115,11 +115,13 @@ data class MapRoadSegment(
 )
 
 enum class PoiType(val label: String, val iconEmoji: String) {
-  GAS_STATION("Cây Xăng Petrolimex", "⛽"),
-  TOLL_BOOTH("Trạm Thu Phí BOT", "💳"),
+  GAS_STATION("Cây Xăng", "⛽"),
+  TOLL_BOOTH("Trạm Thu Phí BOT", "🚧"),
   BRIDGE("Cầu Vượt / Cầu Lớn", "🌉"),
   HOSPITAL("Bệnh Viện Cấp Cứu", "🏥"),
-  REST_STOP("Trạm Dừng Nghỉ", "🅿️")
+  REST_STOP("Trạm Dừng Nghỉ", "🅿️"),
+  TIRE_REPAIR("Cứu Hộ / Vá Lốp", "🔧"),
+  ACCIDENT_HOTSPOT("Điểm Đen Tai Nạn", "⚠️")
 }
 
 data class MapPoi(

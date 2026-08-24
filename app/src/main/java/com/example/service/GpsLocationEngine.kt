@@ -165,9 +165,9 @@ class GpsLocationEngine(private val context: Context) {
         processRealGpsLocation(bestLast)
       }
 
-      // 3. High-precision Real-time Fused location stream (200ms interval, 0m displacement)
-      val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 200L)
-        .setMinUpdateIntervalMillis(150L)
+      // 3. High-precision Real-time Fused location stream (150ms interval, 0m displacement)
+      val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 150L)
+        .setMinUpdateIntervalMillis(100L)
         .setMinUpdateDistanceMeters(0f)
         .setWaitForAccurateLocation(false)
         .build()
@@ -175,17 +175,22 @@ class GpsLocationEngine(private val context: Context) {
       locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
           result.lastLocation?.let { loc ->
-            processRealGpsLocation(loc)
+            // Bỏ qua các toạ độ có sai số quá lớn (> 35m) khi xe đang chạy
+            if (loc.accuracy <= 35f || !hasInitialGpsFix) {
+              processRealGpsLocation(loc)
+            }
           }
         }
       }
 
       fusedClient?.requestLocationUpdates(request, locationCallback!!, Looper.getMainLooper())
 
-      // 4. Hardware GPS & Network fallback listeners
+      // 4. Hardware GPS Fallback listener (Chỉ kích hoạt khi Fused Location không phản hồi)
       androidLocationListener = object : LocationListener {
         override fun onLocationChanged(loc: Location) {
-          processRealGpsLocation(loc)
+          if (loc.accuracy <= 30f || !hasInitialGpsFix) {
+            processRealGpsLocation(loc)
+          }
         }
         override fun onProviderEnabled(provider: String) {}
         override fun onProviderDisabled(provider: String) {}
@@ -196,17 +201,7 @@ class GpsLocationEngine(private val context: Context) {
       try {
         locationManager?.requestLocationUpdates(
           LocationManager.GPS_PROVIDER,
-          350L,
-          0f,
-          androidLocationListener!!,
-          Looper.getMainLooper()
-        )
-      } catch (e: Exception) { /* ignore */ }
-
-      try {
-        locationManager?.requestLocationUpdates(
-          LocationManager.NETWORK_PROVIDER,
-          700L,
+          200L,
           0f,
           androidLocationListener!!,
           Looper.getMainLooper()
@@ -321,7 +316,7 @@ class GpsLocationEngine(private val context: Context) {
   private var consecutiveHighSpeedCount = 0
 
   /**
-   * Real GPS Processing with 2D Kalman Filter, Stationary Noise Gate & Bearing Smoothing
+   * Real GPS Processing with 2D Kalman Filter & Instant Zero-Lag Satellite Speed
    */
   private fun processRealGpsLocation(rawLoc: Location) {
     lastRealLocationTime = System.currentTimeMillis()
@@ -329,68 +324,76 @@ class GpsLocationEngine(private val context: Context) {
     val rawBearing = if (rawLoc.hasBearing() && rawLoc.bearing != 0f) rawLoc.bearing else smoothHeading
 
     if (!hasInitialGpsFix) {
-      kalmanFilter.setState(rawLoc.latitude, rawLoc.longitude, 0f)
+      kalmanFilter.setState(rawLoc.latitude, rawLoc.longitude, rawSpeedKmh)
       smoothLat = rawLoc.latitude
       smoothLng = rawLoc.longitude
-      smoothSpeed = 0f
+      smoothSpeed = if (rawSpeedKmh >= 2.0f) rawSpeedKmh else 0f
       smoothHeading = rawBearing
       stationaryAnchorLat = rawLoc.latitude
       stationaryAnchorLng = rawLoc.longitude
-      isStationaryLocked = true
+      isStationaryLocked = rawSpeedKmh < 2.0f
       hasInitialGpsFix = true
     } else {
-      if (stationaryAnchorLat == 0.0) {
-        stationaryAnchorLat = rawLoc.latitude
-        stationaryAnchorLng = rawLoc.longitude
-      }
-
-      val distFromAnchor = VietnamTrafficData.calculateDistanceMeters(
-        stationaryAnchorLat, stationaryAnchorLng,
-        rawLoc.latitude, rawLoc.longitude
-      )
-
-      // Sensor Fusion Stationary Noise Gate:
-      // Combines GPS speed, distance drift, and hardware accelerometer
-      val isPhysicallyStationary = recentAccMagnitude < 0.25f
-      val isSpeedLow = rawSpeedKmh < 3.8f || (distFromAnchor < 4.5 && rawSpeedKmh < 4.8f)
-
-      if (isSpeedLow || (isPhysicallyStationary && rawSpeedKmh < 5.0f)) {
-        consecutiveLowSpeedCount++
-        consecutiveHighSpeedCount = 0
-        if (consecutiveLowSpeedCount >= 2 || rawSpeedKmh < 2.0f || (isPhysicallyStationary && consecutiveLowSpeedCount >= 1)) {
-          isStationaryLocked = true
-          smoothSpeed = 0f
-          // Freeze position to stationary anchor to prevent map drift
-          smoothLat = stationaryAnchorLat
-          smoothLng = stationaryAnchorLng
-        }
-      } else {
-        consecutiveHighSpeedCount++
-        if (consecutiveHighSpeedCount >= 2 || rawSpeedKmh >= 5.5f || recentAccMagnitude > 0.8f) {
-          isStationaryLocked = false
-          consecutiveLowSpeedCount = 0
+      if (rawSpeedKmh < 1.2f) {
+        // Xe thực sự dừng / đứng yên
+        isStationaryLocked = true
+        smoothSpeed = 0f
+        if (stationaryAnchorLat == 0.0) {
           stationaryAnchorLat = rawLoc.latitude
           stationaryAnchorLng = rawLoc.longitude
+        }
+        // Giữ vị trí neo tránh trôi map khi đèn đỏ
+        val distDrift = VietnamTrafficData.calculateDistanceMeters(stationaryAnchorLat, stationaryAnchorLng, rawLoc.latitude, rawLoc.longitude)
+        if (distDrift < 12.0) {
+          smoothLat = stationaryAnchorLat
+          smoothLng = stationaryAnchorLng
+        } else {
+          smoothLat = rawLoc.latitude
+          smoothLng = rawLoc.longitude
+          stationaryAnchorLat = rawLoc.latitude
+          stationaryAnchorLng = rawLoc.longitude
+        }
+      } else {
+        // Xe đang di chuyển: CẬP NHẬT TỐC ĐỘ TỨC THÌ (Zero-Lag Doppler Speed)
+        isStationaryLocked = false
+        stationaryAnchorLat = rawLoc.latitude
+        stationaryAnchorLng = rawLoc.longitude
+        smoothSpeed = rawSpeedKmh
 
-          // Run through 2D Kalman Filter for position & velocity
-          val kalmanResult = kalmanFilter.update(
-            rawLat = rawLoc.latitude,
-            rawLng = rawLoc.longitude,
-            rawAccuracy = rawLoc.accuracy.coerceAtLeast(1.0f),
-            rawSpeedKmh = rawSpeedKmh,
-            timestampMs = rawLoc.time
+        // Run through 2D Kalman Filter for position
+        val kalmanResult = kalmanFilter.update(
+          rawLat = rawLoc.latitude,
+          rawLng = rawLoc.longitude,
+          rawAccuracy = rawLoc.accuracy.coerceAtLeast(1.0f),
+          rawSpeedKmh = rawSpeedKmh,
+          timestampMs = rawLoc.time
+        )
+
+        smoothLat = kalmanResult.lat
+        smoothLng = kalmanResult.lng
+
+        // Fast, responsive heading update
+        if (rawLoc.hasBearing() && rawLoc.bearing != 0f && smoothSpeed > 2.0f) {
+          var diff = rawLoc.bearing - smoothHeading
+          while (diff > 180f) diff -= 360f
+          while (diff < -180f) diff += 360f
+          smoothHeading += diff * 0.85f
+        }
+
+        // Apply Vietmap-Grade Map Matching (Orthogonal Snap-to-Road Centerline)
+        if (smoothSpeed > 2.5f) {
+          val snapped = MapMatchingEngine.snapToRoad(
+            rawLat = smoothLat,
+            rawLng = smoothLng,
+            rawBearing = smoothHeading,
+            speedKmh = smoothSpeed
           )
-
-          smoothLat = kalmanResult.lat
-          smoothLng = kalmanResult.lng
-          smoothSpeed = rawSpeedKmh
-
-          // Fast, responsive heading update only when vehicle is moving
-          if (rawLoc.hasBearing() && rawLoc.bearing != 0f && smoothSpeed > 2.0f) {
-            var diff = rawLoc.bearing - smoothHeading
-            while (diff > 180f) diff -= 360f
-            while (diff < -180f) diff += 360f
-            smoothHeading += diff * 0.7f
+          if (snapped.isSnapped) {
+            smoothLat = snapped.snappedLatitude
+            smoothLng = snapped.snappedLongitude
+            if (customRoadOverride == null) {
+              customRoadOverride = snapped.roadName
+            }
           }
         }
       }
@@ -661,7 +664,7 @@ class GpsLocationEngine(private val context: Context) {
 
     val durationMinutes = ((distToDest / 1000.0) / 30.0 * 60.0).toInt().coerceAtLeast(1)
 
-    // Check if vehicle has deviated from the route polyline (Off-route detection)
+    // 1. SMART OFF-ROUTE DETECTION & RAPID RE-ROUTING
     var minDistanceToRoute = Double.MAX_VALUE
     val waypoints = route.waypoints
     if (waypoints.isNotEmpty()) {
@@ -676,8 +679,17 @@ class GpsLocationEngine(private val context: Context) {
       }
     }
 
+    // Departure wrong-way check: if user just started and moves away from first step
+    val firstStep = route.steps.firstOrNull()
+    val isMovingAwayFromStart = if (route.currentStepIndex == 0 && firstStep != null && _locationState.value.speedKmh > 3f) {
+      val distToFirst = VietnamTrafficData.calculateDistanceMeters(currentLat, currentLng, firstStep.latitude, firstStep.longitude)
+      distToFirst > (firstStep.distanceMeters + 25)
+    } else false
+
     val now = System.currentTimeMillis()
-    if (minDistanceToRoute > 28.0 && distToDest > 50 && !isRerouting && (now - lastRerouteTime) > 3000) {
+    val isOffRoute = (minDistanceToRoute > 22.0 || isMovingAwayFromStart) && distToDest > 45
+
+    if (isOffRoute && !isRerouting && (now - lastRerouteTime) > 2500) {
       offRouteCount++
       if (offRouteCount >= 1) {
         offRouteCount = 0
@@ -705,11 +717,19 @@ class GpsLocationEngine(private val context: Context) {
         }
         return
       }
-    } else if (minDistanceToRoute <= 25.0) {
+    } else if (minDistanceToRoute <= 18.0) {
       offRouteCount = 0
     }
 
-    // Find nearest step index & update realtime step distance
+    // 2. DESTINATION ARRIVAL CHECK
+    if (distToDest <= 20) {
+      if (lastAlertedDistanceBand != 9999) {
+        lastAlertedDistanceBand = 9999
+        onTurnVoicePrompt?.invoke("Bạn đã đến đích!")
+      }
+    }
+
+    // 3. STEP PROGRESSION & REAL-TIME MANEUVER VOICE GUIDANCE
     var currentStepIndex = route.currentStepIndex
     val updatedSteps = route.steps.toMutableList()
 
@@ -723,7 +743,7 @@ class GpsLocationEngine(private val context: Context) {
       // Update remaining distance for the upcoming maneuver
       updatedSteps[currentStepIndex] = nextStep.copy(distanceMeters = distToNextStep.coerceAtLeast(0))
 
-      if (distToNextStep < 25 && currentStepIndex < updatedSteps.size - 1) {
+      if (distToNextStep < 20 && currentStepIndex < updatedSteps.size - 1) {
         currentStepIndex++
       }
 
@@ -744,7 +764,7 @@ class GpsLocationEngine(private val context: Context) {
           val prompt = if (band == 30) {
             "${upcomingStep.instruction} ngay bây giờ!"
           } else {
-            "Phía trước $band mét, ${upcomingStep.instruction.lowercase()}."
+            "Phía trước ${band} mét, ${upcomingStep.instruction}"
           }
           onTurnVoicePrompt?.invoke(prompt)
         }
@@ -752,10 +772,10 @@ class GpsLocationEngine(private val context: Context) {
     }
 
     _activeRoute.value = route.copy(
-      totalDistanceMeters = distToDest,
-      estimatedDurationMinutes = durationMinutes,
       currentStepIndex = currentStepIndex,
-      steps = updatedSteps
+      steps = updatedSteps,
+      totalDistanceMeters = distToDest,
+      estimatedDurationMinutes = durationMinutes
     )
   }
 
@@ -789,17 +809,35 @@ class GpsLocationEngine(private val context: Context) {
 
     scope.launch(Dispatchers.IO) {
       try {
+        val currentSpeed = _locationState.value.speedKmh
+
+        // Check nearest major road from preloaded arterial network
+        val nearestMajorRoad = VietnamTrafficData.ALL_ROADS.minByOrNull { road ->
+          road.coordinates.minOfOrNull { (rLat, rLng) ->
+            VietnamTrafficData.calculateDistanceMeters(lat, lng, rLat, rLng)
+          } ?: Double.MAX_VALUE
+        }
+        val distToMajorRoad = nearestMajorRoad?.let { road ->
+          road.coordinates.minOfOrNull { (rLat, rLng) ->
+            VietnamTrafficData.calculateDistanceMeters(lat, lng, rLat, rLng)
+          }
+        } ?: Double.MAX_VALUE
+
         // 1. Try OSM Online Road & Speed Tag Lookup First
         val osmInfo = NavigationRoutingService.fetchOsmRoadInfo(lat, lng)
         if (osmInfo != null && osmInfo.roadName.isNotBlank() && osmInfo.roadName != "Tuyến đường") {
           // Update OsmRoadSpeedLimits Cache
           OsmRoadSpeedLimits.cachedHighwayTag = osmInfo.highwayType
-          OsmRoadSpeedLimits.cachedSpeedLimit = osmInfo.maxSpeedKmh ?: OsmRoadSpeedLimits.getSpeedLimit(osmInfo.highwayType)
+          OsmRoadSpeedLimits.cachedSpeedLimit = osmInfo.maxSpeedKmh ?: OsmRoadSpeedLimits.getSpeedLimit(osmInfo.highwayType, currentSpeed)
           OsmRoadSpeedLimits.cacheAnchorLat = lat
           OsmRoadSpeedLimits.cacheAnchorLng = lng
 
           val rawName = osmInfo.roadName.trim()
-          val fullRoadName = if (rawName.startsWith("Đường", ignoreCase = true) ||
+          val isAlley = isAlleyWayName(rawName)
+
+          val resolvedRoadName = if (isAlley && (currentSpeed > 20f || distToMajorRoad < 45.0) && nearestMajorRoad != null) {
+            nearestMajorRoad.name
+          } else if (rawName.startsWith("Đường", ignoreCase = true) ||
             rawName.startsWith("Đại lộ", ignoreCase = true) ||
             rawName.startsWith("Quốc lộ", ignoreCase = true) ||
             rawName.startsWith("Hẻm", ignoreCase = true) ||
@@ -817,7 +855,7 @@ class GpsLocationEngine(private val context: Context) {
 
           withContext(Dispatchers.Main) {
             _locationState.value = _locationState.value.copy(
-              detectedRoadName = fullRoadName,
+              detectedRoadName = resolvedRoadName,
               detectedAddress = fullAddr.ifBlank { "Việt Nam" }
             )
           }
@@ -832,20 +870,28 @@ class GpsLocationEngine(private val context: Context) {
             val addr = addresses[0]
             val street = (addr.thoroughfare ?: addr.featureName ?: addr.subLocality)?.trim()
             val districtCity = listOfNotNull(addr.subAdminArea, addr.adminArea).joinToString(", ")
-            val fullRoadName = if (!street.isNullOrBlank()) {
-              if (street.startsWith("Đường", ignoreCase = true) ||
-                street.startsWith("Đại lộ", ignoreCase = true) ||
-                street.startsWith("Quốc lộ", ignoreCase = true) ||
-                street.startsWith("Hẻm", ignoreCase = true) ||
-                street.startsWith("Ngõ", ignoreCase = true) ||
-                street.startsWith("Cầu", ignoreCase = true) ||
-                street.startsWith("Phố", ignoreCase = true)) {
-                street
-              } else {
-                "Đường $street"
+            
+            val isAlley = street?.let { isAlleyWayName(it) } ?: false
+
+            val fullRoadName = when {
+              isAlley && (currentSpeed > 20f || distToMajorRoad < 45.0) && nearestMajorRoad != null -> {
+                nearestMajorRoad.name
               }
-            } else {
-              null
+              !street.isNullOrBlank() -> {
+                if (street.startsWith("Đường", ignoreCase = true) ||
+                  street.startsWith("Đại lộ", ignoreCase = true) ||
+                  street.startsWith("Quốc lộ", ignoreCase = true) ||
+                  street.startsWith("Hẻm", ignoreCase = true) ||
+                  street.startsWith("Ngõ", ignoreCase = true) ||
+                  street.startsWith("Cầu", ignoreCase = true) ||
+                  street.startsWith("Phố", ignoreCase = true)) {
+                  street
+                } else {
+                  "Đường $street"
+                }
+              }
+              nearestMajorRoad != null && distToMajorRoad < 100.0 -> nearestMajorRoad.name
+              else -> null
             }
 
             if (fullRoadName != null) {

@@ -6,6 +6,7 @@ import com.example.data.local.TrafficDao
 import com.example.data.local.TripRecordEntity
 import com.example.data.local.UserSettingsEntity
 import com.example.data.local.CommunityCameraEntity
+import com.example.data.local.FavoritePlaceEntity
 import com.example.data.model.CameraType
 import com.example.data.model.TrafficCamera
 import com.example.data.model.TripSummary
@@ -82,6 +83,16 @@ class TrafficRepository(private val dao: TrafficDao) {
 
   val userSettingsFlow: Flow<UserSettingsEntity> = dao.getUserSettings().map { settings ->
     settings ?: UserSettingsEntity()
+  }
+
+  val allFavoritesFlow: Flow<List<FavoritePlaceEntity>> = dao.getAllFavorites()
+
+  suspend fun saveFavorite(place: FavoritePlaceEntity) = withContext(Dispatchers.IO) {
+    dao.insertFavorite(place)
+  }
+
+  suspend fun deleteFavorite(id: String) = withContext(Dispatchers.IO) {
+    dao.deleteFavorite(id)
   }
 
   suspend fun saveTrip(trip: TripRecordEntity): Long = withContext(Dispatchers.IO) {

@@ -15,9 +15,10 @@ import kotlinx.coroutines.launch
     TripRecordEntity::class,
     CommunityCameraEntity::class,
     OfflineMapPackEntity::class,
-    UserSettingsEntity::class
+    UserSettingsEntity::class,
+    FavoritePlaceEntity::class
   ],
-  version = 5,
+  version = 7,
   exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -64,6 +65,32 @@ abstract class AppDatabase : RoomDatabase() {
       }
     }
 
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE user_settings ADD COLUMN vehicleIconScale REAL NOT NULL DEFAULT 1.3")
+        db.execSQL("ALTER TABLE user_settings ADD COLUMN roadSnappingEnabled INTEGER NOT NULL DEFAULT 1")
+        db.execSQL("ALTER TABLE user_settings ADD COLUMN highDpiMapEnabled INTEGER NOT NULL DEFAULT 1")
+      }
+    }
+
+    val MIGRATION_6_7 = object : Migration(6, 7) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE user_settings ADD COLUMN mapTileSource TEXT NOT NULL DEFAULT 'GOOGLE_MAPS_HD'")
+        db.execSQL("""
+          CREATE TABLE IF NOT EXISTS favorite_places (
+            id TEXT PRIMARY KEY NOT NULL,
+            name TEXT NOT NULL,
+            address TEXT NOT NULL,
+            category TEXT NOT NULL,
+            latitude REAL NOT NULL,
+            longitude REAL NOT NULL,
+            iconEmoji TEXT NOT NULL,
+            createdAtMillis INTEGER NOT NULL
+          )
+        """.trimIndent())
+      }
+    }
+
     fun getDatabase(context: Context): AppDatabase {
       return INSTANCE ?: synchronized(this) {
         val instance = Room.databaseBuilder(
@@ -71,7 +98,7 @@ abstract class AppDatabase : RoomDatabase() {
           AppDatabase::class.java,
           "speed_alert_vietnam.db"
         )
-          .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+          .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
           .addCallback(object : Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
               super.onCreate(db)

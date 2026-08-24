@@ -48,6 +48,7 @@ fun LiveMapScreen(
   voiceEnabled: Boolean = true,
   compassHeading: Float = 0f,
   userSettings: UserSettingsEntity = UserSettingsEntity(),
+  favorites: List<com.example.data.local.FavoritePlaceEntity> = emptyList(),
   onToggleVoice: () -> Unit = {},
   onToggleTripRecording: () -> Unit = {},
   onCloseTripSummary: () -> Unit = {},
@@ -60,6 +61,9 @@ fun LiveMapScreen(
   onSetCustomRoad: (String) -> Unit = {},
   onTestSound: () -> Unit = {},
   onSpeakAlert: (String) -> Unit = {},
+  onSaveFavorite: (name: String, address: String, category: String, lat: Double, lng: Double, icon: String) -> Unit = { _, _, _, _, _, _ -> },
+  onDeleteFavorite: (id: String) -> Unit = {},
+  onSearchNearbyUtilities: (suspend (String) -> List<DestinationPlace>)? = null,
   onOpenReportDialog: () -> Unit,
   onRefreshLocation: () -> Unit = {},
   modifier: Modifier = Modifier
@@ -72,8 +76,15 @@ fun LiveMapScreen(
   var searchQuery by remember { mutableStateOf("") }
   var selectedCategoryFilter by remember { mutableStateOf("Tất cả") }
   var showRoadSelectDialog by remember { mutableStateOf(false) }
+  var showSpeedLimitPicker by remember { mutableStateOf(false) }
   var customRoadInput by remember { mutableStateOf("") }
   var previewTapPlace by remember { mutableStateOf<DestinationPlace?>(null) }
+
+  // Quick Utilities & Favorite Sheet States
+  var activeUtilityCategory by remember { mutableStateOf<String?>(null) }
+  var utilityPlacesList by remember { mutableStateOf<List<DestinationPlace>>(emptyList()) }
+  var isUtilityLoading by remember { mutableStateOf(false) }
+  var showFavoriteToast by remember { mutableStateOf<String?>(null) }
 
   // Online Geocoding Search States
   var searchResults by remember { mutableStateOf<List<DestinationPlace>>(emptyList()) }
@@ -82,7 +93,7 @@ fun LiveMapScreen(
 
   val activeWarning = trafficEvaluation.activeWarning
   val nearestCam = trafficEvaluation.nearestCamera
-  val currentSpeedLimit = trafficEvaluation.currentSpeedLimit.coerceAtLeast(50)
+  val currentSpeedLimit = if (trafficEvaluation.currentSpeedLimit > 0) trafficEvaluation.currentSpeedLimit else 50
   val isOverspeed = trafficEvaluation.isOverspeeding
 
   val allPlaces = remember { VietnamTrafficData.POPULAR_PLACES }
@@ -213,6 +224,8 @@ fun LiveMapScreen(
         "ARROW" -> VehicleIconType.ARROW
         else -> VehicleIconType.SCOOTER  // "SCOOTER" default
       },
+      vehicleIconScale = userSettings.vehicleIconScale,
+      roadSnappingEnabled = userSettings.roadSnappingEnabled,
       modifier = Modifier.fillMaxSize()
     )
 
@@ -270,42 +283,67 @@ fun LiveMapScreen(
               overflow = TextOverflow.Ellipsis,
               modifier = Modifier.weight(1f)
             )
-            IconButton(
-              onClick = { onOpenReportDialog() },
-              modifier = Modifier.size(32.dp)
-            ) {
-              Icon(
-                imageVector = Icons.Default.AddLocationAlt,
-                contentDescription = "Báo camera",
-                tint = Color(0xFFDC2626),
-                modifier = Modifier.size(20.dp)
-              )
-            }
           }
         }
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        // Horizontal Map Layer Filter Chips
+        // Horizontal Map Layer & Utility Filter Chips (1-tap access)
         LazyRow(
           horizontalArrangement = Arrangement.spacedBy(6.dp),
           modifier = Modifier.fillMaxWidth()
         ) {
-          val filterOptions = listOf("Tất cả", "Bắn tốc độ", "Phạt nguội", "Camera an ninh", "Cây xăng", "Trạm BOT", "Cứu hộ/Y tế", "Điểm đen")
+          val filterOptions = listOf("Tất cả", "⛽ Cây xăng", "🏦 Ngân hàng/ATM", "🔧 Sửa xe/Vá", "🏥 Cứu hộ/Y tế", "☕ Ăn uống/Cafe", "🅿️ Bãi đỗ xe", "⭐ Yêu thích", "Bắn tốc độ", "Phạt nguội", "Trạm BOT")
           items(filterOptions) { filter ->
             val isSelected = selectedLayerFilter == filter
-            val (icon, badgeColor) = when (filter) {
-              "Bắn tốc độ" -> "🔴" to Color(0xFFEF4444)
-              "Phạt nguội" -> "🚦" to Color(0xFFDC2626)
-              "Camera an ninh" -> "🛡️" to Color(0xFF1E40AF)
-              "Cây xăng" -> "⛽" to Color(0xFFF97316)
-              "Trạm BOT" -> "🚧" to Color(0xFF0284C7)
-              "Cứu hộ/Y tế" -> "🏥" to Color(0xFF10B981)
-              "Điểm đen" -> "⚠️" to Color(0xFFE11D48)
-              else -> "⭐" to Color(0xFF1E88E5)
+            val (icon, badgeColor) = when {
+              filter.contains("Cây xăng") -> "⛽" to Color(0xFFF97316)
+              filter.contains("Ngân hàng") -> "🏦" to Color(0xFF0284C7)
+              filter.contains("Sửa xe") -> "🔧" to Color(0xFFD97706)
+              filter.contains("Cứu hộ") || filter.contains("Y tế") -> "🏥" to Color(0xFF10B981)
+              filter.contains("Ăn uống") || filter.contains("Cafe") -> "☕" to Color(0xFF8B5CF6)
+              filter.contains("Bãi đỗ") -> "🅿️" to Color(0xFF6366F1)
+              filter.contains("Yêu thích") -> "⭐" to Color(0xFFF59E0B)
+              filter.contains("Bắn tốc độ") -> "🔴" to Color(0xFFEF4444)
+              filter.contains("Phạt nguội") -> "🚦" to Color(0xFFDC2626)
+              filter.contains("Trạm BOT") -> "🚧" to Color(0xFF0284C7)
+              else -> "🗺️" to Color(0xFF1E88E5)
             }
             Surface(
-              onClick = { selectedLayerFilter = filter },
+              onClick = {
+                selectedLayerFilter = filter
+                val cleanCat = when {
+                  filter.contains("Cây xăng") -> "Cây xăng"
+                  filter.contains("Ngân hàng") -> "Ngân hàng / ATM"
+                  filter.contains("Sửa xe") -> "Sửa xe / Vá vỏ"
+                  filter.contains("Cứu hộ") || filter.contains("Y tế") -> "Bệnh viện & Cứu hộ Y tế"
+                  filter.contains("Ăn uống") || filter.contains("Cafe") -> "Ăn uống & Cafe"
+                  filter.contains("Bãi đỗ") -> "Bãi đỗ xe"
+                  filter.contains("Yêu thích") -> "Địa điểm Yêu thích"
+                  else -> null
+                }
+                if (cleanCat != null) {
+                  activeUtilityCategory = cleanCat
+                  if (cleanCat == "Địa điểm Yêu thích") {
+                    utilityPlacesList = emptyList()
+                  } else {
+                    isUtilityLoading = true
+                    coroutineScope.launch {
+                      val searchKey = when (cleanCat) {
+                        "Cây xăng" -> "xăng"
+                        "Ngân hàng / ATM" -> "ngân hàng"
+                        "Sửa xe / Vá vỏ" -> "sửa xe"
+                        "Bệnh viện & Cứu hộ Y tế" -> "bệnh viện"
+                        "Ăn uống & Cafe" -> "ăn"
+                        "Bãi đỗ xe" -> "đỗ"
+                        else -> cleanCat
+                      }
+                      utilityPlacesList = onSearchNearbyUtilities?.invoke(searchKey) ?: emptyList()
+                      isUtilityLoading = false
+                    }
+                  }
+                }
+              },
               shape = RoundedCornerShape(14.dp),
               color = if (isSelected) badgeColor else Color.White.copy(alpha = 0.92f),
               shadowElevation = if (isSelected) 4.dp else 2.dp,
@@ -321,7 +359,7 @@ fun LiveMapScreen(
                 Text(text = icon, fontSize = 10.5.sp)
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                  text = filter,
+                  text = filter.replace("⛽ ", "").replace("🏦 ", "").replace("🔧 ", "").replace("🏥 ", "").replace("☕ ", "").replace("🅿️ ", "").replace("⭐ ", ""),
                   style = MaterialTheme.typography.labelSmall.copy(
                     fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
                     fontSize = 10.5.sp
@@ -344,11 +382,14 @@ fun LiveMapScreen(
         .padding(start = 14.dp, top = if (activeRoute?.isNavigating == true) 90.dp else 75.dp)
     )
 
-    // 4. BOTTOM-LEFT STACKED SPEED HUD (Realtime Speed + Vietnam Limit Sign)
+    // 4. BOTTOM-LEFT STACKED SPEED HUD (Realtime Speed + Vietnam Limit Sign + Camera Countdown Bar)
     VietmapStackedSpeedHUD(
       currentSpeedKmh = locationState.speedKmh,
       speedLimitKmh = currentSpeedLimit,
       isOverspeeding = isOverspeed,
+      nearestCameraDistance = trafficEvaluation.nearestCameraDistance,
+      activeWarning = activeWarning,
+      onSpeedLimitClick = { showSpeedLimitPicker = true },
       modifier = Modifier
         .align(Alignment.BottomStart)
         .padding(start = 14.dp, bottom = 65.dp)
@@ -407,8 +448,19 @@ fun LiveMapScreen(
                 )
               }
             }
-            IconButton(onClick = { previewTapPlace = null }) {
-              Icon(Icons.Default.Close, contentDescription = "Đóng", tint = Color(0xFF94A3B8))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              IconButton(
+                onClick = {
+                  val place = previewTapPlace!!
+                  onSaveFavorite(place.name, place.address, place.category, place.latitude, place.longitude, "⭐")
+                  showFavoriteToast = "Đã lưu \"${place.name}\" vào địa điểm yêu thích!"
+                }
+              ) {
+                Icon(Icons.Default.Star, contentDescription = "Lưu yêu thích", tint = Color(0xFFFBBF24))
+              }
+              IconButton(onClick = { previewTapPlace = null }) {
+                Icon(Icons.Default.Close, contentDescription = "Đóng", tint = Color(0xFF94A3B8))
+              }
             }
           }
 
@@ -547,6 +599,70 @@ fun LiveMapScreen(
               modifier = Modifier.fillMaxWidth()
             )
 
+            // Quick 1-Tap Shortcut Cards: Nhà riêng, Công ty
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+              val homePlace = favorites.firstOrNull { it.category == "NHÀ" || it.name.contains("nhà", ignoreCase = true) }
+              Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF1E293B),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8)),
+                modifier = Modifier
+                  .weight(1f)
+                  .clickable {
+                    showDestinationSearchDialog = false
+                    if (homePlace != null) {
+                      onStartCustomNavigation(homePlace.name, homePlace.address, homePlace.latitude, homePlace.longitude)
+                    } else {
+                      onStartCustomNavigation("Nhà Riêng (Home)", "Điểm đến thường xuyên", 10.7769, 106.7009)
+                    }
+                  }
+              ) {
+                Row(
+                  verticalAlignment = Alignment.CenterVertically,
+                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp)
+                ) {
+                  Text("🏠", fontSize = 16.sp)
+                  Spacer(modifier = Modifier.width(6.dp))
+                  Column {
+                    Text("Về Nhà", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(if (homePlace != null) homePlace.name else "1 chạm đi ngay", color = Color(0xFF94A3B8), fontSize = 9.5.sp, maxLines = 1)
+                  }
+                }
+              }
+
+              val workPlace = favorites.firstOrNull { it.category == "CÔNG TY" || it.name.contains("công ty", ignoreCase = true) }
+              Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = Color(0xFF1E293B),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF0284C7)),
+                modifier = Modifier
+                  .weight(1f)
+                  .clickable {
+                    showDestinationSearchDialog = false
+                    if (workPlace != null) {
+                      onStartCustomNavigation(workPlace.name, workPlace.address, workPlace.latitude, workPlace.longitude)
+                    } else {
+                      onStartCustomNavigation("Công Ty (Work)", "Nơi làm việc", 10.7725, 106.6980)
+                    }
+                  }
+              ) {
+                Row(
+                  verticalAlignment = Alignment.CenterVertically,
+                  modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp)
+                ) {
+                  Text("🏢", fontSize = 16.sp)
+                  Spacer(modifier = Modifier.width(6.dp))
+                  Column {
+                    Text("Công Ty", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(if (workPlace != null) workPlace.name else "1 chạm đi ngay", color = Color(0xFF94A3B8), fontSize = 9.5.sp, maxLines = 1)
+                  }
+                }
+              }
+            }
+
             // Category Filter Row
             val categories = listOf("Tất cả", "Tuyến đường", "Cây xăng", "Sân bay", "Bệnh viện", "Trung tâm", "Bến xe")
             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -663,26 +779,277 @@ fun LiveMapScreen(
       )
     }
 
-    // 8. CAMERA INSPECTION DETAIL DIALOG
-    if (inspectingCamera != null) {
-      val cam = inspectingCamera!!
+    // 7B. NEARBY UTILITY & FAVORITE PLACES MODAL DIALOG
+    if (activeUtilityCategory != null) {
+      val catTitle = activeUtilityCategory!!
       AlertDialog(
-        onDismissRequest = { inspectingCamera = null },
+        onDismissRequest = { activeUtilityCategory = null },
+        containerColor = Color(0xFF0F172A),
+        title = {
+          Row(verticalAlignment = Alignment.CenterVertically) {
+            val iconEmoji = when {
+              catTitle.contains("Cây xăng") -> "⛽"
+              catTitle.contains("Ngân hàng") -> "🏦"
+              catTitle.contains("Sửa xe") -> "🔧"
+              catTitle.contains("Y tế") || catTitle.contains("Bệnh viện") -> "🏥"
+              catTitle.contains("Ăn uống") || catTitle.contains("Cafe") -> "☕"
+              catTitle.contains("Bãi đỗ") -> "🅿️"
+              else -> "⭐"
+            }
+            Text(iconEmoji, fontSize = 22.sp)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = if (catTitle.contains("Yêu thích")) "Địa điểm Yêu thích (${favorites.size})" else "$catTitle gần bạn (${utilityPlacesList.size})",
+              style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+              color = Color.White
+            )
+          }
+        },
+        text = {
+          Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            if (catTitle.contains("Yêu thích")) {
+              if (favorites.isEmpty()) {
+                Box(
+                  contentAlignment = Alignment.Center,
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp)
+                ) {
+                  Text(
+                    text = "Chưa có địa điểm yêu thích nào.\nKhi tìm kiếm hoặc chạm bản đồ, bấm biểu tượng ⭐ để lưu nhanh!",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF94A3B8),
+                    textAlign = TextAlign.Center
+                  )
+                }
+              } else {
+                LazyColumn(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 300.dp),
+                  verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                  items(favorites) { fav ->
+                    Surface(
+                      shape = RoundedCornerShape(12.dp),
+                      color = Color(0xFF1E293B),
+                      border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+                      modifier = Modifier.fillMaxWidth()
+                    ) {
+                      Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(10.dp)
+                      ) {
+                        Text(fav.iconEmoji.ifBlank { "⭐" }, fontSize = 20.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                          Text(
+                            text = fav.name,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                          )
+                          Text(
+                            text = fav.address,
+                            color = Color(0xFF94A3B8),
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                          )
+                        }
+                        IconButton(
+                          onClick = {
+                            activeUtilityCategory = null
+                            onStartCustomNavigation(fav.name, fav.address, fav.latitude, fav.longitude)
+                          }
+                        ) {
+                          Icon(Icons.Default.Navigation, contentDescription = "Đi ngay", tint = Color(0xFF38BDF8), modifier = Modifier.size(22.dp))
+                        }
+                        IconButton(
+                          onClick = { onDeleteFavorite(fav.id) }
+                        ) {
+                          Icon(Icons.Default.DeleteOutline, contentDescription = "Xoá", tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            } else {
+              // UTILITY LIST
+              if (isUtilityLoading) {
+                Box(
+                  contentAlignment = Alignment.Center,
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 30.dp)
+                ) {
+                  CircularProgressIndicator(color = Color(0xFF38BDF8))
+                }
+              } else if (utilityPlacesList.isEmpty()) {
+                Box(
+                  contentAlignment = Alignment.Center,
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp)
+                ) {
+                  Text(
+                    text = "Đang quét dữ liệu $catTitle xung quanh vị trí xe của bạn...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF94A3B8),
+                    textAlign = TextAlign.Center
+                  )
+                }
+              } else {
+                LazyColumn(
+                  modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 320.dp),
+                  verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                  items(utilityPlacesList) { place ->
+                    val distMeters = VietnamTrafficData.calculateDistanceMeters(
+                      locationState.latitude, locationState.longitude,
+                      place.latitude, place.longitude
+                    ).toInt()
+                    val distStr = if (distMeters >= 1000) String.format(java.util.Locale.US, "%.1f km", distMeters / 1000f) else "$distMeters m"
+
+                    Surface(
+                      shape = RoundedCornerShape(12.dp),
+                      color = Color(0xFF1E293B),
+                      border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF334155)),
+                      modifier = Modifier.fillMaxWidth()
+                    ) {
+                      Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(10.dp)
+                      ) {
+                        Surface(
+                          shape = RoundedCornerShape(8.dp),
+                          color = Color(0xFF0369A1),
+                          modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                          Text(
+                            text = distStr,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                          )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                          Text(
+                            text = place.name,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                          )
+                          Text(
+                            text = place.address,
+                            color = Color(0xFF94A3B8),
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                          )
+                        }
+                        IconButton(
+                          onClick = {
+                            onSaveFavorite(place.name, place.address, place.category, place.latitude, place.longitude, "⭐")
+                            showFavoriteToast = "Đã lưu \"${place.name}\" vào địa điểm yêu thích!"
+                          }
+                        ) {
+                          Icon(Icons.Default.StarBorder, contentDescription = "Lưu", tint = Color(0xFFFBBF24), modifier = Modifier.size(20.dp))
+                        }
+                        Button(
+                          onClick = {
+                            activeUtilityCategory = null
+                            onStartCustomNavigation(place.name, place.address, place.latitude, place.longitude)
+                          },
+                          colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00B4D8)),
+                          shape = RoundedCornerShape(8.dp),
+                          contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                          Text("Đi ngay", color = Color(0xFF0F172A), fontWeight = FontWeight.Bold, fontSize = 11.5.sp)
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        confirmButton = {
+          TextButton(onClick = { activeUtilityCategory = null }) {
+            Text("Đóng", color = Color(0xFF94A3B8))
+          }
+        }
+      )
+    }
+
+    // 7C. FAVORITE SAVE CONFIRMATION TOAST
+    if (showFavoriteToast != null) {
+      LaunchedEffect(showFavoriteToast) {
+        delay(2500)
+        showFavoriteToast = null
+      }
+      Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFF0F172A).copy(alpha = 0.95f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8)),
+        shadowElevation = 8.dp,
+        modifier = Modifier
+          .align(Alignment.BottomCenter)
+          .padding(bottom = 80.dp)
+      ) {
+        Row(
+          verticalAlignment = Alignment.CenterVertically,
+          modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+        ) {
+          Text("⭐", fontSize = 16.sp)
+          Spacer(modifier = Modifier.width(8.dp))
+          Text(
+            text = showFavoriteToast!!,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.5.sp
+          )
+        }
+      }
+    }
+
+    // 8. SPEED LIMIT QUICK OVERVIEW & ADJUSTMENT DIALOG
+    if (showSpeedLimitPicker) {
+      AlertDialog(
+        onDismissRequest = { showSpeedLimitPicker = false },
         containerColor = Color(0xFF0F172A),
         icon = {
           Surface(
             shape = CircleShape,
-            color = Color(0xFF7F1D1D),
-            modifier = Modifier.size(48.dp)
+            color = SignBackgroundWhite,
+            border = androidx.compose.foundation.BorderStroke(4.dp, SignBorderRed),
+            modifier = Modifier.size(54.dp)
           ) {
             Box(contentAlignment = Alignment.Center) {
-              Icon(Icons.Default.Videocam, contentDescription = null, tint = AlertCrimsonDanger, modifier = Modifier.size(26.dp))
+              Text(
+                text = "$currentSpeedLimit",
+                fontWeight = FontWeight.Black,
+                fontSize = 22.sp,
+                color = SignTextBlack
+              )
             }
           }
         },
         title = {
           Text(
-            text = cam.description,
+            text = "Giới Hạn Tốc Độ Tuyến Đường",
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
             color = Color.White,
             textAlign = TextAlign.Center
@@ -691,37 +1058,86 @@ fun LiveMapScreen(
         text = {
           Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
           ) {
-            Row(
-              horizontalArrangement = Arrangement.SpaceBetween,
+            Surface(
+              shape = RoundedCornerShape(12.dp),
+              color = Color(0xFF1E293B),
               modifier = Modifier.fillMaxWidth()
             ) {
-              Text("Tuyến đường:", color = Color(0xFF94A3B8), style = MaterialTheme.typography.bodySmall)
-              Text(cam.roadName, fontWeight = FontWeight.Bold, color = Color.White, style = MaterialTheme.typography.bodySmall)
+              Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Tuyến đường đang chạy:", color = Color(0xFF94A3B8), style = MaterialTheme.typography.labelSmall)
+                Text(
+                  trafficEvaluation.currentRoadName,
+                  fontWeight = FontWeight.Bold,
+                  color = Color(0xFF38BDF8),
+                  style = MaterialTheme.typography.bodyMedium
+                )
+              }
             }
+
+            Text(
+              text = "⚖️ Theo Thông tư 31/2019/TT-BGTVT & Thực tế Sở GTVT TP.HCM: Các trục đường nội thành (Lũy Bán Bích, Thoại Ngọc Hầu, Hòa Bình...) áp dụng tối đa 50 km/h để đảm bảo an toàn.",
+              style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp),
+              color = Color(0xFFCBD5E1)
+            )
+
+            HorizontalDivider(color = Color(0xFF334155))
+
+            Text("Tùy chỉnh giới hạn tốc độ tạm thời:", color = Color(0xFF94A3B8), style = MaterialTheme.typography.labelSmall)
+
             Row(
-              horizontalArrangement = Arrangement.SpaceBetween,
-              modifier = Modifier.fillMaxWidth()
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-              Text("Khu vực:", color = Color(0xFF94A3B8), style = MaterialTheme.typography.bodySmall)
-              Text(cam.districtCity, fontWeight = FontWeight.Bold, color = Color.White, style = MaterialTheme.typography.bodySmall)
-            }
-            Row(
-              horizontalArrangement = Arrangement.SpaceBetween,
-              modifier = Modifier.fillMaxWidth()
-            ) {
-              Text("Tốc độ quy định:", color = Color(0xFF94A3B8), style = MaterialTheme.typography.bodySmall)
-              Text("${cam.speedLimit} km/h", fontWeight = FontWeight.Black, color = AlertCrimsonDanger, style = MaterialTheme.typography.bodySmall)
+              listOf(30, 40, 50, 60, 70, 80).forEach { limit ->
+                val isSelected = currentSpeedLimit == limit
+                Surface(
+                  shape = RoundedCornerShape(8.dp),
+                  color = if (isSelected) Color(0xFF0284C7) else Color(0xFF1E293B),
+                  border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (isSelected) Color(0xFF38BDF8) else Color(0xFF475569)
+                  ),
+                  modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                      onSetSpeed(limit.toFloat())
+                      showSpeedLimitPicker = false
+                    }
+                ) {
+                  Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                  ) {
+                    Text(
+                      text = "$limit",
+                      fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
+                      color = if (isSelected) Color.White else Color(0xFFE2E8F0),
+                      fontSize = 13.sp
+                    )
+                  }
+                }
+              }
             }
           }
         },
         confirmButton = {
           Button(
-            onClick = { inspectingCamera = null },
+            onClick = { showSpeedLimitPicker = false },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
           ) {
             Text("Đã hiểu")
+          }
+        },
+        dismissButton = {
+          TextButton(
+            onClick = {
+              showSpeedLimitPicker = false
+              onOpenReportDialog()
+            }
+          ) {
+            Text("Báo biển mới", color = Color(0xFF38BDF8))
           }
         }
       )

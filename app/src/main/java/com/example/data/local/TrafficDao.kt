@@ -54,4 +54,17 @@ interface TrafficDao {
 
   @Insert(onConflict = OnConflictStrategy.REPLACE)
   suspend fun saveUserSettings(settings: UserSettingsEntity)
+
+  // Favorite Places
+  @Query("SELECT * FROM favorite_places ORDER BY createdAtMillis DESC")
+  fun getAllFavorites(): Flow<List<FavoritePlaceEntity>>
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertFavorite(place: FavoritePlaceEntity)
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertFavorites(places: List<FavoritePlaceEntity>)
+
+  @Query("DELETE FROM favorite_places WHERE id = :id")
+  suspend fun deleteFavorite(id: String)
 }

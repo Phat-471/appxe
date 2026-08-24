@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,11 +40,14 @@ fun VietmapStackedSpeedHUD(
   currentSpeedKmh: Float,
   speedLimitKmh: Int,
   isOverspeeding: Boolean,
+  nearestCameraDistance: Int? = null,
+  activeWarning: ActiveWarning? = null,
+  onSpeedLimitClick: (() -> Unit)? = null,
   modifier: Modifier = Modifier
 ) {
   val speedInt = currentSpeedKmh.toInt().coerceAtLeast(0)
 
-  // Pulsing border animation when overspeeding
+  // Pulsing border animation when overspeeding or near camera
   val infiniteTransition = rememberInfiniteTransition(label = "OverspeedPulse")
   val pulseBorderWidth by infiniteTransition.animateFloat(
     initialValue = 3.5f,
@@ -55,6 +59,16 @@ fun VietmapStackedSpeedHUD(
     label = "PulseBorder"
   )
 
+  val glowAlpha by infiniteTransition.animateFloat(
+    initialValue = 0.3f,
+    targetValue = 0.9f,
+    animationSpec = infiniteRepeatable(
+      animation = tween(600, easing = LinearEasing),
+      repeatMode = RepeatMode.Reverse
+    ),
+    label = "GlowAlpha"
+  )
+
   Column(
     horizontalAlignment = Alignment.CenterHorizontally,
     verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -63,13 +77,17 @@ fun VietmapStackedSpeedHUD(
     // 1. TOP BUBBLE: CURRENT VEHICLE SPEED GAUGE
     Surface(
       shape = CircleShape,
-      color = Color.White.copy(alpha = 0.96f),
-      shadowElevation = 10.dp,
+      color = Color(0xFF0F172A).copy(alpha = 0.95f),
+      shadowElevation = 14.dp,
       border = androidx.compose.foundation.BorderStroke(
-        width = if (isOverspeeding) pulseBorderWidth.dp else 4.dp,
-        color = if (isOverspeeding) AlertCrimsonDanger else Color(0xFF10B981)
+        width = if (isOverspeeding) pulseBorderWidth.dp else 3.5.dp,
+        brush = if (isOverspeeding) {
+          Brush.sweepGradient(listOf(AlertCrimsonDanger, Color(0xFFFFA500), AlertCrimsonDanger))
+        } else {
+          Brush.sweepGradient(listOf(Color(0xFF10B981), Color(0xFF38BDF8), Color(0xFF10B981)))
+        }
       ),
-      modifier = Modifier.size(72.dp)
+      modifier = Modifier.size(76.dp)
     ) {
       Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -80,18 +98,18 @@ fun VietmapStackedSpeedHUD(
           text = "$speedInt",
           style = MaterialTheme.typography.titleLarge.copy(
             fontWeight = FontWeight.Black,
-            fontSize = 28.sp,
-            letterSpacing = (-0.5).sp
+            fontSize = 30.sp,
+            letterSpacing = (-0.8).sp
           ),
-          color = if (isOverspeeding) AlertCrimsonDanger else Color(0xFF0F172A)
+          color = if (isOverspeeding) AlertCrimsonDanger else Color(0xFFF8FAFC)
         )
         Text(
           text = "km/h",
           style = MaterialTheme.typography.labelSmall.copy(
-            fontSize = 9.5.sp,
+            fontSize = 10.sp,
             fontWeight = FontWeight.Bold
           ),
-          color = Color(0xFF64748B),
+          color = Color(0xFF94A3B8),
           modifier = Modifier.offset(y = (-2).dp)
         )
       }
@@ -101,12 +119,17 @@ fun VietmapStackedSpeedHUD(
     Surface(
       shape = CircleShape,
       color = SignBackgroundWhite,
-      shadowElevation = 10.dp,
+      shadowElevation = 12.dp,
       border = androidx.compose.foundation.BorderStroke(
         width = 5.dp,
         color = SignBorderRed
       ),
-      modifier = Modifier.size(72.dp)
+      modifier = Modifier
+        .size(74.dp)
+        .then(
+          if (onSpeedLimitClick != null) Modifier.clickable { onSpeedLimitClick() }
+          else Modifier
+        )
     ) {
       Box(
         contentAlignment = Alignment.Center,
@@ -116,11 +139,75 @@ fun VietmapStackedSpeedHUD(
           text = "$speedLimitKmh",
           style = MaterialTheme.typography.headlineMedium.copy(
             fontWeight = FontWeight.Black,
-            fontSize = 28.sp,
+            fontSize = 30.sp,
             letterSpacing = (-1).sp
           ),
           color = SignTextBlack
         )
+      }
+    }
+
+    // 3. CAMERA DISTANCE COUNTDOWN PILL (If Camera Approaching in < 600m)
+    if (nearestCameraDistance != null && nearestCameraDistance <= 650) {
+      val progress = (nearestCameraDistance / 600f).coerceIn(0f, 1f)
+      val barColor = when {
+        nearestCameraDistance <= 150 -> AlertCrimsonDanger
+        nearestCameraDistance <= 350 -> Color(0xFFF59E0B)
+        else -> Color(0xFF38BDF8)
+      }
+
+      Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFF0F172A).copy(alpha = 0.95f),
+        border = androidx.compose.foundation.BorderStroke(1.dp, barColor.copy(alpha = glowAlpha)),
+        shadowElevation = 8.dp,
+        modifier = Modifier
+          .width(76.dp)
+          .padding(top = 2.dp)
+      ) {
+        Column(
+          horizontalAlignment = Alignment.CenterHorizontally,
+          modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+        ) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+          ) {
+            Icon(
+              imageVector = Icons.Default.Videocam,
+              contentDescription = null,
+              tint = barColor,
+              modifier = Modifier.size(12.dp)
+            )
+            Spacer(modifier = Modifier.width(3.dp))
+            Text(
+              text = "${nearestCameraDistance}m",
+              style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.Black,
+                fontSize = 11.sp
+              ),
+              color = Color.White
+            )
+          }
+
+          Spacer(modifier = Modifier.height(3.dp))
+
+          // Progress Bar
+          Box(
+            modifier = Modifier
+              .fillMaxWidth()
+              .height(3.5.dp)
+              .clip(RoundedCornerShape(2.dp))
+              .background(Color.White.copy(alpha = 0.2f))
+          ) {
+            Box(
+              modifier = Modifier
+                .fillMaxWidth(1f - progress)
+                .fillMaxHeight()
+                .background(barColor)
+            )
+          }
+        }
       }
     }
   }
@@ -238,6 +325,21 @@ fun VietmapTopLaneGuidanceBanner(
   overallCongestion: TrafficCongestion = TrafficCongestion.CLEAR,
   modifier: Modifier = Modifier
 ) {
+  VietmapNavigationBanner(
+    turnInstruction = turnInstruction,
+    turnDistanceMeters = turnDistanceMeters,
+    overallCongestion = overallCongestion,
+    modifier = modifier
+  )
+}
+
+@Composable
+fun VietmapNavigationBanner(
+  turnInstruction: String,
+  turnDistanceMeters: Int,
+  overallCongestion: TrafficCongestion = TrafficCongestion.CLEAR,
+  modifier: Modifier = Modifier
+) {
   val turnIcon = when {
     turnInstruction.contains("trái", ignoreCase = true) && turnInstruction.contains("quay", ignoreCase = true) -> "↩️"
     turnInstruction.contains("phải", ignoreCase = true) && turnInstruction.contains("quay", ignoreCase = true) -> "↪️"
@@ -249,26 +351,28 @@ fun VietmapTopLaneGuidanceBanner(
   }
 
   Surface(
-    shape = RoundedCornerShape(20.dp),
-    color = Color(0xFF0F172A).copy(alpha = 0.96f),
-    shadowElevation = 12.dp,
-    border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(overallCongestion.colorHex)),
+    shape = RoundedCornerShape(22.dp),
+    color = Color(0xFF0F172A).copy(alpha = 0.97f),
+    shadowElevation = 14.dp,
+    border = androidx.compose.foundation.BorderStroke(1.8.dp, Color(0xFF0284C7)),
     modifier = modifier
-      .fillMaxWidth(0.94f)
-      .padding(horizontal = 4.dp)
+      .fillMaxWidth(0.96f)
+      .padding(horizontal = 2.dp)
   ) {
     Row(
       verticalAlignment = Alignment.CenterVertically,
-      modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+      modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
-      // Maneuver Icon Badge
+      // Maneuver Icon Badge (To, nổi bật)
       Surface(
         shape = CircleShape,
-        color = Color(overallCongestion.colorHex),
-        modifier = Modifier.size(46.dp)
+        color = Color(0xFF0284C7),
+        border = androidx.compose.foundation.BorderStroke(2.dp, Color.White),
+        shadowElevation = 6.dp,
+        modifier = Modifier.size(52.dp)
       ) {
         Box(contentAlignment = Alignment.Center) {
-          Text(text = turnIcon, fontSize = 22.sp)
+          Text(text = turnIcon, fontSize = 26.sp)
         }
       }
 
@@ -285,35 +389,39 @@ fun VietmapTopLaneGuidanceBanner(
             },
             style = MaterialTheme.typography.titleLarge.copy(
               fontWeight = FontWeight.Black,
-              fontSize = 24.sp
+              fontSize = 28.sp,
+              letterSpacing = (-0.5).sp
             ),
             color = Color(0xFF38BDF8)
           )
           Spacer(modifier = Modifier.width(4.dp))
           Text(
             text = if (turnDistanceMeters >= 1000) "km" else "m",
-            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, fontSize = 13.sp),
             color = Color(0xFF94A3B8),
-            modifier = Modifier.padding(bottom = 3.dp)
+            modifier = Modifier.padding(bottom = 4.dp)
           )
-          Spacer(modifier = Modifier.width(8.dp))
+          Spacer(modifier = Modifier.width(10.dp))
           // Traffic status pill
           Surface(
-            shape = RoundedCornerShape(10.dp),
-            color = Color(overallCongestion.colorHex).copy(alpha = 0.25f)
+            shape = RoundedCornerShape(8.dp),
+            color = Color(overallCongestion.colorHex).copy(alpha = 0.3f),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(overallCongestion.colorHex))
           ) {
             Text(
               text = overallCongestion.label,
-              style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+              style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold, fontSize = 11.sp),
               color = Color(overallCongestion.colorHex),
-              modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+              modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
             )
           }
         }
 
+        Spacer(modifier = Modifier.height(2.dp))
+
         Text(
           text = turnInstruction,
-          style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+          style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold, fontSize = 15.sp),
           color = Color.White,
           maxLines = 1,
           overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis

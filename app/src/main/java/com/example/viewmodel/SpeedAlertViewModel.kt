@@ -28,6 +28,7 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
   val voiceAlertEngine = VoiceAlertEngine(application)
   val gpsLocationEngine = GpsLocationEngine(application)
   val compassEngine = CompassSensorEngine(application)
+  val cloudTrafficSyncEngine = com.example.service.CloudTrafficSyncEngine(application, repository)
   private val trafficWarningEngine = TrafficWarningEngine(voiceAlertEngine)
 
   // Compass heading (resolved: blends GPS bearing + compass based on speed)
@@ -46,6 +47,9 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
   val offlinePacks: StateFlow<List<OfflineMapPackEntity>> = repository.offlinePacksFlow
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+  val favoritePlaces: StateFlow<List<com.example.data.local.FavoritePlaceEntity>> = repository.allFavoritesFlow
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
   val userSettings: StateFlow<UserSettingsEntity> = repository.userSettingsFlow
@@ -88,6 +92,11 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
     startLiveOsmCameraSyncLoop()
     // Start compass sensor for phone rotation heading
     compassEngine.startListening()
+
+    // Background OTA Traffic Data Sync (Vietmap Standard)
+    viewModelScope.launch {
+      cloudTrafficSyncEngine.syncTrafficDataIfNeeded()
+    }
 
     // Connect real-time navigation turn voice guidance
     gpsLocationEngine.onTurnVoicePrompt = { prompt ->
@@ -272,6 +281,46 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
       repository.updateSettings(updated)
       voiceAlertEngine.setSpeechRate(updated.speechRate)
     }
+  }
+
+  fun saveFavoritePlace(
+    name: String,
+    address: String,
+    category: String,
+    latitude: Double,
+    longitude: Double,
+    iconEmoji: String = "⭐"
+  ) {
+    viewModelScope.launch {
+      val id = "fav_${System.currentTimeMillis()}"
+      repository.saveFavorite(
+        com.example.data.local.FavoritePlaceEntity(
+          id = id,
+          name = name,
+          address = address,
+          category = category,
+          latitude = latitude,
+          longitude = longitude,
+          iconEmoji = iconEmoji
+        )
+      )
+      voiceAlertEngine.speak("Đã lưu $name vào địa điểm yêu thích.", isPriority = true)
+    }
+  }
+
+  fun deleteFavoritePlace(id: String) {
+    viewModelScope.launch {
+      repository.deleteFavorite(id)
+    }
+  }
+
+  suspend fun searchNearbyUtilities(category: String): List<DestinationPlace> {
+    val loc = locationState.value
+    return com.example.service.NavigationRoutingService.searchNearbyUtilities(
+      categoryKeyword = category,
+      centerLat = loc.latitude,
+      centerLng = loc.longitude
+    )
   }
 
   fun reportCamera(

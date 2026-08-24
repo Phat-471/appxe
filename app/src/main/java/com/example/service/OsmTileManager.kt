@@ -19,19 +19,24 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.*
 
 enum class MapTileSource(val displayName: String, val urlTemplate: String, val maxZoom: Int) {
-  CARTO_VOYAGER(
-    "Google Style (Carto)",
-    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-    19
+  GOOGLE_MAPS_HD(
+    "Google Maps Siêu Nét HD",
+    "https://mt{s}.google.com/vt/lyrs=m&hl=vi&x={x}&y={y}&z={z}&scale=2",
+    20
   ),
-  OSM_STANDARD(
-    "OpenStreetMap Gốc",
-    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  GOOGLE_SATELLITE(
+    "Vệ Tinh Hybrid HD (Google)",
+    "https://mt{s}.google.com/vt/lyrs=y&hl=vi&x={x}&y={y}&z={z}&scale=2",
+    20
+  ),
+  CARTO_VOYAGER(
+    "Carto Voyager HD (@2x)",
+    "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png",
     19
   ),
   CARTO_DARK(
-    "Ban đêm (Dark HUD)",
-    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+    "Ban đêm HD (Dark HUD @2x)",
+    "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
     19
   ),
   ESRI_WORLD(
@@ -39,14 +44,9 @@ enum class MapTileSource(val displayName: String, val urlTemplate: String, val m
     "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
     19
   ),
-  OPEN_TOPO(
-    "OpenTopo Địa hình",
-    "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-    17
-  ),
-  SATELLITE(
-    "Vệ tinh (Satellite)",
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  OSM_STANDARD(
+    "OpenStreetMap Gốc",
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     19
   )
 }
@@ -167,9 +167,13 @@ object OsmTileManager {
         val maxTile = (1 shl zoom) - 1
         if (x < 0 || x > maxTile || y < 0 || y > maxTile) return@launch
 
-        val sub = synchronized(this@OsmTileManager) {
-          subDomainIndex = (subDomainIndex + 1) % subdomains.size
-          subdomains[subDomainIndex]
+        val sub = if (source.urlTemplate.contains("google.com")) {
+          ((x + y) % 4).toString()
+        } else {
+          synchronized(this@OsmTileManager) {
+            subDomainIndex = (subDomainIndex + 1) % subdomains.size
+            subdomains[subDomainIndex]
+          }
         }
 
         val url = source.urlTemplate

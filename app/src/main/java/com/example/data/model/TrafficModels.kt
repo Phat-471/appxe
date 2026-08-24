@@ -5,7 +5,7 @@ enum class CameraType(val displayName: String, val iconDescription: String) {
   RED_LIGHT_CAMERA("Camera Phạt Nguội Đèn Đỏ", "Camera phạt nguội vượt đèn đỏ / đèn vàng"),
   COLD_FINE_SURVEILLANCE("Camera Phạt Nguội Lấn Làn", "Camera phạt nguội lấn làn, đè vạch liền, đi sai làn"),
   SECURITY_MONITORING("Camera An Ninh & Giám Sát", "Camera an ninh đô thị, giám sát trật tự và luồng giao thông"),
-  SPEED_LIMIT_SIGN("Biển Báo Tốc Độ", "Biển báo giới hạn tốc độ xe máy"),
+  SPEED_LIMIT_SIGN("Biển Báo Tốc Độ", "Biển báo giới hạn tốc độ xe máy & ô tô"),
   ZONE_RESIDENTIAL_ENTRY("Bắt Đầu Khu Dân Cư", "Biển báo vào khu đông dân cư (Tối đa 50 km/h)"),
   ZONE_RESIDENTIAL_EXIT("Hết Khu Dân Cư", "Biển báo hết khu dân cư (Tối đa 60 km/h)"),
   HAZARD_ACCIDENT_ZONE("Đoạn Đường Nguy Hiểm", "Khu vực hay xảy ra va chạm, đường cong gắt"),
@@ -24,7 +24,9 @@ data class TrafficCamera(
   val description: String,
   val districtCity: String,
   val verified: Boolean = true,
-  val votesCount: Int = 12
+  val votesCount: Int = 12,
+  val fineAmountText: String = "Phạt 800.000đ - 1.000.000đ (NĐ 100/123/NĐ-CP)",
+  val source: String = "Hệ thống CSGT / Sở GTVT"
 )
 
 data class ActiveWarning(

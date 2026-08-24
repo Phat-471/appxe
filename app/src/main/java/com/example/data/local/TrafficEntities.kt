@@ -77,6 +77,23 @@ data class UserSettingsEntity(
   val showSecurityCameras: Boolean = true,       // Quét cảnh báo camera an ninh
   val showHazards: Boolean = true,               // Quét cảnh báo điểm đen tai nạn & trường học
   val showPois: Boolean = true,                  // Quét hiển thị trạm xăng, vá xe, cứu hộ
-  val appLanguage: String = "vi"                 // Ngôn ngữ ứng dụng: "vi" (Tiếng Việt), "en" (English)
+  val appLanguage: String = "vi",                // Ngôn ngữ ứng dụng: "vi" (Tiếng Việt), "en" (English)
+  // === ADVANCED NAVIGATION & DISPLAY ===
+  val vehicleIconScale: Float = 1.3f,            // Tỷ lệ kích thước icon xe: 0.9f (Nhỏ), 1.1f (Vừa), 1.35f (To), 1.7f (Rất to)
+  val roadSnappingEnabled: Boolean = true,       // Bám tim đường mượt mà (Snap to Road Centerline)
+  val highDpiMapEnabled: Boolean = true,         // Bản đồ Retina HD siêu nét (@2x)
+  val mapTileSource: String = "GOOGLE_MAPS_HD"   // Nguồn tile bản đồ mặc định
+)
+
+@Entity(tableName = "favorite_places")
+data class FavoritePlaceEntity(
+  @PrimaryKey val id: String,
+  val name: String,
+  val address: String,
+  val category: String, // "HOME", "WORK", "FAVORITE", "GAS", "CUSTOM"
+  val latitude: Double,
+  val longitude: Double,
+  val iconEmoji: String = "⭐",
+  val createdAtMillis: Long = System.currentTimeMillis()
 )
 

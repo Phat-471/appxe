@@ -228,7 +228,7 @@ class SpeedLimitTrackingService : Service() {
       val heading = if (location.hasBearing()) location.bearing else 0f
 
       val currentRoad = _visualAlertState.value.roadName
-      val (mockLimit, roadName) = MockSpeedLimitDataSource.getSpeedLimitForLocation(lat, lng, currentRoad)
+      val (mockLimit, roadName) = MockSpeedLimitDataSource.getSpeedLimitForLocation(lat, lng, currentRoad, speedKmh)
       val effectiveLimit = manualLimitOverride ?: mockLimit
 
       // 2. Compare speed vs limit and evaluate visual alert level instantly

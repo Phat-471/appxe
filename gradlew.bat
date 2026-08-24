@@ -62,18 +62,14 @@ echo location of your Java installation.
 goto fail
 
 :execute
-@rem Setup the command line
-
-set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
-
-@rem If gradle-wrapper.jar doesn't exist, try gradle directly
-if not exist "%CLASSPATH%" goto tryDirectGradle
-
-@rem Execute Gradle
-"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %*
+set GRADLE_BIN="C:\Users\IT\gradle-9.3.1\bin\gradle.bat"
+if exist %GRADLE_BIN% (
+    call %GRADLE_BIN% %*
+    goto end
+)
 
 :tryDirectGradle
-set GRADLE_BIN="d:\1\phat\camera\gradle-9.3.1\bin\gradle.bat"
+set GRADLE_BIN="C:\Users\IT\gradle-9.3.1\bin\gradle.bat"
 if exist %GRADLE_BIN% (
     call %GRADLE_BIN% %*
     goto end

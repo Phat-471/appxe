@@ -150,9 +150,8 @@ class VoiceAlertEngine(private val context: Context) : TextToSpeech.OnInitListen
     playChime(isDanger = warning.isOverspeeding)
     val cam = warning.camera
     val roundedDist = when {
-      warning.distanceMeters > 450 -> 500
-      warning.distanceMeters > 250 -> 300
-      warning.distanceMeters > 150 -> 200
+      warning.distanceMeters >= 350 -> 500
+      warning.distanceMeters >= 150 -> 300
       else -> 100
     }
 
@@ -187,7 +186,7 @@ class VoiceAlertEngine(private val context: Context) : TextToSpeech.OnInitListen
         "Phía trước $roundedDist mét có biển báo giới hạn ${cam.speedLimit} kilômét một giờ $locClause."
     }
 
-    speak(speech, isPriority = warning.isOverspeeding, forceVibrate = true, playAudioChime = false)
+    speak(speech, isPriority = true, forceVibrate = true, playAudioChime = false)
   }
 
   fun alertNavigationTurn(prompt: String) {

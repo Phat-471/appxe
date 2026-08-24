@@ -50,7 +50,6 @@ fun CockpitDashboardScreen(
   onSetSimulatedSpeed: (Float) -> Unit,
   onSetCustomRoad: (String) -> Unit = {},
   onTestSound: () -> Unit = {},
-  onOpenReportDialog: () -> Unit,
   modifier: Modifier = Modifier
 ) {
   var showSimulationControls by remember { mutableStateOf(true) }
@@ -196,23 +195,6 @@ fun CockpitDashboardScreen(
             imageVector = Icons.Default.Flip,
             contentDescription = "Chế độ kính lái HUD",
             tint = if (hudMirrorMode) AlertEmeraldDark else NavLightTextSecondary,
-            modifier = Modifier.size(20.dp)
-          )
-        }
-
-        // Quick Report Camera
-        IconButton(
-          onClick = onOpenReportDialog,
-          modifier = Modifier
-            .size(38.dp)
-            .clip(CircleShape)
-            .background(NavRouteBlue)
-            .testTag("quick_report_camera_button")
-        ) {
-          Icon(
-            imageVector = Icons.Default.AddLocationAlt,
-            contentDescription = "Báo Camera",
-            tint = Color.White,
             modifier = Modifier.size(20.dp)
           )
         }

@@ -67,4 +67,17 @@ interface TrafficDao {
 
   @Query("DELETE FROM favorite_places WHERE id = :id")
   suspend fun deleteFavorite(id: String)
+
+  // Recent Searches
+  @Query("SELECT * FROM recent_searches ORDER BY timestampMillis DESC LIMIT 15")
+  fun getRecentSearches(): Flow<List<RecentSearchEntity>>
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun insertRecentSearch(search: RecentSearchEntity)
+
+  @Query("DELETE FROM recent_searches WHERE id = :id")
+  suspend fun deleteRecentSearch(id: String)
+
+  @Query("DELETE FROM recent_searches")
+  suspend fun clearAllRecentSearches()
 }

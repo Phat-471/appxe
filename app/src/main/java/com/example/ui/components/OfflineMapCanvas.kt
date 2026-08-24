@@ -422,48 +422,74 @@ fun OfflineMapCanvas(
           )
         }
 
-        // 4. ACTIVE NAVIGATION ROUTE OVERLAY (Dynamically shortens as vehicle advances)
-        if (activeRoute != null && activeRoute.waypoints.size >= 2) {
-          // Find closest waypoint on route to vehicle current position
-          var closestIdx = 0
-          var minWpDist = Double.MAX_VALUE
-          for (i in 0 until activeRoute.waypoints.size) {
-            val d = VietnamTrafficData.calculateDistanceMeters(
-              centerLat, centerLng,
-              activeRoute.waypoints[i].first, activeRoute.waypoints[i].second
-            )
-            if (d < minWpDist) {
-              minWpDist = d
-              closestIdx = i
+        // 4. ACTIVE & ALTERNATIVE NAVIGATION ROUTES OVERLAY
+        if (activeRoute != null) {
+          // Render Alternative Routes (Translucent Grey/Silver Polylines)
+          for (altRoute in activeRoute.alternativeRoutes) {
+            if (altRoute.waypoints.size >= 2) {
+              val altPath = Path()
+              val p0 = project(altRoute.waypoints[0].first, altRoute.waypoints[0].second)
+              altPath.moveTo(p0.x, p0.y)
+              for (k in 1 until altRoute.waypoints.size) {
+                val pk = project(altRoute.waypoints[k].first, altRoute.waypoints[k].second)
+                altPath.lineTo(pk.x, pk.y)
+              }
+              // Casing
+              drawPath(
+                path = altPath,
+                color = Color(0xFF1E293B).copy(alpha = 0.6f),
+                style = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+              )
+              // Body
+              drawPath(
+                path = altPath,
+                color = Color(0xFF94A3B8).copy(alpha = 0.75f),
+                style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+              )
             }
           }
 
-          // Build forward path starting directly from current vehicle coordinate
-          val forwardWaypoints = mutableListOf<Pair<Double, Double>>()
-          forwardWaypoints.add(centerLat to centerLng)
-          val startIndex = if (minWpDist < 25.0) closestIdx + 1 else closestIdx
-          for (i in startIndex until activeRoute.waypoints.size) {
-            forwardWaypoints.add(activeRoute.waypoints[i])
-          }
-          if (forwardWaypoints.size < 2 && activeRoute.waypoints.isNotEmpty()) {
-            forwardWaypoints.add(activeRoute.waypoints.last())
-          }
-
-          if (forwardWaypoints.size >= 2) {
-            val navPath = Path()
-            val firstPos = project(forwardWaypoints[0].first, forwardWaypoints[0].second)
-            navPath.moveTo(firstPos.x, firstPos.y)
-            for (i in 1 until forwardWaypoints.size) {
-              val pos = project(forwardWaypoints[i].first, forwardWaypoints[i].second)
-              navPath.lineTo(pos.x, pos.y)
+          if (activeRoute.waypoints.size >= 2) {
+            // Find closest waypoint on route to vehicle current position
+            var closestIdx = 0
+            var minWpDist = Double.MAX_VALUE
+            for (i in 0 until activeRoute.waypoints.size) {
+              val d = VietnamTrafficData.calculateDistanceMeters(
+                centerLat, centerLng,
+                activeRoute.waypoints[i].first, activeRoute.waypoints[i].second
+              )
+              if (d < minWpDist) {
+                minWpDist = d
+                closestIdx = i
+              }
             }
 
-            // Dark route outline casing
-            drawPath(
-              path = navPath,
-              color = Color(0xFF0F172A),
-              style = Stroke(width = 15.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
-            )
+            // Build forward path starting directly from current vehicle coordinate
+            val forwardWaypoints = mutableListOf<Pair<Double, Double>>()
+            forwardWaypoints.add(centerLat to centerLng)
+            val startIndex = if (minWpDist < 25.0) closestIdx + 1 else closestIdx
+            for (i in startIndex until activeRoute.waypoints.size) {
+              forwardWaypoints.add(activeRoute.waypoints[i])
+            }
+            if (forwardWaypoints.size < 2 && activeRoute.waypoints.isNotEmpty()) {
+              forwardWaypoints.add(activeRoute.waypoints.last())
+            }
+
+            if (forwardWaypoints.size >= 2) {
+              val navPath = Path()
+              val firstPos = project(forwardWaypoints[0].first, forwardWaypoints[0].second)
+              navPath.moveTo(firstPos.x, firstPos.y)
+              for (i in 1 until forwardWaypoints.size) {
+                val pos = project(forwardWaypoints[i].first, forwardWaypoints[i].second)
+                navPath.lineTo(pos.x, pos.y)
+              }
+
+              // Dark route outline casing
+              drawPath(
+                path = navPath,
+                color = Color(0xFF0F172A),
+                style = Stroke(width = 15.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+              )
 
             // Dynamic Traffic Flow Polyline (Green = Clear, Yellow = Slow, Red = Congested)
             if (activeRoute.trafficSegments.isNotEmpty()) {
@@ -536,6 +562,7 @@ fun OfflineMapCanvas(
           drawCircle(color = Color(0xFFE11D48), radius = 13.dp.toPx(), center = destPos)
           drawCircle(color = Color.White, radius = 5.5.dp.toPx(), center = destPos)
         }
+      }
 
         // 5. ENHANCED SPECIFIC CAMERA MARKERS ON MAP (Vietmap-style speedometer cards)
         for (cam in cameras) {

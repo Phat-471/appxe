@@ -144,6 +144,10 @@ enum class NavigationManeuverType(val symbol: String, val vietnameseText: String
   TURN_RIGHT("➡️", "Rẽ phải"),
   SLIGHT_LEFT("↖️", "Chếch sang trái"),
   SLIGHT_RIGHT("↗️", "Chếch sang phải"),
+  SHARP_LEFT("↙️", "Rẽ gắt sang trái"),
+  SHARP_RIGHT("↘️", "Rẽ gắt sang phải"),
+  FORK_LEFT("⎇", "Đi theo nhánh bên trái"),
+  FORK_RIGHT("🔀", "Đi theo nhánh bên phải"),
   ROUNDABOUT("🔄", "Vào vòng xuyến"),
   U_TURN("↩️", "Quay đầu xe"),
   ARRIVE("🏁", "Đến điểm đích")
@@ -155,7 +159,9 @@ data class NavigationStep(
   val maneuver: NavigationManeuverType,
   val roadName: String,
   val latitude: Double,
-  val longitude: Double
+  val longitude: Double,
+  val roundaboutExitNumber: Int = 0,
+  val turnBearingDegrees: Float = 0f
 )
 
 enum class TrafficCongestion(val label: String, val colorHex: Long) {
@@ -171,7 +177,13 @@ data class RouteTrafficSegment(
   val congestion: TrafficCongestion = TrafficCongestion.CLEAR
 )
 
+enum class VehicleRoutingMode(val label: String, val iconEmoji: String, val description: String) {
+  MOTORBIKE("Xe Máy", "🏍️", "Tránh cao tốc, cho phép đi đường ngõ/hẻm thuận tiện"),
+  CAR("Ô Tô", "🚗", "Tối ưu đường lớn, thông báo phí BOT & tránh hẻm nhỏ")
+}
+
 data class NavigationRoute(
+  val id: String = "route_${System.currentTimeMillis()}",
   val destinationName: String,
   val destinationAddress: String,
   val destinationLat: Double,
@@ -183,7 +195,11 @@ data class NavigationRoute(
   val currentStepIndex: Int = 0,
   val isNavigating: Boolean = false,
   val trafficSegments: List<RouteTrafficSegment> = emptyList(),
-  val overallCongestion: TrafficCongestion = TrafficCongestion.CLEAR
+  val overallCongestion: TrafficCongestion = TrafficCongestion.CLEAR,
+  val routeTag: String = "Tối ưu nhất", // "Tối ưu nhất", "Ngắn nhất", "Tránh BOT", "Tuyến xe máy"
+  val alternativeRoutes: List<NavigationRoute> = emptyList(),
+  val isMotorbikeSafe: Boolean = true,
+  val hasTollBooth: Boolean = false
 )
 
 data class DestinationPlace(
@@ -193,7 +209,10 @@ data class DestinationPlace(
   val category: String,
   val latitude: Double,
   val longitude: Double,
-  val distanceKm: Float = 0f
+  val distanceKm: Float = 0f,
+  val iconEmoji: String = "📍",
+  val isRecent: Boolean = false,
+  val isFavorite: Boolean = false
 )
 
 data class CurrentTripStats(

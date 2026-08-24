@@ -22,6 +22,12 @@ data class VisualSpeedAlertState(
   val latitude: Double = 10.7580,
   val longitude: Double = 106.6850,
   val headingDegrees: Float = 65f,
+  val nearestCameraDistance: Int? = null,
+  val nearestCameraType: String? = null,
+  val nearestCameraSpeedLimit: Int? = null,
+  val cameraIconEmoji: String = "📷",
+  val nextTurnInstruction: String? = null,
+  val nextTurnDistanceMeters: Int? = null,
   val timestamp: Long = System.currentTimeMillis()
 )
 

@@ -2,7 +2,17 @@ package com.example.data
 
 import com.example.data.model.CameraType
 import com.example.data.model.TrafficCamera
+import java.text.Normalizer
+import java.util.regex.Pattern
 import kotlin.math.*
+
+fun String.unaccent(): String {
+  var str = Normalizer.normalize(this, Normalizer.Form.NFD)
+  val pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+")
+  str = pattern.matcher(str).replaceAll("")
+  str = str.replace('đ', 'd').replace('Đ', 'd')
+  return str.lowercase(java.util.Locale.ROOT).trim()
+}
 
 object VietnamTrafficData {
 
@@ -394,122 +404,148 @@ object VietnamTrafficData {
     return ((brng + 360) % 360).toFloat()
   }
 
-  // Popular Vietnam Destination Places (Google Maps style places & major streets)
+  // Helper to remove Vietnamese diacritics for ultra-fast, forgiving search matching
+  fun unaccent(src: String): String {
+    val temp = java.text.Normalizer.normalize(src, java.text.Normalizer.Form.NFD)
+    val pattern = java.util.regex.Pattern.compile("\\p{InCombiningDiacriticalMarks}+")
+    return pattern.matcher(temp).replaceAll("")
+      .replace("đ", "d")
+      .replace("Đ", "D")
+      .lowercase()
+      .trim()
+  }
+
+  // Popular Vietnam Destination Places (Google Maps style places, hospitals, gas stations, landmarks)
   val POPULAR_PLACES: List<com.example.data.model.DestinationPlace> = listOf(
-    // TP. Hồ Chí Minh - Địa điểm chính
-    com.example.data.model.DestinationPlace("place_tsn", "Sân bay Quốc tế Tân Sơn Nhất", "Đường Trường Sơn, Phường 2, Tân Bình, TP.HCM", "Sân bay", 10.8184, 106.6588),
-    com.example.data.model.DestinationPlace("place_ben_thanh", "Chợ Bến Thành", "Đường Lê Lợi, Phường Bến Thành, Quận 1, TP.HCM", "Địa điểm nổi tiếng", 10.7725, 106.6980),
-    com.example.data.model.DestinationPlace("place_landmark81", "Tòa nhà Landmark 81", "720A Điện Biên Phủ, Vinhomes Central Park, Bình Thạnh", "Trung tâm", 10.7950, 106.7218),
-    com.example.data.model.DestinationPlace("place_nguyen_hue", "Phố Đi Bộ Nguyễn Huệ", "Đường Nguyễn Huệ, Bến Nghé, Quận 1, TP.HCM", "Khu vui chơi", 10.7745, 106.7038),
-    com.example.data.model.DestinationPlace("place_cho_ray", "Bệnh Viện Chợ Rẫy", "201B Nguyễn Chí Thanh, Phường 12, Quận 5, TP.HCM", "Bệnh viện", 10.7570, 106.6590),
-    com.example.data.model.DestinationPlace("place_dai_hoc_bach_khoa", "Đại Học Bách Khoa TP.HCM", "268 Lý Thường Kiệt, Phường 14, Quận 10, TP.HCM", "Trường học", 10.7733, 106.6597),
-    com.example.data.model.DestinationPlace("place_vincom_center", "Vincom Center Đồng Khởi", "72 Lê Thánh Tôn, Bến Nghé, Quận 1, TP.HCM", "Trung tâm", 10.7780, 106.7018),
-    com.example.data.model.DestinationPlace("place_bx_mientay", "Bến Xe Miền Tây", "395 Kinh Dương Vương, An Lạc, Bình Tân, TP.HCM", "Bến xe", 10.7516, 106.6174),
-    com.example.data.model.DestinationPlace("place_bx_miendong", "Bến Xe Miền Đông Mới", "Đường Hoàng Hữu Nam, Long Bình, TP. Thủ Đức, TP.HCM", "Bến xe", 10.8794, 106.8282),
+    // === TP. HỒ CHÍ MINH - ĐỊA ĐIỂM CHÍNH & SÂN BAY / BẾN XE ===
+    com.example.data.model.DestinationPlace("place_tsn", "Sân bay Quốc tế Tân Sơn Nhất", "Đường Trường Sơn, Phường 2, Tân Bình, TP.HCM", "Sân bay", 10.8184, 106.6588, iconEmoji = "✈️"),
+    com.example.data.model.DestinationPlace("place_ben_thanh", "Chợ Bến Thành", "Đường Lê Lợi, Phường Bến Thành, Quận 1, TP.HCM", "Địa điểm", 10.7725, 106.6980, iconEmoji = "🏛️"),
+    com.example.data.model.DestinationPlace("place_landmark81", "Tòa nhà Landmark 81", "720A Điện Biên Phủ, Vinhomes Central Park, Bình Thạnh", "Trung tâm", 10.7950, 106.7218, iconEmoji = "🏢"),
+    com.example.data.model.DestinationPlace("place_nguyen_hue", "Phố Đi Bộ Nguyễn Huệ", "Đường Nguyễn Huệ, Bến Nghé, Quận 1, TP.HCM", "Địa điểm", 10.7745, 106.7038, iconEmoji = "🚶"),
+    com.example.data.model.DestinationPlace("place_dinh_doc_lap", "Dinh Độc Lập", "135 Nam Kỳ Khởi Nghĩa, Phường Bến Thành, Quận 1, TP.HCM", "Địa điểm", 10.7770, 106.6953, iconEmoji = "🏛️"),
+    com.example.data.model.DestinationPlace("place_nha_tho_duc_ba", "Nhà Thờ Đức Bà", "01 Công xã Paris, Bến Nghé, Quận 1, TP.HCM", "Địa điểm", 10.7798, 106.6990, iconEmoji = "⛪"),
+    com.example.data.model.DestinationPlace("place_cho_ray", "Bệnh Viện Chợ Rẫy", "201B Nguyễn Chí Thanh, Phường 12, Quận 5, TP.HCM", "Bệnh viện", 10.7570, 106.6590, iconEmoji = "🏥"),
+    com.example.data.model.DestinationPlace("place_bv_nhi_dong_1", "Bệnh Viện Nhi Đồng 1", "341 Sư Vạn Hạnh, Phường 10, Quận 10, TP.HCM", "Bệnh viện", 10.7680, 106.6690, iconEmoji = "🏥"),
+    com.example.data.model.DestinationPlace("place_bv_bach_mai_hcm", "Bệnh Viện Đại Học Y Dược", "215 Hồng Bàng, Phường 11, Quận 5, TP.HCM", "Bệnh viện", 10.7550, 106.6580, iconEmoji = "🏥"),
+    com.example.data.model.DestinationPlace("place_dai_hoc_bach_khoa", "Đại Học Bách Khoa TP.HCM", "268 Lý Thường Kiệt, Phường 14, Quận 10, TP.HCM", "Trường học", 10.7733, 106.6597, iconEmoji = "🎓"),
+    com.example.data.model.DestinationPlace("place_vincom_center", "Vincom Center Đồng Khởi", "72 Lê Thánh Tôn, Bến Nghé, Quận 1, TP.HCM", "Trung tâm", 10.7780, 106.7018, iconEmoji = "🛍️"),
+    com.example.data.model.DestinationPlace("place_aeon_tan_phu", "AEON Mall Tân Phú Celadon", "30 Bờ Bao Tân Thắng, Sơn Kỳ, Tân Phú, TP.HCM", "Trung tâm", 10.8015, 106.6185, iconEmoji = "🛍️"),
+    com.example.data.model.DestinationPlace("place_aeon_binh_tan", "AEON Mall Bình Tân", "Số 1 Đường Số 17A, Bình Trị Đông B, Bình Tân, TP.HCM", "Trung tâm", 10.7425, 106.6080, iconEmoji = "🛍️"),
+    com.example.data.model.DestinationPlace("place_bx_mientay", "Bến Xe Miền Tây", "395 Kinh Dương Vương, An Lạc, Bình Tân, TP.HCM", "Bến xe", 10.7516, 106.6174, iconEmoji = "🚌"),
+    com.example.data.model.DestinationPlace("place_bx_miendong", "Bến Xe Miền Đông Mới", "Đường Hoàng Hữu Nam, Long Bình, TP. Thủ Đức, TP.HCM", "Bến xe", 10.8794, 106.8282, iconEmoji = "🚌"),
+    com.example.data.model.DestinationPlace("place_bx_an_suong", "Bến Xe An Sương", "Quốc Lộ 22, Bà Điểm, Hóc Môn, TP.HCM", "Bến xe", 10.8490, 106.6120, iconEmoji = "🚌"),
+    com.example.data.model.DestinationPlace("place_dam_sen", "Công Viên Văn Hóa Đầm Sen", "03 Hòa Bình, Phường 3, Quận 11, TP.HCM", "Khu vui chơi", 10.7685, 106.6410, iconEmoji = "🎡"),
+    com.example.data.model.DestinationPlace("place_suoi_tien", "Khu Du Lịch Suối Tiên", "120 Xa Lộ Hà Nội, Tân Phú, TP. Thủ Đức, TP.HCM", "Khu vui chơi", 10.8660, 106.8030, iconEmoji = "🎡"),
 
-    // TP. Hồ Chí Minh - Các Tuyến Đường Lớn
-    com.example.data.model.DestinationPlace("street_sg_vvk", "Đại Lộ Võ Văn Kiệt", "Võ Văn Kiệt, Quận 1 - Quận 5 - Quận 6, TP.HCM", "Tuyến đường", 10.7530, 106.6710),
-    com.example.data.model.DestinationPlace("street_sg_pvd", "Đường Phạm Văn Đồng", "Phạm Văn Đồng, Bình Thạnh - Gò Vấp - Thủ Đức, TP.HCM", "Tuyến đường", 10.8250, 106.6950),
-    com.example.data.model.DestinationPlace("street_sg_nvl", "Đại Lộ Nguyễn Văn Linh", "Nguyễn Văn Linh, Quận 7 - Bình Chánh, TP.HCM", "Tuyến đường", 10.7285, 106.7082),
-    com.example.data.model.DestinationPlace("street_sg_mct", "Đại Lộ Mai Chí Thọ", "Mai Chí Thọ, An Phú, TP. Thủ Đức, TP.HCM", "Tuyến đường", 10.7812, 106.7350),
-    com.example.data.model.DestinationPlace("street_sg_cmt8", "Đường Cách Mạng Tháng 8", "Cách Mạng Tháng 8, Quận 3 - Quận 10 - Tân Bình, TP.HCM", "Tuyến đường", 10.7810, 106.6780),
-    com.example.data.model.DestinationPlace("street_sg_dbp", "Đường Điện Biên Phủ", "Điện Biên Phủ, Quận 1 - Quận 3 - Bình Thạnh, TP.HCM", "Tuyến đường", 10.7915, 106.6990),
-    com.example.data.model.DestinationPlace("street_sg_ntmk", "Đường Nguyễn Thị Minh Khai", "Nguyễn Thị Minh Khai, Quận 1 - Quận 3, TP.HCM", "Tuyến đường", 10.7760, 106.6910),
-    com.example.data.model.DestinationPlace("street_sg_3t2", "Đường Ba Tháng Hai", "Đường 3 Tháng 2, Quận 10 - Quận 11, TP.HCM", "Tuyến đường", 10.7690, 106.6690),
-    com.example.data.model.DestinationPlace("street_sg_ltk", "Đường Lý Thường Kiệt", "Lý Thường Kiệt, Quận 10 - Tân Bình, TP.HCM", "Tuyến đường", 10.7780, 106.6580),
-    com.example.data.model.DestinationPlace("street_sg_ch", "Đường Cộng Hòa", "Đường Cộng Hòa, Phường 13, Tân Bình, TP.HCM", "Tuyến đường", 10.8030, 106.6470),
-    com.example.data.model.DestinationPlace("street_sg_tc", "Đường Trường Chinh", "Đường Trường Chinh, Tân Bình - Quận 12, TP.HCM", "Tuyến đường", 10.8210, 106.6320),
-    com.example.data.model.DestinationPlace("street_sg_thd", "Đường Trần Hưng Đạo", "Trần Hưng Đạo, Quận 1 - Quận 5, TP.HCM", "Tuyến đường", 10.7580, 106.6780),
-    com.example.data.model.DestinationPlace("street_sg_ntr", "Đường Nguyễn Trãi", "Nguyễn Trãi, Quận 1 - Quận 5, TP.HCM", "Tuyến đường", 10.7605, 106.6775),
-    com.example.data.model.DestinationPlace("street_sg_hbt", "Đường Hai Bà Trưng", "Hai Bà Trưng, Quận 1 - Quận 3, TP.HCM", "Tuyến đường", 10.7850, 106.6980),
-    com.example.data.model.DestinationPlace("street_sg_nkkn", "Đường Nam Kỳ Khởi Nghĩa", "Nam Kỳ Khởi Nghĩa, Quận 1 - Quận 3, TP.HCM", "Tuyến đường", 10.7820, 106.6920),
+    // === TÂN PHÚ, TÂN BÌNH, BÌNH TÂN ===
+    com.example.data.model.DestinationPlace("place_ubnd_tan_phu", "UBND Quận Tân Phú", "560 Lũy Bán Bích, Hòa Thạnh, Tân Phú, TP.HCM", "Hành chính", 10.7815, 106.6320, iconEmoji = "🏛️"),
+    com.example.data.model.DestinationPlace("place_nga_tu_bay_hien", "Ngã Tư Bảy Hiền", "Giao lộ CMT8 - Hoàng Văn Thụ - Lý Thường Kiệt, Tân Bình", "Địa điểm", 10.7910, 106.6530, iconEmoji = "🚦"),
+    com.example.data.model.DestinationPlace("place_cv_hoang_van_thu", "Công Viên Hoàng Văn Thụ", "Hoàng Văn Thụ, Phường 2, Tân Bình, TP.HCM", "Địa điểm", 10.7995, 106.6620, iconEmoji = "🌳"),
+    com.example.data.model.DestinationPlace("place_cv_gia_dinh", "Công Viên Gia Định", "Hoàng Minh Giám, Phường 3, Gò Vấp, TP.HCM", "Địa điểm", 10.8160, 106.6740, iconEmoji = "🌳"),
 
-    // Cây xăng chính
-    com.example.data.model.DestinationPlace("place_petro_vvk", "Cây xăng Petrolimex Võ Văn Kiệt", "Đại lộ Võ Văn Kiệt, Quận 5, TP.HCM", "Cây xăng", 10.7555, 106.6790),
-    com.example.data.model.DestinationPlace("place_petro_pvd", "Cây xăng Petrolimex Phạm Văn Đồng", "Phạm Văn Đồng, Hiệp Bình Chánh, Thủ Đức", "Cây xăng", 10.8350, 106.7210),
-    com.example.data.model.DestinationPlace("place_petro_cmt8", "Cây xăng Comeco CMT8", "Cách Mạng Tháng 8, Phường 11, Quận 3, TP.HCM", "Cây xăng", 10.7790, 106.6750),
+    // === CÁC TUYẾN ĐƯỜNG LỚN TP.HCM ===
+    com.example.data.model.DestinationPlace("street_sg_lbb", "Đường Lũy Bán Bích", "Lũy Bán Bích, Tân Phú, TP.HCM", "Tuyến đường", 10.7750, 106.6340, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_tnh", "Đường Thoại Ngọc Hầu", "Thoại Ngọc Hầu, Tân Phú, TP.HCM", "Tuyến đường", 10.7780, 106.6370, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_au_co", "Đường Âu Cơ", "Âu Cơ, Tân Bình - Tân Phú, TP.HCM", "Tuyến đường", 10.7760, 106.6450, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_vvk", "Đại Lộ Võ Văn Kiệt", "Võ Văn Kiệt, Quận 1 - Quận 5 - Quận 6, TP.HCM", "Tuyến đường", 10.7530, 106.6710, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_pvd", "Đường Phạm Văn Đồng", "Phạm Văn Đồng, Bình Thạnh - Gò Vấp - Thủ Đức, TP.HCM", "Tuyến đường", 10.8250, 106.6950, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_nvl", "Đại Lộ Nguyễn Văn Linh", "Nguyễn Văn Linh, Quận 7 - Bình Chánh, TP.HCM", "Tuyến đường", 10.7285, 106.7082, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_mct", "Đại Lộ Mai Chí Thọ", "Mai Chí Thọ, An Phú, TP. Thủ Đức, TP.HCM", "Tuyến đường", 10.7812, 106.7350, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_cmt8", "Đường Cách Mạng Tháng 8", "Cách Mạng Tháng 8, Quận 3 - Quận 10 - Tân Bình, TP.HCM", "Tuyến đường", 10.7810, 106.6780, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_dbp", "Đường Điện Biên Phủ", "Điện Biên Phủ, Quận 1 - Quận 3 - Bình Thạnh, TP.HCM", "Tuyến đường", 10.7915, 106.6990, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_ntmk", "Đường Nguyễn Thị Minh Khai", "Nguyễn Thị Minh Khai, Quận 1 - Quận 3, TP.HCM", "Tuyến đường", 10.7760, 106.6910, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_3t2", "Đường Ba Tháng Hai", "Đường 3 Tháng 2, Quận 10 - Quận 11, TP.HCM", "Tuyến đường", 10.7690, 106.6690, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_ltk", "Đường Lý Thường Kiệt", "Lý Thường Kiệt, Quận 10 - Tân Bình, TP.HCM", "Tuyến đường", 10.7780, 106.6580, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_ch", "Đường Cộng Hòa", "Đường Cộng Hòa, Phường 13, Tân Bình, TP.HCM", "Tuyến đường", 10.8030, 106.6470, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_tc", "Đường Trường Chinh", "Đường Trường Chinh, Tân Bình - Quận 12, TP.HCM", "Tuyến đường", 10.8210, 106.6320, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_thd", "Đường Trần Hưng Đạo", "Trần Hưng Đạo, Quận 1 - Quận 5, TP.HCM", "Tuyến đường", 10.7580, 106.6780, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_ntr", "Đường Nguyễn Trãi", "Nguyễn Trãi, Quận 1 - Quận 5, TP.HCM", "Tuyến đường", 10.7605, 106.6775, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_hbt", "Đường Hai Bà Trưng", "Hai Bà Trưng, Quận 1 - Quận 3, TP.HCM", "Tuyến đường", 10.7850, 106.6980, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_nkkn", "Đường Nam Kỳ Khởi Nghĩa", "Nam Kỳ Khởi Nghĩa, Quận 1 - Quận 3, TP.HCM", "Tuyến đường", 10.7820, 106.6920, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_ql1a", "Quốc Lộ 1A TP.HCM", "Quốc Lộ 1A, Thủ Đức - Q12 - Bình Tân - Bình Chánh", "Tuyến đường", 10.8520, 106.6080, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_sg_ql22", "Quốc Lộ 22 (Đường Xuyên Á)", "Quốc Lộ 22, Hóc Môn - Củ Chi, TP.HCM", "Tuyến đường", 10.8650, 106.5920, iconEmoji = "🛣️"),
 
-    // Hà Nội
-    com.example.data.model.DestinationPlace("place_hoan_kiem", "Hồ Hoàn Kiếm Hà Nội", "Hàng Trống, Hoàn Kiếm, Hà Nội", "Địa điểm nổi tiếng", 21.0285, 105.8542),
-    com.example.data.model.DestinationPlace("place_noi_bai", "Sân bay Quốc tế Nội Bài", "Xã Phú Minh, Huyện Sóc Sơn, Hà Nội", "Sân bay", 21.2212, 105.8072),
-    com.example.data.model.DestinationPlace("street_hn_vd3", "Đường Vành Đai 3 Hà Nội", "Khuất Duy Tiến - Nguyễn Xiển, Thanh Xuân, Hà Nội", "Tuyến đường", 20.9982, 105.7950),
-    com.example.data.model.DestinationPlace("street_hn_gp", "Đường Giải Phóng", "Giải Phóng, Hoàng Mai - Hai Bà Trưng, Hà Nội", "Tuyến đường", 20.9780, 105.8450),
-    com.example.data.model.DestinationPlace("street_hn_cgh", "Đường Cầu Giấy", "Cầu Giấy, Quận Cầu Giấy, Hà Nội", "Tuyến đường", 21.0340, 105.7980),
+    // === CÂY XĂNG & TIỆN ÍCH ===
+    com.example.data.model.DestinationPlace("place_petro_vvk", "Cây xăng Petrolimex Số 14", "Đại lộ Võ Văn Kiệt, Quận 5, TP.HCM", "Cây xăng", 10.7555, 106.6790, iconEmoji = "⛽"),
+    com.example.data.model.DestinationPlace("place_petro_pvd", "Cây xăng Petrolimex Số 22", "Phạm Văn Đồng, Hiệp Bình Chánh, Thủ Đức", "Cây xăng", 10.8350, 106.7210, iconEmoji = "⛽"),
+    com.example.data.model.DestinationPlace("place_petro_cmt8", "Cây xăng Comeco CMT8", "Cách Mạng Tháng 8, Phường 11, Quận 3, TP.HCM", "Cây xăng", 10.7790, 106.6750, iconEmoji = "⛽"),
+    com.example.data.model.DestinationPlace("place_pvoil_lbb", "Cây xăng PVOIL Lũy Bán Bích", "248 Lũy Bán Bích, Hòa Thạnh, Tân Phú, TP.HCM", "Cây xăng", 10.7740, 106.6345, iconEmoji = "⛽"),
+    com.example.data.model.DestinationPlace("place_petro_cong_hoa", "Cây xăng Petrolimex Cộng Hòa", "19 Cộng Hòa, Phường 4, Tân Bình, TP.HCM", "Cây xăng", 10.8010, 106.6570, iconEmoji = "⛽"),
 
-    // Đà Nẵng
-    com.example.data.model.DestinationPlace("place_cau_rong", "Cầu Rồng Đà Nẵng", "Đường Nguyễn Văn Linh, Phước Ninh, Hải Châu, Đà Nẵng", "Địa điểm nổi tiếng", 16.0610, 108.2230),
-    com.example.data.model.DestinationPlace("place_san_bay_dn", "Sân bay Quốc tế Đà Nẵng", "Đường Duy Tân, Hòa Thuận Tây, Hải Châu, Đà Nẵng", "Sân bay", 16.0538, 108.2022),
-    com.example.data.model.DestinationPlace("street_dn_ntt", "Đường Nguyễn Tất Thành", "Nguyễn Tất Thành, Thanh Khê - Liên Chiểu, Đà Nẵng", "Tuyến đường", 16.0790, 108.1920)
+    // === HÀ NỘI ===
+    com.example.data.model.DestinationPlace("place_hoan_kiem", "Hồ Hoàn Kiếm Hà Nội", "Hàng Trống, Hoàn Kiếm, Hà Nội", "Địa điểm", 21.0285, 105.8542, iconEmoji = "🏛️"),
+    com.example.data.model.DestinationPlace("place_lang_bac", "Lăng Chủ Tịch Hồ Chí Minh", "02 Hùng Vương, Điện Bàn, Ba Đình, Hà Nội", "Địa điểm", 21.0368, 105.8347, iconEmoji = "🏛️"),
+    com.example.data.model.DestinationPlace("place_noi_bai", "Sân bay Quốc tế Nội Bài", "Xã Phú Minh, Huyện Sóc Sơn, Hà Nội", "Sân bay", 21.2212, 105.8072, iconEmoji = "✈️"),
+    com.example.data.model.DestinationPlace("place_bx_my_dinh", "Bến Xe Mỹ Đình", "20 Phạm Hùng, Mỹ Đình, Nam Từ Liêm, Hà Nội", "Bến xe", 21.0280, 105.7780, iconEmoji = "🚌"),
+    com.example.data.model.DestinationPlace("place_bx_giap_bat", "Bến Xe Giáp Bát", "Km6 Đường Giải Phóng, Hoàng Mai, Hà Nội", "Bến xe", 20.9820, 105.8420, iconEmoji = "🚌"),
+    com.example.data.model.DestinationPlace("street_hn_vd3", "Đường Vành Đai 3 Hà Nội", "Khuất Duy Tiến - Nguyễn Xiển, Thanh Xuân, Hà Nội", "Tuyến đường", 20.9982, 105.7950, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_hn_gp", "Đường Giải Phóng", "Giải Phóng, Hoàng Mai - Hai Bà Trưng, Hà Nội", "Tuyến đường", 20.9780, 105.8450, iconEmoji = "🛣️"),
+    com.example.data.model.DestinationPlace("street_hn_cgh", "Đường Cầu Giấy", "Cầu Giấy, Quận Cầu Giấy, Hà Nội", "Tuyến đường", 21.0340, 105.7980, iconEmoji = "🛣️"),
+
+    // === ĐÀ NẴNG ===
+    com.example.data.model.DestinationPlace("place_cau_rong", "Cầu Rồng Đà Nẵng", "Đường Nguyễn Văn Linh, Phước Ninh, Hải Châu, Đà Nẵng", "Địa điểm", 16.0610, 108.2230, iconEmoji = "🌉"),
+    com.example.data.model.DestinationPlace("place_san_bay_dn", "Sân bay Quốc tế Đà Nẵng", "Đường Duy Tân, Hòa Thuận Tây, Hải Châu, Đà Nẵng", "Sân bay", 16.0538, 108.2022, iconEmoji = "✈️"),
+    com.example.data.model.DestinationPlace("street_dn_ntt", "Đường Nguyễn Tất Thành", "Nguyễn Tất Thành, Thanh Khê - Liên Chiểu, Đà Nẵng", "Tuyến đường", 16.0790, 108.1920, iconEmoji = "🛣️")
   )
 
-  // Turn-by-Turn Navigation Route Generator
+  // Turn-by-Turn Navigation Multi-Route Generator
   fun generateTurnByTurnRoute(
     startLat: Double,
     startLng: Double,
     destLat: Double,
     destLng: Double,
     destName: String,
-    destAddress: String
+    destAddress: String,
+    mode: com.example.data.model.VehicleRoutingMode = com.example.data.model.VehicleRoutingMode.MOTORBIKE
   ): com.example.data.model.NavigationRoute {
     val totalDirectDist = calculateDistanceMeters(startLat, startLng, destLat, destLng)
-    val distanceMeters = (totalDirectDist * 1.28).toInt().coerceAtLeast(300)
-    val durationMinutes = ((distanceMeters / 1000.0) / 32.0 * 60.0).toInt().coerceAtLeast(2)
+    val baseDistanceMeters = (totalDirectDist * 1.25).toInt().coerceAtLeast(350)
+    val baseDurationMinutes = ((baseDistanceMeters / 1000.0) / (if (mode == com.example.data.model.VehicleRoutingMode.MOTORBIKE) 32.0 else 36.0) * 60.0).toInt().coerceAtLeast(2)
 
-    // Generate smooth polyline waypoints along road grid
-    val waypoints = mutableListOf<Pair<Double, Double>>()
-    waypoints.add(startLat to startLng)
-
-    // Intermediate waypoints interpolation to simulate Google Maps turn grid
-    val segmentsCount = 8
+    // 1. PRIMARY ROUTE (TỐI ƯU NHẤT)
+    val waypointsPrimary = mutableListOf<Pair<Double, Double>>()
+    waypointsPrimary.add(startLat to startLng)
+    val segmentsCount = 10
     val dLat = (destLat - startLat) / segmentsCount
     val dLng = (destLng - startLng) / segmentsCount
 
     for (i in 1 until segmentsCount) {
-      // Add slight Manhattan/road grid curvature
-      val offsetLat = if (i % 2 == 1) 0.0004 * sin(i.toDouble()) else -0.0003 * cos(i.toDouble())
-      val offsetLng = if (i % 2 == 0) 0.0005 * cos(i.toDouble()) else 0.0002 * sin(i.toDouble())
+      val offsetLat = if (i % 2 == 1) 0.00035 * sin(i.toDouble()) else -0.00025 * cos(i.toDouble())
+      val offsetLng = if (i % 2 == 0) 0.00045 * cos(i.toDouble()) else 0.0002 * sin(i.toDouble())
       val lat = startLat + dLat * i + offsetLat
       val lng = startLng + dLng * i + offsetLng
-      waypoints.add(lat to lng)
+      waypointsPrimary.add(lat to lng)
     }
-    waypoints.add(destLat to destLng)
+    waypointsPrimary.add(destLat to destLng)
 
-    // Generate Turn-by-Turn Maneuvers
-    val steps = mutableListOf<com.example.data.model.NavigationStep>()
-    steps.add(
+    val stepsPrimary = listOf(
       com.example.data.model.NavigationStep(
-        instruction = "Bắt đầu khởi hành theo hướng đông",
-        distanceMeters = (distanceMeters * 0.15).toInt(),
+        instruction = "Bắt đầu xuất phát theo lộ trình",
+        distanceMeters = (baseDistanceMeters * 0.12).toInt(),
         maneuver = com.example.data.model.NavigationManeuverType.DEPART,
         roadName = "Tuyến đường hiện tại",
         latitude = startLat,
         longitude = startLng
-      )
-    )
-    steps.add(
+      ),
       com.example.data.model.NavigationStep(
-        instruction = "Đi thẳng trên đường chính",
-        distanceMeters = (distanceMeters * 0.35).toInt(),
+        instruction = "Đi thẳng trên trục đường chính",
+        distanceMeters = (baseDistanceMeters * 0.38).toInt(),
         maneuver = com.example.data.model.NavigationManeuverType.STRAIGHT,
         roadName = "Đại lộ chính",
-        latitude = waypoints[2].first,
-        longitude = waypoints[2].second
-      )
-    )
-    steps.add(
+        latitude = waypointsPrimary[2].first,
+        longitude = waypointsPrimary[2].second
+      ),
       com.example.data.model.NavigationStep(
         instruction = "Rẽ phải vào tuyến đường đến $destName",
-        distanceMeters = (distanceMeters * 0.3).toInt(),
+        distanceMeters = (baseDistanceMeters * 0.32).toInt(),
         maneuver = com.example.data.model.NavigationManeuverType.TURN_RIGHT,
-        roadName = "Đường nhánh đô thị",
-        latitude = waypoints[5].first,
-        longitude = waypoints[5].second
-      )
-    )
-    steps.add(
+        roadName = "Đường kết nối đô thị",
+        latitude = waypointsPrimary[6].first,
+        longitude = waypointsPrimary[6].second
+      ),
       com.example.data.model.NavigationStep(
-        instruction = "Đến nơi: $destName ở bên phải",
-        distanceMeters = (distanceMeters * 0.2).toInt(),
+        instruction = "Đến nơi: $destName ở phía trước",
+        distanceMeters = (baseDistanceMeters * 0.18).toInt(),
         maneuver = com.example.data.model.NavigationManeuverType.ARRIVE,
         roadName = destName,
         latitude = destLat,
@@ -517,17 +553,79 @@ object VietnamTrafficData {
       )
     )
 
-    return com.example.data.model.NavigationRoute(
+    // 2. ALTERNATIVE ROUTE 1: NGẮN NHẤT / TIẾT KIỆM
+    val altDistance1 = (baseDistanceMeters * 0.94).toInt().coerceAtLeast(300)
+    val altDuration1 = (baseDurationMinutes + 2).coerceAtLeast(3)
+    val waypointsAlt1 = mutableListOf<Pair<Double, Double>>()
+    waypointsAlt1.add(startLat to startLng)
+    for (i in 1 until segmentsCount) {
+      val offsetLat = if (i % 2 == 0) -0.0004 * sin(i.toDouble()) else 0.0003 * cos(i.toDouble())
+      val offsetLng = if (i % 2 == 1) -0.0003 * cos(i.toDouble()) else 0.00035 * sin(i.toDouble())
+      waypointsAlt1.add(startLat + dLat * i + offsetLat to startLng + dLng * i + offsetLng)
+    }
+    waypointsAlt1.add(destLat to destLng)
+
+    val altRoute1 = com.example.data.model.NavigationRoute(
+      id = "route_alt_short_${System.currentTimeMillis()}",
       destinationName = destName,
       destinationAddress = destAddress,
       destinationLat = destLat,
       destinationLng = destLng,
-      totalDistanceMeters = distanceMeters,
-      estimatedDurationMinutes = durationMinutes,
-      waypoints = waypoints,
-      steps = steps,
+      totalDistanceMeters = altDistance1,
+      estimatedDurationMinutes = altDuration1,
+      waypoints = waypointsAlt1,
+      steps = stepsPrimary,
       currentStepIndex = 0,
-      isNavigating = true
+      isNavigating = false,
+      routeTag = "Ngắn nhất (-${((baseDistanceMeters - altDistance1) / 1000f * 10).toInt() / 10f} km)",
+      isMotorbikeSafe = true
+    )
+
+    // 3. ALTERNATIVE ROUTE 2: TRÁNH KẸT XE / TRÁNH BOT
+    val altDistance2 = (baseDistanceMeters * 1.15).toInt()
+    val altDuration2 = (baseDurationMinutes + 4).coerceAtLeast(4)
+    val waypointsAlt2 = mutableListOf<Pair<Double, Double>>()
+    waypointsAlt2.add(startLat to startLng)
+    for (i in 1 until segmentsCount) {
+      val offsetLat = 0.0005 * sin(i.toDouble() * 1.2)
+      val offsetLng = -0.00045 * cos(i.toDouble() * 1.2)
+      waypointsAlt2.add(startLat + dLat * i + offsetLat to startLng + dLng * i + offsetLng)
+    }
+    waypointsAlt2.add(destLat to destLng)
+
+    val altRoute2 = com.example.data.model.NavigationRoute(
+      id = "route_alt_nobot_${System.currentTimeMillis()}",
+      destinationName = destName,
+      destinationAddress = destAddress,
+      destinationLat = destLat,
+      destinationLng = destLng,
+      totalDistanceMeters = altDistance2,
+      estimatedDurationMinutes = altDuration2,
+      waypoints = waypointsAlt2,
+      steps = stepsPrimary,
+      currentStepIndex = 0,
+      isNavigating = false,
+      routeTag = if (mode == com.example.data.model.VehicleRoutingMode.MOTORBIKE) "Tuyến xe máy êm ái" else "Tránh trạm thu phí BOT",
+      isMotorbikeSafe = true,
+      hasTollBooth = false
+    )
+
+    return com.example.data.model.NavigationRoute(
+      id = "route_primary_${System.currentTimeMillis()}",
+      destinationName = destName,
+      destinationAddress = destAddress,
+      destinationLat = destLat,
+      destinationLng = destLng,
+      totalDistanceMeters = baseDistanceMeters,
+      estimatedDurationMinutes = baseDurationMinutes,
+      waypoints = waypointsPrimary,
+      steps = stepsPrimary,
+      currentStepIndex = 0,
+      isNavigating = true,
+      routeTag = "Nhanh nhất (${baseDurationMinutes} phút)",
+      alternativeRoutes = listOf(altRoute1, altRoute2),
+      isMotorbikeSafe = true,
+      hasTollBooth = mode == com.example.data.model.VehicleRoutingMode.CAR
     )
   }
 

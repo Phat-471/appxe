@@ -87,12 +87,26 @@ class TrafficRepository(private val dao: TrafficDao) {
 
   val allFavoritesFlow: Flow<List<FavoritePlaceEntity>> = dao.getAllFavorites()
 
+  val recentSearchesFlow: Flow<List<com.example.data.local.RecentSearchEntity>> = dao.getRecentSearches()
+
   suspend fun saveFavorite(place: FavoritePlaceEntity) = withContext(Dispatchers.IO) {
     dao.insertFavorite(place)
   }
 
   suspend fun deleteFavorite(id: String) = withContext(Dispatchers.IO) {
     dao.deleteFavorite(id)
+  }
+
+  suspend fun saveRecentSearch(search: com.example.data.local.RecentSearchEntity) = withContext(Dispatchers.IO) {
+    dao.insertRecentSearch(search)
+  }
+
+  suspend fun deleteRecentSearch(id: String) = withContext(Dispatchers.IO) {
+    dao.deleteRecentSearch(id)
+  }
+
+  suspend fun clearAllRecentSearches() = withContext(Dispatchers.IO) {
+    dao.clearAllRecentSearches()
   }
 
   suspend fun saveTrip(trip: TripRecordEntity): Long = withContext(Dispatchers.IO) {

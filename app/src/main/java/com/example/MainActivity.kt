@@ -52,10 +52,16 @@ class MainActivity : ComponentActivity() {
 
         if (settings.backgroundServiceEnabled && (hasFine || hasCoarse)) {
           SpeedLimitTrackingService.startService(this@MainActivity)
+        } else if (!settings.backgroundServiceEnabled) {
+          SpeedLimitTrackingService.stopService(this@MainActivity)
         }
 
-        if (settings.floatingBubbleEnabled && com.example.service.FloatingSpeedBubbleService.canDrawOverlay(this@MainActivity)) {
-          com.example.service.FloatingSpeedBubbleService.startService(this@MainActivity)
+        if (settings.floatingBubbleEnabled) {
+          if (com.example.service.FloatingSpeedBubbleService.canDrawOverlay(this@MainActivity)) {
+            com.example.service.FloatingSpeedBubbleService.startService(this@MainActivity)
+          }
+        } else {
+          com.example.service.FloatingSpeedBubbleService.stopService(this@MainActivity)
         }
       }
     }
@@ -93,6 +99,14 @@ class MainActivity : ComponentActivity() {
     val settings = viewModel.userSettings.value
     if (settings.floatingBubbleEnabled && com.example.service.FloatingSpeedBubbleService.canDrawOverlay(this)) {
       com.example.service.FloatingSpeedBubbleService.startService(this)
+    }
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+    val settings = viewModel.userSettings.value
+    if (!settings.backgroundServiceEnabled) {
+      SpeedLimitTrackingService.stopService(this)
     }
   }
 }

@@ -52,6 +52,12 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
   val favoritePlaces: StateFlow<List<com.example.data.local.FavoritePlaceEntity>> = repository.allFavoritesFlow
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+  val recentSearches: StateFlow<List<com.example.data.local.RecentSearchEntity>> = repository.recentSearchesFlow
+    .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+  private val _vehicleRoutingMode = MutableStateFlow(VehicleRoutingMode.MOTORBIKE)
+  val vehicleRoutingMode: StateFlow<VehicleRoutingMode> = _vehicleRoutingMode.asStateFlow()
+
   val userSettings: StateFlow<UserSettingsEntity> = repository.userSettingsFlow
     .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), UserSettingsEntity())
 
@@ -150,13 +156,36 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
         )
         _trafficEvaluation.value = eval
 
-        // Push location speed & coordinates to SpeedLimitTrackingService for comparison against mock speed limit data source
+        val camEmoji = when (eval.nearestCamera?.type) {
+          CameraType.SPEED_CAMERA -> "📷"
+          CameraType.RED_LIGHT_CAMERA -> "🚦"
+          CameraType.COLD_FINE_SURVEILLANCE -> "📹"
+          CameraType.SECURITY_MONITORING -> "🛡️"
+          CameraType.ZONE_RESIDENTIAL_ENTRY -> "🏙️"
+          CameraType.ZONE_RESIDENTIAL_EXIT -> "🛣️"
+          CameraType.HAZARD_ACCIDENT_ZONE -> "⚠️"
+          CameraType.MOTORBIKE_PROHIBITED_ZONE -> "⛔"
+          else -> "📷"
+        }
+
+        val activeR = gpsLocationEngine.activeRoute.value
+        val nextStep = if (activeR != null && activeR.isNavigating) {
+          activeR.steps.getOrNull(activeR.currentStepIndex.coerceAtLeast(0))
+        } else null
+
+        // Push location speed, camera & turn info to SpeedLimitTrackingService & Floating Speed Bubble
         SpeedLimitTrackingService.updateSimulatedState(
           speedKmh = loc.speedKmh,
           lat = loc.latitude,
           lng = loc.longitude,
           roadName = eval.currentRoadName,
-          heading = loc.headingDegrees
+          heading = loc.headingDegrees,
+          nearestCameraDistance = eval.nearestCameraDistance,
+          nearestCameraType = eval.nearestCamera?.type?.displayName,
+          nearestCameraSpeedLimit = eval.nearestCamera?.speedLimit,
+          cameraIconEmoji = camEmoji,
+          nextTurnInstruction = nextStep?.instruction,
+          nextTurnDistanceMeters = nextStep?.distanceMeters
         )
 
         if (eval.isOverspeeding && _isRecordingTrip.value) {
@@ -323,28 +352,6 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
     )
   }
 
-  fun reportCamera(
-    type: CameraType,
-    roadName: String,
-    speedLimit: Int,
-    description: String,
-    districtCity: String
-  ) {
-    viewModelScope.launch {
-      val loc = locationState.value
-      repository.reportNewCamera(
-        lat = loc.latitude,
-        lng = loc.longitude,
-        type = type,
-        roadName = roadName,
-        speedLimit = speedLimit,
-        description = description,
-        districtCity = districtCity
-      )
-      voiceAlertEngine.speak("Cảm ơn bạn! Đã ghi nhận điểm cảnh báo giao thông mới.", isPriority = true)
-    }
-  }
-
   fun downloadOrUpdateOfflinePack(pack: OfflineMapPackEntity) {
     viewModelScope.launch {
       voiceAlertEngine.speak("Bắt đầu tải dữ liệu bản đồ ngoại tuyến.", isPriority = true)
@@ -391,10 +398,47 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
     }
   }
 
-  fun startNavigationToDestination(dest: DestinationPlace) {
+  fun setVehicleRoutingMode(mode: VehicleRoutingMode) {
+    _vehicleRoutingMode.value = mode
+  }
+
+  fun saveRecentSearch(place: DestinationPlace, query: String = "") {
     viewModelScope.launch {
+      val entity = com.example.data.local.RecentSearchEntity(
+        id = "search_${place.id}_${System.currentTimeMillis()}",
+        query = query.ifBlank { place.name },
+        name = place.name,
+        address = place.address,
+        latitude = place.latitude,
+        longitude = place.longitude,
+        category = place.category,
+        iconEmoji = place.iconEmoji,
+        timestampMillis = System.currentTimeMillis()
+      )
+      repository.saveRecentSearch(entity)
+    }
+  }
+
+  fun deleteRecentSearch(id: String) {
+    viewModelScope.launch {
+      repository.deleteRecentSearch(id)
+    }
+  }
+
+  fun clearAllRecentSearches() {
+    viewModelScope.launch {
+      repository.clearAllRecentSearches()
+    }
+  }
+
+  fun startNavigationToDestination(
+    dest: DestinationPlace,
+    mode: VehicleRoutingMode = _vehicleRoutingMode.value
+  ) {
+    viewModelScope.launch {
+      saveRecentSearch(dest)
       voiceAlertEngine.speak("Đang tìm lộ trình tối ưu đến ${dest.name}...", isPriority = true)
-      val route = gpsLocationEngine.startNavigationToDestination(dest)
+      val route = gpsLocationEngine.startNavigationToDestination(dest, mode)
       voiceAlertEngine.speak(
         "Bắt đầu chỉ đường đến ${dest.name}. Khoảng cách ${String.format(java.util.Locale.US, "%.1f", route.totalDistanceMeters / 1000f)} kilômét, dự kiến ${route.estimatedDurationMinutes} phút.",
         isPriority = true
@@ -402,10 +446,25 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
     }
   }
 
-  fun startNavigationToCustom(name: String, address: String, lat: Double, lng: Double) {
+  fun startNavigationToCustom(
+    name: String,
+    address: String,
+    lat: Double,
+    lng: Double,
+    mode: VehicleRoutingMode = _vehicleRoutingMode.value
+  ) {
     viewModelScope.launch {
+      val customPlace = DestinationPlace(
+        id = "custom_${System.currentTimeMillis()}",
+        name = name,
+        address = address,
+        category = "Bản đồ",
+        latitude = lat,
+        longitude = lng
+      )
+      saveRecentSearch(customPlace)
       voiceAlertEngine.speak("Đang tính toán đường đi...", isPriority = true)
-      val route = gpsLocationEngine.startNavigationToCustomCoord(name, address, lat, lng)
+      val route = gpsLocationEngine.startNavigationToCustomCoord(name, address, lat, lng, mode)
       voiceAlertEngine.speak(
         "Bắt đầu dẫn đường đến $name. Khoảng cách ${String.format(java.util.Locale.US, "%.1f", route.totalDistanceMeters / 1000f)} kilômét.",
         isPriority = true
@@ -413,9 +472,33 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
     }
   }
 
+  fun switchActiveRoute(route: NavigationRoute) {
+    gpsLocationEngine.switchActiveRoute(route)
+  }
+
   fun cancelNavigation() {
     gpsLocationEngine.cancelNavigation()
     voiceAlertEngine.speak("Đã dừng dẫn đường.", isPriority = true)
+  }
+
+  // === APP UPDATE MANAGEMENT ===
+  private val _updateCheckState = MutableStateFlow<UpdateCheckState>(UpdateCheckState.Idle)
+  val updateCheckState: StateFlow<UpdateCheckState> = _updateCheckState.asStateFlow()
+
+  fun checkForAppUpdates() {
+    viewModelScope.launch {
+      _updateCheckState.value = UpdateCheckState.Checking
+      kotlinx.coroutines.delay(650)
+      val result = com.example.service.AppUpdateManager.checkForUpdates(
+        currentVersionName = "1.2.0",
+        currentVersionCode = 120
+      )
+      _updateCheckState.value = result
+    }
+  }
+
+  fun dismissUpdateDialog() {
+    _updateCheckState.value = UpdateCheckState.Idle
   }
 
   override fun onCleared() {

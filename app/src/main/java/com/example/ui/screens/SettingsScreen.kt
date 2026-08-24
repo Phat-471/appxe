@@ -34,6 +34,9 @@ import androidx.compose.ui.platform.LocalContext
 import com.example.service.FloatingSpeedBubbleService
 import com.example.data.local.OfflineMapPackEntity
 import com.example.data.local.UserSettingsEntity
+import com.example.data.model.AppUpdateInfo
+import com.example.data.model.UpdateCheckState
+import com.example.service.AppUpdateManager
 import com.example.ui.i18n.AppStrings
 import com.example.ui.theme.*
 
@@ -45,6 +48,9 @@ fun SettingsScreen(
   onUpdateSettings: (UserSettingsEntity) -> Unit,
   onTestVoice: () -> Unit,
   onDownloadPack: (OfflineMapPackEntity) -> Unit,
+  updateCheckState: UpdateCheckState = UpdateCheckState.Idle,
+  onCheckForUpdates: () -> Unit = {},
+  onDismissUpdateDialog: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   var showSpeedBufferDialog by remember { mutableStateOf(false) }
@@ -60,6 +66,7 @@ fun SettingsScreen(
   var expandedMap by remember { mutableStateOf(true) }
   var expandedMountainGps by remember { mutableStateOf(false) }
   var expandedOffline by remember { mutableStateOf(false) }
+  var expandedUpdates by remember { mutableStateOf(true) }
 
   val lang = settings.appLanguage
   val isEn = lang.equals("en", ignoreCase = true)
@@ -264,14 +271,6 @@ fun SettingsScreen(
             subtitle = if (isEn) "High accident rate zones and schools" else "Đoạn đường nguy hiểm, khu vực trường học",
             checked = settings.showHazards,
             onCheckedChange = { onUpdateSettings(settings.copy(showHazards = it)) }
-          )
-          RowDivider()
-          SettingsSwitchRow(
-            icon = Icons.Default.Group,
-            title = if (isEn) "Community Driver Reports" else "Báo cáo chốt CSGT từ tài xế",
-            subtitle = if (isEn) "Live speed traps shared by drivers" else "Vị trí kiểm tra tốc độ do cộng đồng chia sẻ",
-            checked = settings.showCommunityReportsOnMap,
-            onCheckedChange = { onUpdateSettings(settings.copy(showCommunityReportsOnMap = it)) }
           )
         }
       }
@@ -547,6 +546,97 @@ fun SettingsScreen(
         }
       }
 
+      // ==========================================
+      // NHÓM 7: PHIÊN BẢN & CẬP NHẬT ỨNG DỤNG
+      // ==========================================
+      AccordionSectionCard(
+        title = if (isEn) "App Version & In-App Updates" else "Phiên Bản Ứng Dụng & Cập Nhật",
+        subtitle = "v1.2.0 (Build 2026.08.24) • Bản chính thức",
+        icon = Icons.Default.SystemUpdate,
+        iconTint = Color(0xFF10B981),
+        isExpanded = expandedUpdates,
+        onToggle = { expandedUpdates = !expandedUpdates }
+      ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+          // Version Info Card
+          Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = Color(0xFF0F172A),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Row(
+              modifier = Modifier.padding(14.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(44.dp)
+                  .clip(CircleShape)
+                  .background(Brush.linearGradient(listOf(Color(0xFF0284C7), Color(0xFF10B981)))),
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  imageVector = Icons.Default.Navigation,
+                  contentDescription = null,
+                  tint = Color.White,
+                  modifier = Modifier.size(24.dp)
+                )
+              }
+              Column(modifier = Modifier.weight(1f)) {
+                Text(
+                  text = "Cảnh Báo Tốc Độ VN GPS",
+                  fontSize = 14.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = Color.White
+                )
+                Text(
+                  text = "Phiên bản: v1.2.0 • Build 120 (2026.08)",
+                  fontSize = 12.sp,
+                  color = Color(0xFF38BDF8)
+                )
+                Text(
+                  text = "Kênh phát hành: Chính thức (Stable)",
+                  fontSize = 11.sp,
+                  color = Color(0xFF94A3B8)
+                )
+              }
+            }
+          }
+
+          // Check Update Button
+          Button(
+            onClick = onCheckForUpdates,
+            enabled = updateCheckState !is UpdateCheckState.Checking,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7)),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().height(46.dp)
+          ) {
+            if (updateCheckState is UpdateCheckState.Checking) {
+              CircularProgressIndicator(
+                color = Color.White,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(20.dp)
+              )
+              Spacer(modifier = Modifier.width(8.dp))
+              Text("Đang kiểm tra máy chủ cập nhật...", fontWeight = FontWeight.Bold)
+            } else {
+              Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+              )
+              Spacer(modifier = Modifier.width(8.dp))
+              Text(
+                text = if (isEn) "Check for Updates" else "Kiểm tra bản cập nhật mới",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+              )
+            }
+          }
+        }
+      }
+
       Spacer(modifier = Modifier.height(20.dp))
     }
   }
@@ -587,6 +677,184 @@ fun SettingsScreen(
       onSelect = { onUpdateSettings(settings.copy(appLanguage = it)); showLanguageDialog = false },
       onDismiss = { showLanguageDialog = false }
     )
+  }
+
+  // ==========================================
+  // APP UPDATE DIALOGS
+  // ==========================================
+  when (val state = updateCheckState) {
+    is UpdateCheckState.UpdateAvailable -> {
+      AlertDialog(
+        onDismissRequest = onDismissUpdateDialog,
+        containerColor = Color(0xFF0F172A),
+        title = {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+          ) {
+            Icon(Icons.Default.RocketLaunch, contentDescription = null, tint = Color(0xFF38BDF8))
+            Text(
+              text = if (isEn) "New Update Available!" else "Đã Có Bản Cập Nhật Mới!",
+              fontWeight = FontWeight.Bold,
+              color = Color.White,
+              fontSize = 17.sp
+            )
+          }
+        },
+        text = {
+          Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Surface(
+              shape = RoundedCornerShape(10.dp),
+              color = Color(0xFF1E293B),
+              modifier = Modifier.fillMaxWidth()
+            ) {
+              Row(
+                modifier = Modifier.padding(12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+              ) {
+                Column {
+                  Text(
+                    text = "Phiên bản: v${state.info.latestVersionName}",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF10B981),
+                    fontSize = 14.sp
+                  )
+                  Text(
+                    text = "Ngày phát hành: ${state.info.releaseDate}",
+                    fontSize = 11.sp,
+                    color = Color(0xFF94A3B8)
+                  )
+                }
+                Surface(
+                  shape = RoundedCornerShape(6.dp),
+                  color = Color(0xFF0284C7).copy(alpha = 0.2f)
+                ) {
+                  Text(
+                    text = "${state.info.fileSizeMb} MB",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF38BDF8),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                  )
+                }
+              }
+            }
+
+            Text(
+              text = if (isEn) "What's new in this release:" else "Nội dung cập nhật mới:",
+              fontWeight = FontWeight.Bold,
+              fontSize = 13.sp,
+              color = Color.White
+            )
+
+            state.info.releaseNotes.forEach { note ->
+              Row(
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+              ) {
+                Text("•", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold)
+                Text(
+                  text = note,
+                  fontSize = 12.sp,
+                  color = Color(0xFFCBD5E1)
+                )
+              }
+            }
+          }
+        },
+        confirmButton = {
+          Button(
+            onClick = {
+              AppUpdateManager.openDownloadUrl(context, state.info.apkDownloadUrl)
+              onDismissUpdateDialog()
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
+          ) {
+            Text(if (isEn) "Update Now" else "Cập Nhật Ngay", fontWeight = FontWeight.Bold)
+          }
+        },
+        dismissButton = {
+          TextButton(onClick = onDismissUpdateDialog) {
+            Text(if (isEn) "Later" else "Để Sau", color = Color(0xFF94A3B8))
+          }
+        }
+      )
+    }
+
+    is UpdateCheckState.UpToDate -> {
+      AlertDialog(
+        onDismissRequest = onDismissUpdateDialog,
+        containerColor = Color(0xFF0F172A),
+        icon = {
+          Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(36.dp))
+        },
+        title = {
+          Text(
+            text = if (isEn) "App is Up to Date" else "Đang Ở Bản Mới Nhất",
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+          )
+        },
+        text = {
+          Text(
+            text = if (isEn)
+              "You are running the latest version v${state.currentVersion}. Checked at ${state.lastCheckedTime}."
+            else
+              "Bạn đang sử dụng phiên bản mới nhất v${state.currentVersion}.\nĐã kiểm tra lúc ${state.lastCheckedTime}.",
+            fontSize = 13.sp,
+            color = Color(0xFFCBD5E1)
+          )
+        },
+        confirmButton = {
+          Button(
+            onClick = onDismissUpdateDialog,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+          ) {
+            Text("Đóng")
+          }
+        }
+      )
+    }
+
+    is UpdateCheckState.Error -> {
+      AlertDialog(
+        onDismissRequest = onDismissUpdateDialog,
+        containerColor = Color(0xFF0F172A),
+        icon = {
+          Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFF59E0B), modifier = Modifier.size(32.dp))
+        },
+        title = {
+          Text(
+            text = if (isEn) "Update Check" else "Kiểm Tra Bản Cập Nhật",
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+          )
+        },
+        text = {
+          Text(
+            text = state.message,
+            fontSize = 13.sp,
+            color = Color(0xFFCBD5E1)
+          )
+        },
+        confirmButton = {
+          Button(
+            onClick = onCheckForUpdates,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
+          ) {
+            Text("Thử lại")
+          }
+        },
+        dismissButton = {
+          TextButton(onClick = onDismissUpdateDialog) {
+            Text("Đóng", color = Color(0xFF94A3B8))
+          }
+        }
+      )
+    }
+
+    else -> {}
   }
 }
 

@@ -37,6 +37,7 @@ import com.example.service.NavigationRoutingService
 import com.example.service.WarningEvaluationResult
 import com.example.ui.components.*
 import com.example.ui.theme.*
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -55,12 +56,18 @@ fun LiveMapScreen(
   compassHeading: Float = 0f,
   userSettings: UserSettingsEntity = UserSettingsEntity(),
   favorites: List<com.example.data.local.FavoritePlaceEntity> = emptyList(),
+  recentSearches: List<com.example.data.local.RecentSearchEntity> = emptyList(),
+  vehicleRoutingMode: VehicleRoutingMode = VehicleRoutingMode.MOTORBIKE,
   onToggleVoice: () -> Unit = {},
   onToggleTripRecording: () -> Unit = {},
   onCloseTripSummary: () -> Unit = {},
   onToggleGpsOrSimulation: (Boolean) -> Unit = {},
   onStartNavigation: (DestinationPlace) -> Unit = {},
   onStartCustomNavigation: (name: String, address: String, lat: Double, lng: Double) -> Unit = { _, _, _, _ -> },
+  onSwitchActiveRoute: (NavigationRoute) -> Unit = {},
+  onSetVehicleRoutingMode: (VehicleRoutingMode) -> Unit = {},
+  onDeleteRecentSearch: (String) -> Unit = {},
+  onClearAllRecentSearches: () -> Unit = {},
   onCancelNavigation: () -> Unit = {},
   onSelectRoute: (Int) -> Unit = {},
   onSetSpeed: (Float) -> Unit = {},
@@ -70,7 +77,6 @@ fun LiveMapScreen(
   onSaveFavorite: (name: String, address: String, category: String, lat: Double, lng: Double, icon: String) -> Unit = { _, _, _, _, _, _ -> },
   onDeleteFavorite: (id: String) -> Unit = {},
   onSearchNearbyUtilities: (suspend (String) -> List<DestinationPlace>)? = null,
-  onOpenReportDialog: () -> Unit,
   onRefreshLocation: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
@@ -160,8 +166,8 @@ fun LiveMapScreen(
     }
   }
 
-  // Debounced live geocoding search for street names and addresses
-  LaunchedEffect(searchQuery, selectedCategoryFilter) {
+  // Debounced live geocoding search for street names and addresses with Proximity Bias
+  LaunchedEffect(searchQuery, selectedCategoryFilter, locationState.latitude, locationState.longitude) {
     searchJob?.cancel()
     if (searchQuery.isBlank()) {
       searchResults = allPlaces.filter {
@@ -171,8 +177,12 @@ fun LiveMapScreen(
     } else {
       isSearchingOnline = true
       searchJob = coroutineScope.launch {
-        delay(350)
-        val results = NavigationRoutingService.searchLocations(searchQuery)
+        delay(300)
+        val results = NavigationRoutingService.searchLocations(
+          query = searchQuery,
+          centerLat = locationState.latitude,
+          centerLng = locationState.longitude
+        )
         searchResults = if (selectedCategoryFilter == "Tất cả") {
           results
         } else {
@@ -483,25 +493,6 @@ fun LiveMapScreen(
           )
         }
       }
-
-      // 4. Quick Report Traffic Camera / Hazard
-      Surface(
-        onClick = { onOpenReportDialog() },
-        shape = CircleShape,
-        color = Color(0xFFDC2626).copy(alpha = 0.94f),
-        shadowElevation = 6.dp,
-        border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFFFCA5A5)),
-        modifier = Modifier.size(42.dp)
-      ) {
-        Box(contentAlignment = Alignment.Center) {
-          Icon(
-            imageVector = Icons.Default.AddLocation,
-            contentDescription = "Báo camera",
-            tint = Color.White,
-            modifier = Modifier.size(20.dp)
-          )
-        }
-      }
     }
 
     // 4. BOTTOM-LEFT STACKED SPEED HUD (Realtime Speed + Vietnam Limit Sign + Camera Countdown Bar)
@@ -517,28 +508,128 @@ fun LiveMapScreen(
         .padding(start = 14.dp, bottom = 65.dp)
     )
 
-    // 5. BOTTOM-CENTER FLOATING ROAD PILL (Vietmap Live Style)
-    VietmapBottomRoadPill(
-      roadName = trafficEvaluation.currentRoadName,
-      modifier = Modifier
-        .align(Alignment.BottomCenter)
-        .padding(bottom = 16.dp)
-        .clickable { showRoadSelectDialog = true }
-    )
-
-    // 6. BOTTOM ROUTE PREVIEW CARD (When Place Selected)
-    if (previewTapPlace != null && (activeRoute == null || !activeRoute.isNavigating)) {
+    // 5. IN-NAVIGATION BOTTOM CONTROL DOCK OR BOTTOM ROAD PILL
+    if (activeRoute != null && activeRoute.isNavigating) {
       Surface(
         shape = RoundedCornerShape(24.dp),
         color = Color(0xFF0F172A).copy(alpha = 0.96f),
-        shadowElevation = 16.dp,
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF38BDF8)),
+        shadowElevation = 18.dp,
+        border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF0284C7)),
         modifier = Modifier
           .align(Alignment.BottomCenter)
-          .padding(horizontal = 12.dp, vertical = 70.dp)
+          .padding(horizontal = 14.dp, vertical = 18.dp)
+          .fillMaxWidth()
+      ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            // ETA & Remaining Distance
+            val remainingKm = String.format(java.util.Locale.US, "%.1f", activeRoute.totalDistanceMeters / 1000f)
+            val etaMillis = System.currentTimeMillis() + (activeRoute.estimatedDurationMinutes * 60000L)
+            val etaCalendar = java.util.Calendar.getInstance().apply { timeInMillis = etaMillis }
+            val etaTimeStr = String.format(java.util.Locale.US, "%02d:%02d", etaCalendar.get(java.util.Calendar.HOUR_OF_DAY), etaCalendar.get(java.util.Calendar.MINUTE))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+              Text(
+                text = "${activeRoute.estimatedDurationMinutes}",
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black, fontSize = 28.sp),
+                color = Color(0xFF10B981)
+              )
+              Spacer(modifier = Modifier.width(4.dp))
+              Text("phút", color = Color(0xFF10B981), fontWeight = FontWeight.Bold, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
+              Spacer(modifier = Modifier.width(12.dp))
+              Column {
+                Text("Dự kiến đến: $etaTimeStr", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                Text("Còn lại: $remainingKm km • ${activeRoute.destinationName}", color = Color(0xFF94A3B8), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+              }
+            }
+
+            // Stop Navigation Button
+            IconButton(
+              onClick = { onCancelNavigation() },
+              modifier = Modifier
+                .background(Color(0xFFEF4444).copy(alpha = 0.2f), CircleShape)
+                .size(40.dp)
+            ) {
+              Icon(Icons.Default.Close, contentDescription = "Dừng chỉ đường", tint = Color(0xFFEF4444), modifier = Modifier.size(22.dp))
+            }
+          }
+
+          // Alternative route switcher chips if multiple routes exist
+          if (activeRoute.alternativeRoutes.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+              item {
+                Surface(
+                  shape = RoundedCornerShape(10.dp),
+                  color = Color(0xFF0284C7),
+                  modifier = Modifier.clickable { /* Active */ }
+                ) {
+                  Text(
+                    text = "✓ ${activeRoute.routeTag}",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                  )
+                }
+              }
+              items(activeRoute.alternativeRoutes) { alt ->
+                Surface(
+                  shape = RoundedCornerShape(10.dp),
+                  color = Color(0xFF1E293B),
+                  border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF475569)),
+                  modifier = Modifier.clickable { onSwitchActiveRoute(alt) }
+                ) {
+                  Text(
+                    text = "Đổi: ${alt.routeTag}",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                  )
+                }
+              }
+            }
+          }
+        }
+      }
+    } else {
+      // BOTTOM-CENTER FLOATING ROAD PILL (Vietmap Live Style)
+      VietmapBottomRoadPill(
+        roadName = trafficEvaluation.currentRoadName,
+        modifier = Modifier
+          .align(Alignment.BottomCenter)
+          .padding(bottom = 16.dp)
+          .clickable { showRoadSelectDialog = true }
+      )
+    }
+
+    // 6. BOTTOM MULTI-ROUTE PREVIEW & VEHICLE SELECTION CARD
+    if (previewTapPlace != null && (activeRoute == null || !activeRoute.isNavigating)) {
+      val place = previewTapPlace!!
+      val directDistKm = (VietnamTrafficData.calculateDistanceMeters(
+        locationState.latitude, locationState.longitude,
+        place.latitude, place.longitude
+      ) / 1000f * 10).roundToInt() / 10f
+      val durationMin = ((directDistKm * 1.25f) / (if (vehicleRoutingMode == VehicleRoutingMode.MOTORBIKE) 32f else 36f) * 60f).roundToInt().coerceAtLeast(2)
+
+      var selectedAltIndex by remember { mutableIntStateOf(0) }
+
+      Surface(
+        shape = RoundedCornerShape(26.dp),
+        color = Color(0xFF0F172A).copy(alpha = 0.98f),
+        shadowElevation = 20.dp,
+        border = androidx.compose.foundation.BorderStroke(1.8.dp, Color(0xFF0284C7)),
+        modifier = Modifier
+          .align(Alignment.BottomCenter)
+          .padding(horizontal = 10.dp, vertical = 70.dp)
           .fillMaxWidth()
       ) {
         Column(modifier = Modifier.padding(16.dp)) {
+          // Destination Info Header
           Row(
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -548,21 +639,21 @@ fun LiveMapScreen(
               Surface(
                 shape = CircleShape,
                 color = Color(0xFF0284C7),
-                modifier = Modifier.size(42.dp)
+                modifier = Modifier.size(44.dp)
               ) {
                 Box(contentAlignment = Alignment.Center) {
-                  Icon(Icons.Default.LocationOn, contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                  Text(place.iconEmoji.ifBlank { "📍" }, fontSize = 22.sp)
                 }
               }
               Spacer(modifier = Modifier.width(12.dp))
               Column {
                 Text(
-                  text = previewTapPlace!!.name,
+                  text = place.name,
                   style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                   color = Color.White
                 )
                 Text(
-                  text = previewTapPlace!!.address,
+                  text = place.address,
                   style = MaterialTheme.typography.bodySmall,
                   color = Color(0xFF94A3B8),
                   maxLines = 2,
@@ -573,8 +664,7 @@ fun LiveMapScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
               IconButton(
                 onClick = {
-                  val place = previewTapPlace!!
-                  onSaveFavorite(place.name, place.address, place.category, place.latitude, place.longitude, "⭐")
+                  onSaveFavorite(place.name, place.address, place.category, place.latitude, place.longitude, place.iconEmoji)
                   showFavoriteToast = "Đã lưu \"${place.name}\" vào địa điểm yêu thích!"
                 }
               ) {
@@ -586,94 +676,143 @@ fun LiveMapScreen(
             }
           }
 
-          Spacer(modifier = Modifier.height(14.dp))
+          Spacer(modifier = Modifier.height(12.dp))
 
-          // Route Option Chips (Vietmap Style: 1 giờ 55 phút - 102.6 km)
-          val directDistKm = VietnamTrafficData.calculateDistanceMeters(
-            locationState.latitude, locationState.longitude,
-            previewTapPlace!!.latitude, previewTapPlace!!.longitude
-          ) / 1000f
-          val durationMinutes = ((directDistKm * 1.3f) / 35f * 60f).toInt().coerceAtLeast(3)
-
+          // Vehicle Mode Switcher (Xe Máy 🏍️ vs Ô Tô 🚗)
           Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth()
           ) {
             Surface(
               shape = RoundedCornerShape(12.dp),
-              color = Color(0xFF0369A1),
-              border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8)),
-              modifier = Modifier.weight(1f)
+              color = if (vehicleRoutingMode == VehicleRoutingMode.MOTORBIKE) Color(0xFF0284C7) else Color(0xFF1E293B),
+              border = if (vehicleRoutingMode == VehicleRoutingMode.MOTORBIKE) androidx.compose.foundation.BorderStroke(1.5.dp, Color.White) else null,
+              modifier = Modifier
+                .weight(1f)
+                .clickable { onSetVehicleRoutingMode(VehicleRoutingMode.MOTORBIKE) }
             ) {
-              Column(modifier = Modifier.padding(8.dp)) {
-                Text(
-                  text = if (durationMinutes >= 60) "${durationMinutes / 60} giờ ${durationMinutes % 60} phút" else "$durationMinutes phút",
-                  style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Black),
-                  color = Color.White
-                )
-                Text(
-                  text = String.format(java.util.Locale.US, "%.1f km", directDistKm * 1.25f),
-                  style = MaterialTheme.typography.labelSmall,
-                  color = Color(0xFFBAE6FD)
-                )
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(vertical = 8.dp)
+              ) {
+                Text("🏍️", fontSize = 16.sp)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Xe Máy (Tránh cao tốc)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
               }
             }
 
             Surface(
               shape = RoundedCornerShape(12.dp),
-              color = Color(0xFF1E293B),
-              modifier = Modifier.weight(1f)
+              color = if (vehicleRoutingMode == VehicleRoutingMode.CAR) Color(0xFF0284C7) else Color(0xFF1E293B),
+              border = if (vehicleRoutingMode == VehicleRoutingMode.CAR) androidx.compose.foundation.BorderStroke(1.5.dp, Color.White) else null,
+              modifier = Modifier
+                .weight(1f)
+                .clickable { onSetVehicleRoutingMode(VehicleRoutingMode.CAR) }
+            ) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(vertical = 8.dp)
+              ) {
+                Text("🚗", fontSize = 16.sp)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Ô Tô (Đường lớn)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+              }
+            }
+          }
+
+          Spacer(modifier = Modifier.height(10.dp))
+
+          // Multi-Route Options (Tuyến 1: Tối ưu nhất, Tuyến 2: Ngắn nhất, Tuyến 3: Tránh BOT)
+          Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            // Route Option 1
+            Surface(
+              shape = RoundedCornerShape(14.dp),
+              color = if (selectedAltIndex == 0) Color(0xFF0369A1) else Color(0xFF1E293B),
+              border = if (selectedAltIndex == 0) androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF38BDF8)) else null,
+              modifier = Modifier
+                .weight(1f)
+                .clickable { selectedAltIndex = 0 }
             ) {
               Column(modifier = Modifier.padding(8.dp)) {
-                Text(
-                  text = if (durationMinutes + 4 >= 60) "${(durationMinutes + 4) / 60} giờ ${(durationMinutes + 4) % 60} phút" else "${durationMinutes + 4} phút",
-                  style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                  color = Color(0xFF94A3B8)
-                )
-                Text(
-                  text = String.format(java.util.Locale.US, "%.1f km", directDistKm * 1.4f),
-                  style = MaterialTheme.typography.labelSmall,
-                  color = Color(0xFF64748B)
-                )
+                Text("🌟 Nhanh nhất", color = Color(0xFF38BDF8), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text("$durationMin phút", color = Color.White, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                Text(String.format(java.util.Locale.US, "%.1f km", directDistKm * 1.25f), color = Color(0xFF94A3B8), fontSize = 11.sp)
+              }
+            }
+
+            // Route Option 2
+            Surface(
+              shape = RoundedCornerShape(14.dp),
+              color = if (selectedAltIndex == 1) Color(0xFF0369A1) else Color(0xFF1E293B),
+              border = if (selectedAltIndex == 1) androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF38BDF8)) else null,
+              modifier = Modifier
+                .weight(1f)
+                .clickable { selectedAltIndex = 1 }
+            ) {
+              Column(modifier = Modifier.padding(8.dp)) {
+                Text("🌿 Ngắn nhất", color = Color(0xFF10B981), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text("${durationMin + 2} phút", color = Color.White, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                Text(String.format(java.util.Locale.US, "%.1f km", directDistKm * 1.12f), color = Color(0xFF94A3B8), fontSize = 11.sp)
+              }
+            }
+
+            // Route Option 3
+            Surface(
+              shape = RoundedCornerShape(14.dp),
+              color = if (selectedAltIndex == 2) Color(0xFF0369A1) else Color(0xFF1E293B),
+              border = if (selectedAltIndex == 2) androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFF38BDF8)) else null,
+              modifier = Modifier
+                .weight(1f)
+                .clickable { selectedAltIndex = 2 }
+            ) {
+              Column(modifier = Modifier.padding(8.dp)) {
+                Text(if (vehicleRoutingMode == VehicleRoutingMode.MOTORBIKE) "🏍️ Êm ái" else "🚧 Tránh BOT", color = Color(0xFFF59E0B), fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                Text("${durationMin + 4} phút", color = Color.White, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                Text(String.format(java.util.Locale.US, "%.1f km", directDistKm * 1.38f), color = Color(0xFF94A3B8), fontSize = 11.sp)
               }
             }
           }
 
           Spacer(modifier = Modifier.height(14.dp))
 
-          // Big Cyan Start Navigation Button
+          // Start Navigation Big Action Button
           Button(
             onClick = {
-              onStartNavigation(previewTapPlace!!)
+              onStartNavigation(place)
             },
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00B4D8)),
             shape = RoundedCornerShape(16.dp),
             modifier = Modifier.fillMaxWidth()
           ) {
-            Icon(Icons.Default.Navigation, contentDescription = null, tint = Color(0xFF0F172A), modifier = Modifier.size(20.dp))
+            Icon(Icons.Default.Navigation, contentDescription = null, tint = Color(0xFF0F172A), modifier = Modifier.size(22.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-              text = "Bắt đầu • Đến sau $durationMinutes phút",
+              text = "Bắt đầu chỉ đường (${if (selectedAltIndex == 0) durationMin else if (selectedAltIndex == 1) durationMin + 2 else durationMin + 4} phút)",
               fontWeight = FontWeight.Black,
               color = Color(0xFF0F172A),
-              fontSize = 15.sp
+              fontSize = 15.5.sp
             )
           }
         }
       }
     }
 
-    // 7. DESTINATION SEARCH & REALTIME GEOCODING AUTOCOMPLETE DIALOG
+    // 7. COMPREHENSIVE SEARCH BOTTOM SHEET & SEARCH HISTORY DIALOG
     if (showDestinationSearchDialog) {
       AlertDialog(
         onDismissRequest = { showDestinationSearchDialog = false },
         containerColor = Color(0xFF0F172A),
         title = {
           Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Directions, contentDescription = null, tint = Color(0xFF38BDF8))
+            Icon(Icons.Default.Search, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(24.dp))
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-              text = "Tìm kiếm vị trí & tên đường",
+              text = "Tìm kiếm điểm đến & địa chỉ",
               style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
               color = Color.White
             )
@@ -684,10 +823,11 @@ fun LiveMapScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(10.dp)
           ) {
+            // Search Input Field
             OutlinedTextField(
               value = searchQuery,
               onValueChange = { searchQuery = it },
-              placeholder = { Text("Nhập tên đường (Nguyễn Trãi, Lê Lợi, CMT8...)", color = Color(0xFF94A3B8), fontSize = 14.sp) },
+              placeholder = { Text("Nhập địa chỉ, số nhà, ngõ ngách, tên đường...", color = Color(0xFF94A3B8), fontSize = 13.5.sp) },
               textStyle = androidx.compose.ui.text.TextStyle(
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
@@ -721,7 +861,7 @@ fun LiveMapScreen(
               modifier = Modifier.fillMaxWidth()
             )
 
-            // Quick 1-Tap Shortcut Cards: Nhà riêng, Công ty
+            // Quick 1-Tap Shortcut Cards: Nhà riêng, Công ty, Cây xăng, Cứu hộ
             Row(
               modifier = Modifier.fillMaxWidth(),
               horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -785,7 +925,7 @@ fun LiveMapScreen(
               }
             }
 
-            // Category Filter Row
+            // Quick Category Chips
             val categories = listOf("Tất cả", "Tuyến đường", "Cây xăng", "Sân bay", "Bệnh viện", "Trung tâm", "Bến xe")
             LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
               items(categories) { cat ->
@@ -806,7 +946,73 @@ fun LiveMapScreen(
 
             HorizontalDivider(color = Color(0xFF334155))
 
-            // Search Results List (Online Geocoded & Local)
+            // RECENT SEARCHES LIST (When Search Query is Empty)
+            if (searchQuery.isBlank() && recentSearches.isNotEmpty()) {
+              Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+              ) {
+                Text(
+                  text = "Lịch sử tìm kiếm gần đây",
+                  color = Color(0xFF94A3B8),
+                  fontWeight = FontWeight.Bold,
+                  fontSize = 12.sp
+                )
+                TextButton(onClick = { onClearAllRecentSearches() }) {
+                  Text("Xoá tất cả", color = Color(0xFFEF4444), fontSize = 11.5.sp)
+                }
+              }
+
+              LazyColumn(
+                modifier = Modifier
+                  .fillMaxWidth()
+                  .heightIn(max = 160.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+              ) {
+                items(recentSearches) { recent ->
+                  Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0xFF1E293B).copy(alpha = 0.8f),
+                    modifier = Modifier
+                      .fillMaxWidth()
+                      .clickable {
+                        previewTapPlace = DestinationPlace(
+                          id = recent.id,
+                          name = recent.name,
+                          address = recent.address,
+                          category = recent.category,
+                          latitude = recent.latitude,
+                          longitude = recent.longitude,
+                          iconEmoji = recent.iconEmoji
+                        )
+                        showDestinationSearchDialog = false
+                      }
+                  ) {
+                    Row(
+                      verticalAlignment = Alignment.CenterVertically,
+                      modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                      Text("🕒", fontSize = 14.sp)
+                      Spacer(modifier = Modifier.width(8.dp))
+                      Column(modifier = Modifier.weight(1f)) {
+                        Text(recent.name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp, maxLines = 1)
+                        Text(recent.address, color = Color(0xFF64748B), fontSize = 10.5.sp, maxLines = 1)
+                      }
+                      IconButton(
+                        onClick = { onDeleteRecentSearch(recent.id) },
+                        modifier = Modifier.size(24.dp)
+                      ) {
+                        Icon(Icons.Default.Close, contentDescription = "Xoá", tint = Color(0xFF94A3B8), modifier = Modifier.size(16.dp))
+                      }
+                    }
+                  }
+                }
+              }
+              HorizontalDivider(color = Color(0xFF334155))
+            }
+
+            // Search Results List (Online Geocoded & Local with Distance Pill)
             if (searchResults.isEmpty() && !isSearchingOnline && searchQuery.isNotBlank()) {
               Box(
                 contentAlignment = Alignment.Center,
@@ -850,27 +1056,39 @@ fun LiveMapScreen(
                         modifier = Modifier.size(36.dp)
                       ) {
                         Box(contentAlignment = Alignment.Center) {
-                          val iconVec = when (place.category) {
-                            "Cây xăng" -> Icons.Default.LocalGasStation
-                            "Sân bay" -> Icons.Default.Flight
-                            "Bệnh viện" -> Icons.Default.LocalHospital
-                            "Tuyến đường" -> Icons.AutoMirrored.Filled.AltRoute
-                            else -> Icons.Default.LocationOn
-                          }
-                          Icon(iconVec, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                          Text(place.iconEmoji.ifBlank { "📍" }, fontSize = 18.sp)
                         }
                       }
 
                       Spacer(modifier = Modifier.width(10.dp))
 
                       Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                          text = place.name,
-                          style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                          color = Color.White,
-                          maxLines = 1,
-                          overflow = TextOverflow.Ellipsis
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                          Text(
+                            text = place.name,
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                          )
+                          if (place.distanceKm > 0f) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                              shape = RoundedCornerShape(6.dp),
+                              color = Color(0xFF10B981).copy(alpha = 0.2f),
+                              border = androidx.compose.foundation.BorderStroke(0.5.dp, Color(0xFF10B981))
+                            ) {
+                              Text(
+                                text = "${place.distanceKm} km",
+                                color = Color(0xFF10B981),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                              )
+                            }
+                          }
+                        }
                         Text(
                           text = place.address,
                           style = MaterialTheme.typography.labelSmall,
@@ -1250,16 +1468,6 @@ fun LiveMapScreen(
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
           ) {
             Text("Đã hiểu")
-          }
-        },
-        dismissButton = {
-          TextButton(
-            onClick = {
-              showSpeedLimitPicker = false
-              onOpenReportDialog()
-            }
-          ) {
-            Text("Báo biển mới", color = Color(0xFF38BDF8))
           }
         }
       )

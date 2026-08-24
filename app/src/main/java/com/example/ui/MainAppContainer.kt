@@ -34,7 +34,6 @@ fun MainAppContainer(
   modifier: Modifier = Modifier
 ) {
   var currentTab by remember { mutableStateOf(NavigationTab.MAP) }
-  var showReportDialog by remember { mutableStateOf(false) }
 
   val locationState by viewModel.locationState.collectAsStateWithLifecycle()
   val trafficEvaluation by viewModel.trafficEvaluation.collectAsStateWithLifecycle()
@@ -50,6 +49,9 @@ fun MainAppContainer(
   val activeRoute by viewModel.activeNavigationRoute.collectAsStateWithLifecycle()
   val lastFinishedTrip by viewModel.lastFinishedTrip.collectAsStateWithLifecycle()
   val compassHeading by viewModel.compassHeading.collectAsStateWithLifecycle()
+  val recentSearches by viewModel.recentSearches.collectAsStateWithLifecycle()
+  val vehicleRoutingMode by viewModel.vehicleRoutingMode.collectAsStateWithLifecycle()
+  val updateCheckState by viewModel.updateCheckState.collectAsStateWithLifecycle()
 
   Scaffold(
     bottomBar = {
@@ -160,6 +162,8 @@ fun MainAppContainer(
               compassHeading = compassHeading,
               userSettings = userSettings,
               favorites = favoritePlaces,
+              recentSearches = recentSearches,
+              vehicleRoutingMode = vehicleRoutingMode,
               onToggleVoice = { viewModel.toggleVoiceAlerts() },
               onToggleTripRecording = {
                 if (isRecordingTrip) viewModel.stopTripRecording()
@@ -169,6 +173,10 @@ fun MainAppContainer(
               onToggleGpsOrSimulation = { useReal -> viewModel.toggleGpsOrSimulation(useReal) },
               onStartNavigation = { dest -> viewModel.startNavigationToDestination(dest) },
               onStartCustomNavigation = { name, addr, lat, lng -> viewModel.startNavigationToCustom(name, addr, lat, lng) },
+              onSwitchActiveRoute = { route -> viewModel.switchActiveRoute(route) },
+              onSetVehicleRoutingMode = { mode -> viewModel.setVehicleRoutingMode(mode) },
+              onDeleteRecentSearch = { id -> viewModel.deleteRecentSearch(id) },
+              onClearAllRecentSearches = { viewModel.clearAllRecentSearches() },
               onCancelNavigation = { viewModel.cancelNavigation() },
               onSelectRoute = { idx -> viewModel.setSimulationRoute(idx) },
               onSetSpeed = { speed -> viewModel.setSimulatedSpeed(speed) },
@@ -177,8 +185,7 @@ fun MainAppContainer(
               onSpeakAlert = { msg -> viewModel.speakCustom(msg) },
               onSaveFavorite = { name, addr, cat, lat, lng, icon -> viewModel.saveFavoritePlace(name, addr, cat, lat, lng, icon) },
               onDeleteFavorite = { id -> viewModel.deleteFavoritePlace(id) },
-              onSearchNearbyUtilities = { cat -> viewModel.searchNearbyUtilities(cat) },
-              onOpenReportDialog = { showReportDialog = true }
+              onSearchNearbyUtilities = { cat -> viewModel.searchNearbyUtilities(cat) }
             )
           }
 
@@ -202,8 +209,7 @@ fun MainAppContainer(
               onSelectSimulationRoute = { idx -> viewModel.setSimulationRoute(idx) },
               onSetSimulatedSpeed = { speed -> viewModel.setSimulatedSpeed(speed) },
               onSetCustomRoad = { road -> viewModel.setCustomTestRoad(road) },
-              onTestSound = { viewModel.testVoice() },
-              onOpenReportDialog = { showReportDialog = true }
+              onTestSound = { viewModel.testVoice() }
             )
           }
 
@@ -213,22 +219,13 @@ fun MainAppContainer(
               offlinePacks = offlinePacks,
               onUpdateSettings = { updated -> viewModel.updateSettings(updated) },
               onTestVoice = { viewModel.testVoice() },
-              onDownloadPack = { pack -> viewModel.downloadOrUpdateOfflinePack(pack) }
+              onDownloadPack = { pack -> viewModel.downloadOrUpdateOfflinePack(pack) },
+              updateCheckState = updateCheckState,
+              onCheckForUpdates = { viewModel.checkForAppUpdates() },
+              onDismissUpdateDialog = { viewModel.dismissUpdateDialog() }
             )
           }
         }
-      }
-
-      // Report Camera Dialog
-      if (showReportDialog) {
-        ReportCameraDialog(
-          currentRoadName = trafficEvaluation.currentRoadName,
-          currentSpeedLimit = trafficEvaluation.currentSpeedLimit,
-          onDismiss = { showReportDialog = false },
-          onSubmit = { type, road, limit, desc, city ->
-            viewModel.reportCamera(type, road, limit, desc, city)
-          }
-        )
       }
     }
   }

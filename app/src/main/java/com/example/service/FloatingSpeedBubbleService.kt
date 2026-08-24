@@ -143,7 +143,20 @@ class FloatingSpeedBubbleService : Service() {
       return START_NOT_STICKY
     }
 
-    startForeground(NOTIFICATION_ID, buildForegroundNotification())
+    try {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        startForeground(
+          NOTIFICATION_ID,
+          buildForegroundNotification(),
+          android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+        )
+      } else {
+        startForeground(NOTIFICATION_ID, buildForegroundNotification())
+      }
+    } catch (e: Exception) {
+      android.util.Log.e(TAG, "Failed to startForeground on FloatingSpeedBubbleService: ${e.message}")
+    }
+
     showFloatingBubble()
     return START_STICKY
   }
@@ -282,13 +295,29 @@ fun FloatingSpeedBubbleContent(
   val isOverspeed = alertState.isOverspeeding
   val speedInt = alertState.currentSpeedKmh
   val limitInt = alertState.speedLimitKmh
+  val hasCamera = alertState.nearestCameraDistance != null && alertState.nearestCameraDistance > 0
+
+  // Infinite pulsing glow for critical camera alerts & overspeeding
+  val infiniteTransition = rememberInfiniteTransition(label = "bubblePulse")
+  val pulseAlpha by infiniteTransition.animateFloat(
+    initialValue = 0.4f,
+    targetValue = 1.0f,
+    animationSpec = infiniteRepeatable(
+      animation = tween(650, easing = LinearEasing),
+      repeatMode = RepeatMode.Reverse
+    ),
+    label = "alpha"
+  )
 
   // Dynamic Border & Glow Colors
   val glowColor = when {
     isOverspeed -> Color(0xFFEF4444)
+    hasCamera && (alertState.nearestCameraDistance ?: 1000) < 200 -> Color(0xFFF59E0B)
     speedInt >= limitInt - 5 && limitInt > 0 -> Color(0xFFF59E0B)
     else -> Color(0xFF00B4D8)
   }
+
+  val effectiveBorderAlpha = if (isOverspeed || (hasCamera && (alertState.nearestCameraDistance ?: 1000) < 150)) pulseAlpha else 0.85f
 
   Surface(
     modifier = Modifier
@@ -303,87 +332,153 @@ fun FloatingSpeedBubbleContent(
           }
         )
       }
-      .shadow(16.dp, RoundedCornerShape(24.dp))
+      .shadow(16.dp, RoundedCornerShape(22.dp))
       .border(
         width = if (isOverspeed) 2.5.dp else 1.8.dp,
-        brush = Brush.horizontalGradient(listOf(glowColor, glowColor.copy(alpha = 0.6f))),
-        shape = RoundedCornerShape(24.dp)
-      ),
-    shape = RoundedCornerShape(24.dp),
-    color = Color(0xFF0F172A).copy(alpha = 0.94f)
-  ) {
-    Row(
-      modifier = Modifier
-        .padding(horizontal = 10.dp, vertical = 6.dp),
-      verticalAlignment = Alignment.CenterVertically,
-      horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-      // 1. Biển báo tốc độ giới hạn tròn chuẩn P.127
-      Box(
-        modifier = Modifier
-          .size(34.dp)
-          .clip(CircleShape)
-          .background(Color.White)
-          .border(3.2.dp, Color(0xFFDC2626), CircleShape)
-          .clickable { onOpenApp() },
-        contentAlignment = Alignment.Center
-      ) {
-        Text(
-          text = if (limitInt > 0) "$limitInt" else "50",
-          fontSize = 13.sp,
-          fontWeight = FontWeight.Black,
-          color = Color.Black
-        )
-      }
-
-      // 2. Vận tốc thực tế to rõ nét
-      Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = Modifier.clickable { onOpenApp() }
-      ) {
-        Row(verticalAlignment = Alignment.Bottom) {
-          Text(
-            text = "$speedInt",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Black,
-            color = if (isOverspeed) Color(0xFFEF4444) else Color.White
+        brush = Brush.horizontalGradient(
+          listOf(
+            glowColor.copy(alpha = effectiveBorderAlpha),
+            glowColor.copy(alpha = effectiveBorderAlpha * 0.6f)
           )
-          Spacer(modifier = Modifier.width(2.dp))
+        ),
+        shape = RoundedCornerShape(22.dp)
+      ),
+    shape = RoundedCornerShape(22.dp),
+    color = Color(0xFF0A0F1D).copy(alpha = 0.94f)
+  ) {
+    Column(
+      modifier = Modifier
+        .padding(horizontal = 10.dp, vertical = 7.dp)
+        .clickable { onOpenApp() },
+      horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+      Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+      ) {
+        // 1. Biển báo tốc độ giới hạn tròn chuẩn P.127
+        Box(
+          modifier = Modifier
+            .size(38.dp)
+            .clip(CircleShape)
+            .background(Color.White)
+            .border(3.5.dp, Color(0xFFDC2626), CircleShape),
+          contentAlignment = Alignment.Center
+        ) {
           Text(
-            text = "km/h",
-            fontSize = 9.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF94A3B8),
-            modifier = Modifier.padding(bottom = 3.dp)
+            text = if (limitInt > 0) "$limitInt" else "50",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Black,
+            color = Color.Black
+          )
+        }
+
+        // 2. Vận tốc thực tế to rõ nét
+        Column(
+          horizontalAlignment = Alignment.CenterHorizontally,
+          verticalArrangement = Arrangement.Center
+        ) {
+          Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+              text = "$speedInt",
+              fontSize = 28.sp,
+              fontWeight = FontWeight.Black,
+              color = when {
+                isOverspeed -> Color(0xFFEF4444)
+                speedInt >= limitInt - 5 && limitInt > 0 -> Color(0xFFF59E0B)
+                else -> Color(0xFF10B981)
+              }
+            )
+            Spacer(modifier = Modifier.width(2.dp))
+            Text(
+              text = "km/h",
+              fontSize = 10.sp,
+              fontWeight = FontWeight.Bold,
+              color = Color(0xFF94A3B8),
+              modifier = Modifier.padding(bottom = 4.dp)
+            )
+          }
+        }
+
+        // 3. Camera cảnh báo phía trước & số mét đếm ngược
+        if (hasCamera && alertState.nearestCameraDistance != null) {
+          Box(
+            modifier = Modifier
+              .width(1.dp)
+              .height(28.dp)
+              .background(Color(0xFF334155))
+          )
+
+          Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier
+              .clip(RoundedCornerShape(12.dp))
+              .background(
+                if ((alertState.nearestCameraDistance ?: 1000) < 150)
+                  Color(0xFFDC2626).copy(alpha = 0.25f)
+                else
+                  Color(0xFF1E293B)
+              )
+              .border(
+                1.dp,
+                if ((alertState.nearestCameraDistance ?: 1000) < 150)
+                  Color(0xFFEF4444)
+                else
+                  Color(0xFF0284C7).copy(alpha = 0.5f),
+                RoundedCornerShape(12.dp)
+              )
+              .padding(horizontal = 6.dp, vertical = 4.dp)
+          ) {
+            Text(
+              text = alertState.cameraIconEmoji,
+              fontSize = 13.sp
+            )
+            Column(horizontalAlignment = Alignment.Start) {
+              Text(
+                text = "${alertState.nearestCameraDistance}m",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Black,
+                color = if ((alertState.nearestCameraDistance ?: 1000) < 150) Color(0xFFEF4444) else Color(0xFFFBBF24)
+              )
+              val camLabel = alertState.nearestCameraType?.take(10) ?: "Camera"
+              Text(
+                text = camLabel,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF94A3B8)
+              )
+            }
+          }
+        }
+
+        // 4. Nút đóng nhỏ gọn
+        Box(
+          modifier = Modifier
+            .size(24.dp)
+            .clip(CircleShape)
+            .background(Color(0xFF1E293B))
+            .clickable { onClose() },
+          contentAlignment = Alignment.Center
+        ) {
+          Icon(
+            imageVector = Icons.Default.Close,
+            contentDescription = "Đóng popup",
+            tint = Color(0xFFCBD5E1),
+            modifier = Modifier.size(15.dp)
           )
         }
       }
 
-      // 3. Biểu tượng cảnh báo quá tốc độ nếu có
-      if (isOverspeed) {
-        Icon(
-          imageVector = Icons.Default.Warning,
-          contentDescription = "Quá tốc độ",
-          tint = Color(0xFFEF4444),
-          modifier = Modifier.size(18.dp)
-        )
-      }
-
-      // 4. Nút đóng nhỏ gọn
-      Box(
-        modifier = Modifier
-          .size(24.dp)
-          .clip(CircleShape)
-          .background(Color(0xFF334155))
-          .clickable { onClose() },
-        contentAlignment = Alignment.Center
-      ) {
-        Icon(
-          imageVector = Icons.Default.Close,
-          contentDescription = "Đóng",
-          tint = Color(0xFFCBD5E1),
-          modifier = Modifier.size(15.dp)
+      // 5. Dòng phụ: Tên đường đang chạy
+      if (alertState.roadName.isNotBlank()) {
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+          text = alertState.roadName,
+          fontSize = 10.sp,
+          fontWeight = FontWeight.Medium,
+          color = Color(0xFF94A3B8),
+          maxLines = 1
         )
       }
     }

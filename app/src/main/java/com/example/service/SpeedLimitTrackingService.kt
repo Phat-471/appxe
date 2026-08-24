@@ -75,7 +75,13 @@ class SpeedLimitTrackingService : Service() {
       lat: Double = 10.7580,
       lng: Double = 106.6850,
       roadName: String? = null,
-      heading: Float = 65f
+      heading: Float = 65f,
+      nearestCameraDistance: Int? = null,
+      nearestCameraType: String? = null,
+      nearestCameraSpeedLimit: Int? = null,
+      cameraIconEmoji: String = "📷",
+      nextTurnInstruction: String? = null,
+      nextTurnDistanceMeters: Int? = null
     ) {
       val (speedLimit, detectedRoad) = MockSpeedLimitDataSource.getSpeedLimitForLocation(lat, lng, roadName)
       val currentSpeedInt = speedKmh.roundToInt().coerceAtLeast(0)
@@ -106,13 +112,19 @@ class SpeedLimitTrackingService : Service() {
         speedDeltaKmh = speedDelta,
         isOverspeeding = isOverspeeding,
         alertLevel = alertLevel,
-        roadName = detectedRoad,
+        roadName = roadName ?: detectedRoad,
         alertMessage = message,
         isServiceActive = _isServiceRunning.value,
         isGpsLocked = true,
         latitude = lat,
         longitude = lng,
         headingDegrees = heading,
+        nearestCameraDistance = nearestCameraDistance,
+        nearestCameraType = nearestCameraType,
+        nearestCameraSpeedLimit = nearestCameraSpeedLimit,
+        cameraIconEmoji = cameraIconEmoji,
+        nextTurnInstruction = nextTurnInstruction,
+        nextTurnDistanceMeters = nextTurnDistanceMeters,
         timestamp = System.currentTimeMillis()
       )
     }
@@ -160,7 +172,19 @@ class SpeedLimitTrackingService : Service() {
         manualLimitOverride = if (limit > 0) limit else null
       }
       else -> {
-        startForeground(NOTIFICATION_ID, buildNotification(_visualAlertState.value))
+        try {
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+              NOTIFICATION_ID,
+              buildNotification(_visualAlertState.value),
+              android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+            )
+          } else {
+            startForeground(NOTIFICATION_ID, buildNotification(_visualAlertState.value))
+          }
+        } catch (e: Exception) {
+          Log.e(TAG, "Failed to startForeground on SpeedLimitTrackingService: ${e.message}")
+        }
         startTracking()
       }
     }
@@ -365,8 +389,16 @@ class SpeedLimitTrackingService : Service() {
     } catch (_: Exception) {}
   }
 
+  override fun onTaskRemoved(rootIntent: Intent?) {
+    super.onTaskRemoved(rootIntent)
+    stopTracking()
+    stopForeground(STOP_FOREGROUND_REMOVE)
+    stopSelf()
+  }
+
   override fun onDestroy() {
     stopTracking()
+    _isServiceRunning.value = false
     serviceScope.cancel()
     super.onDestroy()
   }

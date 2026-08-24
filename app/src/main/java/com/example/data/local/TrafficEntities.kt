@@ -65,7 +65,7 @@ data class UserSettingsEntity(
   val showCommunityReportsOnMap: Boolean = true,
   // === NEW SETTINGS ===
   val compassEnabled: Boolean = true,           // Cảm biến la bàn xoay hướng
-  val backgroundServiceEnabled: Boolean = true, // Chạy nền khi tắt app
+  val backgroundServiceEnabled: Boolean = false, // Chạy nền khi tắt app (mặc định tắt để khi đóng app không chạy ngầm)
   val darkMapMode: Boolean = false,              // Bản đồ tối ban đêm
   val autoScreenOn: Boolean = true,              // Giữ màn hình sáng khi lái
   val showBreadcrumbs: Boolean = true,           // Hiện vết đi trên bản đồ
@@ -99,4 +99,18 @@ data class FavoritePlaceEntity(
   val iconEmoji: String = "⭐",
   val createdAtMillis: Long = System.currentTimeMillis()
 )
+
+@Entity(tableName = "recent_searches")
+data class RecentSearchEntity(
+  @PrimaryKey val id: String,
+  val query: String,
+  val name: String,
+  val address: String,
+  val latitude: Double,
+  val longitude: Double,
+  val category: String = "Địa điểm",
+  val iconEmoji: String = "🕒",
+  val timestampMillis: Long = System.currentTimeMillis()
+)
+
 

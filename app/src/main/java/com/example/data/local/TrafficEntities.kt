@@ -82,7 +82,10 @@ data class UserSettingsEntity(
   val vehicleIconScale: Float = 1.3f,            // Tỷ lệ kích thước icon xe: 0.9f (Nhỏ), 1.1f (Vừa), 1.35f (To), 1.7f (Rất to)
   val roadSnappingEnabled: Boolean = true,       // Bám tim đường mượt mà (Snap to Road Centerline)
   val highDpiMapEnabled: Boolean = true,         // Bản đồ Retina HD siêu nét (@2x)
-  val mapTileSource: String = "GOOGLE_MAPS_HD"   // Nguồn tile bản đồ mặc định
+  val mapTileSource: String = "GOOGLE_MAPS_HD",  // Nguồn tile bản đồ mặc định
+  val floatingBubbleEnabled: Boolean = false,    // Cửa sổ nổi / Bong bóng Mini HUD đè lên Google Maps
+  val mapCameraTilt3D: Boolean = true,           // Góc nhìn Camera 3D Tilt khi di chuyển
+  val vehicle3DModel: String = "3D_SCOOTER"      // 3D_SCOOTER, 3D_MOTORBIKE, 3D_SPORT_CAR, 3D_ARROW
 )
 
 @Entity(tableName = "favorite_places")

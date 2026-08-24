@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
     UserSettingsEntity::class,
     FavoritePlaceEntity::class
   ],
-  version = 7,
+  version = 8,
   exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -91,6 +91,20 @@ abstract class AppDatabase : RoomDatabase() {
       }
     }
 
+    val MIGRATION_7_8 = object : Migration(7, 8) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        try {
+          db.execSQL("ALTER TABLE user_settings ADD COLUMN floatingBubbleEnabled INTEGER NOT NULL DEFAULT 0")
+        } catch (_: Exception) {}
+        try {
+          db.execSQL("ALTER TABLE user_settings ADD COLUMN mapCameraTilt3D INTEGER NOT NULL DEFAULT 1")
+        } catch (_: Exception) {}
+        try {
+          db.execSQL("ALTER TABLE user_settings ADD COLUMN vehicle3DModel TEXT NOT NULL DEFAULT '3D_SCOOTER'")
+        } catch (_: Exception) {}
+      }
+    }
+
     fun getDatabase(context: Context): AppDatabase {
       return INSTANCE ?: synchronized(this) {
         val instance = Room.databaseBuilder(
@@ -98,7 +112,8 @@ abstract class AppDatabase : RoomDatabase() {
           AppDatabase::class.java,
           "speed_alert_vietnam.db"
         )
-          .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+          .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+          .fallbackToDestructiveMigration()
           .addCallback(object : Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
               super.onCreate(db)

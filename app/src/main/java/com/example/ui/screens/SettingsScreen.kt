@@ -26,6 +26,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import androidx.compose.ui.platform.LocalContext
+import com.example.service.FloatingSpeedBubbleService
 import com.example.data.local.OfflineMapPackEntity
 import com.example.data.local.UserSettingsEntity
 import com.example.ui.i18n.AppStrings
@@ -45,6 +51,7 @@ fun SettingsScreen(
   var showDistanceDialog by remember { mutableStateOf(false) }
   var showVehicleTypeDialog by remember { mutableStateOf(false) }
   var showLanguageDialog by remember { mutableStateOf(false) }
+  val context = LocalContext.current
 
   // Accordion Expand/Collapse States (Mở sẵn mục 1 và 4 làm điểm nhấn)
   var expandedVoice by remember { mutableStateOf(true) }
@@ -385,15 +392,53 @@ fun SettingsScreen(
           // Chọn loại biểu tượng xe
           SettingsNavigationRow(
             icon = Icons.Default.TwoWheeler,
-            title = if (isEn) "Vehicle Icon Type" else "Loại biểu tượng phương tiện",
+            title = if (isEn) "3D Vehicle Icon Model" else "Mô hình xe",
             valueText = when (settings.vehicleIconType) {
-              "SCOOTER" -> "🛵 ${if (isEn) "Scooter" else "Xe tay ga"}"
-              "MOTORBIKE" -> "🏍️ ${if (isEn) "Motorbike" else "Xe máy"}"
-              "CAR" -> "🚗 ${if (isEn) "Car" else "Ô tô"}"
+              "SCOOTER" -> "🛵 ${if (isEn) "3D Scooter" else "Xe tay ga"}"
+              "MOTORBIKE" -> "🏍️ ${if (isEn) "3D Superbike" else "Xe phân khối lớn"}"
+              "CAR" -> "🚗 ${if (isEn) "3D Sport Car" else "Xe ô tô thể thao"}"
               "TRUCK" -> "🚛 ${if (isEn) "Truck" else "Xe tải"}"
-              else -> "↑ ${if (isEn) "Arrow" else "Mũi tên"}"
+              else -> "🔺 ${if (isEn) "Neon Cyan Arrow" else "Mũi tên Neon Cyan"}"
             },
             onClick = { showVehicleTypeDialog = true }
+          )
+
+          RowDivider()
+          // Góc nhìn 3D Tilt
+          SettingsSwitchRow(
+            icon = Icons.Default.ViewInAr,
+            title = if (isEn) "3D Perspective Camera Tilt" else "Góc nhìn 3D Tilt nghiêng phối cảnh",
+            subtitle = if (isEn) "Tilts map camera forward to see upcoming cameras (Google Maps 3D)" else "Nghiêng bản đồ về phía trước giúp quan sát xa cung đường và camera",
+            checked = settings.mapCameraTilt3D,
+            onCheckedChange = { onUpdateSettings(settings.copy(mapCameraTilt3D = it)) }
+          )
+
+          RowDivider()
+          // Bong bóng nổi Google Maps
+          SettingsSwitchRow(
+            icon = Icons.Default.Layers,
+            title = if (isEn) "Floating HUD Over Google Maps" else "Bong bóng tốc độ nổi đè lên Google Maps",
+            subtitle = if (isEn) "Mini floating speed bubble while using navigation apps" else "Hiển thị đồng hồ tốc độ và cảnh báo camera mini nổi trên màn hình",
+            checked = settings.floatingBubbleEnabled,
+            onCheckedChange = { isEnabled ->
+              if (isEnabled) {
+                if (!FloatingSpeedBubbleService.canDrawOverlay(context)) {
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    val intent = Intent(
+                      Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                      Uri.parse("package:${context.packageName}")
+                    )
+                    context.startActivity(intent)
+                  }
+                } else {
+                  FloatingSpeedBubbleService.startService(context)
+                  onUpdateSettings(settings.copy(floatingBubbleEnabled = true))
+                }
+              } else {
+                FloatingSpeedBubbleService.stopService(context)
+                onUpdateSettings(settings.copy(floatingBubbleEnabled = false))
+              }
+            }
           )
 
           RowDivider()
@@ -917,18 +962,17 @@ fun VehicleTypeSelectDialog(
   isEn: Boolean
 ) {
   val options = listOf(
-    Pair("SCOOTER", "🛵 ${if (isEn) "Scooter" else "Xe Tay Ga"}"),
-    Pair("MOTORBIKE", "🏍️ ${if (isEn) "Motorbike / Manual" else "Xe Máy / Xe Số"}"),
-    Pair("CAR", "🚗 ${if (isEn) "Automobile / Car" else "Xe Ô Tô"}"),
-    Pair("TRUCK", "🚛 ${if (isEn) "Truck / Heavy Vehicle" else "Xe Tải / Xe Khách"}"),
-    Pair("ARROW", "↑ ${if (isEn) "Classic Navigation Arrow" else "Mũi Tên Điều Hướng"}")
+    Pair("SCOOTER", "🛵 ${if (isEn) "3D Scooter Rider (Google Maps style)" else "Xe Tay Ga"}"),
+    Pair("MOTORBIKE", "🏍️ ${if (isEn) "3D Sport Motorbike" else "Xe Phân Khối Lớn"}"),
+    Pair("CAR", "🚗 ${if (isEn) "3D Sport Car Sedan" else "Xe Ô Tô"}"),
+    Pair("TRUCK", "🚛 ${if (isEn) "Truck / Heavy Vehicle" else "Xe Tải"}")
   )
 
   AlertDialog(
     onDismissRequest = onDismiss,
     title = {
       Text(
-        text = if (isEn) "Select Vehicle Icon" else "Chọn Biểu Tượng Xe Trên Bản Đồ",
+        text = if (isEn) "Select 3D Vehicle Model" else "Chọn Mô Hình Xe 3D Trên Bản Đồ",
         fontWeight = FontWeight.Bold
       )
     },

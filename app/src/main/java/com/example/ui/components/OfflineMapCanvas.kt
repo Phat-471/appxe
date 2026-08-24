@@ -80,6 +80,7 @@ fun OfflineMapCanvas(
   vehicleIconType: VehicleIconType = VehicleIconType.MOTORBIKE,
   vehicleIconScale: Float = 1.3f,
   roadSnappingEnabled: Boolean = true,
+  cameraTilt3D: Boolean = true,
   modifier: Modifier = Modifier
 ) {
   val coroutineScope = rememberCoroutineScope()
@@ -306,8 +307,10 @@ fun OfflineMapCanvas(
       val canvasWidth = size.width
       val canvasHeight = size.height
 
-      // Navigation Lookahead: in Track-Up mode, place vehicle lower to see road ahead
-      val vehicleVerticalBias = if (orientationMode == MapOrientationMode.TRACK_UP) canvasHeight * 0.12f else 0f
+      // Navigation Lookahead: in Track-Up mode, place vehicle lower to see road ahead (Google Maps 3D style)
+      val vehicleVerticalBias = if (orientationMode == MapOrientationMode.TRACK_UP) {
+        if (cameraTilt3D) canvasHeight * 0.18f else canvasHeight * 0.12f
+      } else 0f
       val midX = canvasWidth / 2f + panOffsetX
       val midY = canvasHeight / 2f + panOffsetY + vehicleVerticalBias
 
@@ -895,7 +898,7 @@ fun OfflineMapCanvas(
         )
 
         val r = 21.dp.toPx() * vScale
-        val emojiSizePx = (16.5f * vScale).sp.toPx()
+        val isOverspeeding = activeWarning?.isOverspeeding == true
 
         when (vehicleIconType) {
           VehicleIconType.ARROW -> {
@@ -930,85 +933,186 @@ fun OfflineMapCanvas(
             }
             drawPath(shadowPath, color = Color(0x60000000))
             drawPath(arrowPath, color = Color.White, style = Stroke(width = 4.5.dp.toPx() * vScale, cap = StrokeCap.Round, join = StrokeJoin.Round))
-            drawPath(arrowPath, color = if (activeWarning?.isOverspeeding == true) AlertCrimsonDanger else Color(0xFF00B4D8))
+            drawPath(arrowPath, color = if (isOverspeeding) AlertCrimsonDanger else Color(0xFF00B4D8))
             drawCircle(color = Color.White, radius = 3.5.dp.toPx() * vScale, center = userPos)
           }
 
-          VehicleIconType.MOTORBIKE, VehicleIconType.SCOOTER -> {
-            // Motorbike icon: Circular badge + emoji rotated to heading
-            val shadowPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.argb(90, 0, 0, 0); style = Paint.Style.FILL }
-            val bgPaint = Paint().apply {
-              isAntiAlias = true
-              color = if (activeWarning?.isOverspeeding == true) android.graphics.Color.argb(255, 220, 38, 38)
-              else android.graphics.Color.argb(255, 0, 180, 216)
-              style = Paint.Style.FILL
-            }
-            val borderPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.WHITE; style = Paint.Style.STROKE; strokeWidth = 3.2.dp.toPx() * vScale }
-            val emojiPaint = Paint().apply { isAntiAlias = true; textSize = emojiSizePx; textAlign = Paint.Align.CENTER }
-            val arrowPaint = Paint().apply {
-              isAntiAlias = true
-              color = android.graphics.Color.WHITE
-              style = Paint.Style.FILL
-            }
+          VehicleIconType.SCOOTER, VehicleIconType.MOTORBIKE -> {
+            // GOOGLE MAPS STYLE 3D ISOMETRIC MOTORBIKE / SCOOTER (Rider with White Helmet + Cyan Body + Shadow)
+            val s = vScale * 1.25f
+            val w = 28.dp.toPx() * s
+            val h = 48.dp.toPx() * s
 
-            // Shadow
-            drawContext.canvas.nativeCanvas.drawCircle(userPos.x, userPos.y + 2.5.dp.toPx() * vScale, r, shadowPaint)
-            // Main circle
-            drawContext.canvas.nativeCanvas.drawCircle(userPos.x, userPos.y, r, bgPaint)
-            // White border
-            drawContext.canvas.nativeCanvas.drawCircle(userPos.x, userPos.y, r, borderPaint)
+            rotate(degrees = resolvedHeading, pivot = userPos) {
+              // 1. Realistic Oblong Ground Shadow on asphalt
+              drawOval(
+                color = Color(0x55000000),
+                topLeft = Offset(userPos.x - w * 0.45f, userPos.y - h * 0.15f),
+                size = Size(w * 0.9f, h * 0.72f)
+              )
 
-            // Rotating heading pointer arrow on top
-            drawContext.canvas.nativeCanvas.save()
-            drawContext.canvas.nativeCanvas.translate(userPos.x, userPos.y)
-            drawContext.canvas.nativeCanvas.rotate(resolvedHeading)
-            val triPath = android.graphics.Path().apply {
-              moveTo(0f, -r - 7.dp.toPx() * vScale)
-              lineTo(-4.5.dp.toPx() * vScale, -r)
-              lineTo(4.5.dp.toPx() * vScale, -r)
-              close()
+              // 2. Rear Tire & Mudguard
+              drawRoundRect(
+                color = Color(0xFF0F172A),
+                topLeft = Offset(userPos.x - 4.5.dp.toPx() * s, userPos.y + 10.dp.toPx() * s),
+                size = Size(9.dp.toPx() * s, 12.dp.toPx() * s),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(3.5.dp.toPx() * s)
+              )
+
+              // 3. Scooter Main Chassis / Frame (Cyan or Crimson when overspeeding)
+              val bodyColor = if (isOverspeeding) Color(0xFFEF4444) else if (vehicleIconType == VehicleIconType.MOTORBIKE) Color(0xFF0284C7) else Color(0xFF06B6D4)
+              val bodyHighlight = if (isOverspeeding) Color(0xFFFCA5A5) else Color(0xFF67E8F9)
+
+              val chassisPath = Path().apply {
+                moveTo(userPos.x - 8.dp.toPx() * s, userPos.y + 12.dp.toPx() * s)
+                lineTo(userPos.x - 11.dp.toPx() * s, userPos.y - 3.dp.toPx() * s)
+                lineTo(userPos.x - 5.dp.toPx() * s, userPos.y - 18.dp.toPx() * s)
+                lineTo(userPos.x + 5.dp.toPx() * s, userPos.y - 18.dp.toPx() * s)
+                lineTo(userPos.x + 11.dp.toPx() * s, userPos.y - 3.dp.toPx() * s)
+                lineTo(userPos.x + 8.dp.toPx() * s, userPos.y + 12.dp.toPx() * s)
+                close()
+              }
+              drawPath(chassisPath, color = bodyColor)
+
+              // Central Gloss Ridge on scooter body
+              val ridgePath = Path().apply {
+                moveTo(userPos.x - 2.dp.toPx() * s, userPos.y - 16.dp.toPx() * s)
+                lineTo(userPos.x + 2.dp.toPx() * s, userPos.y - 16.dp.toPx() * s)
+                lineTo(userPos.x + 3.5.dp.toPx() * s, userPos.y + 8.dp.toPx() * s)
+                lineTo(userPos.x - 3.5.dp.toPx() * s, userPos.y + 8.dp.toPx() * s)
+                close()
+              }
+              drawPath(ridgePath, color = bodyHighlight)
+
+              // 4. Rear Tail Light (Red LED glow with white center)
+              drawRoundRect(
+                color = Color(0xFFFF1E1E),
+                topLeft = Offset(userPos.x - 5.5.dp.toPx() * s, userPos.y + 11.dp.toPx() * s),
+                size = Size(11.dp.toPx() * s, 3.2.dp.toPx() * s),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.5.dp.toPx() * s)
+              )
+
+              // 5. Handlebars & Dual Chrome Mirrors (Google Maps style)
+              drawLine(
+                color = Color(0xFF0F172A),
+                start = Offset(userPos.x - 14.dp.toPx() * s, userPos.y - 10.dp.toPx() * s),
+                end = Offset(userPos.x + 14.dp.toPx() * s, userPos.y - 10.dp.toPx() * s),
+                strokeWidth = 2.5.dp.toPx() * s,
+                cap = StrokeCap.Round
+              )
+              // Left Mirror
+              drawCircle(
+                color = Color(0xFFE2E8F0),
+                radius = 2.6.dp.toPx() * s,
+                center = Offset(userPos.x - 14.5.dp.toPx() * s, userPos.y - 12.5.dp.toPx() * s)
+              )
+              // Right Mirror
+              drawCircle(
+                color = Color(0xFFE2E8F0),
+                radius = 2.6.dp.toPx() * s,
+                center = Offset(userPos.x + 14.5.dp.toPx() * s, userPos.y - 12.5.dp.toPx() * s)
+              )
+
+              // 6. Rider Body (Jacket & Shoulders)
+              val jacketColor = Color(0xFF1E293B) // Dark slate jacket
+              drawRoundRect(
+                color = jacketColor,
+                topLeft = Offset(userPos.x - 8.dp.toPx() * s, userPos.y - 6.dp.toPx() * s),
+                size = Size(16.dp.toPx() * s, 12.dp.toPx() * s),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(5.dp.toPx() * s)
+              )
+
+              // 7. 3D Spherical White Helmet with Visor & Highlight
+              // Base shadow under helmet
+              drawCircle(
+                color = Color(0x40000000),
+                radius = 7.dp.toPx() * s,
+                center = Offset(userPos.x, userPos.y - 3.dp.toPx() * s)
+              )
+              // White 3D sphere gradient
+              drawCircle(
+                brush = Brush.radialGradient(
+                  colors = listOf(Color(0xFFFFFFFF), Color(0xFFF1F5F9), Color(0xFF94A3B8)),
+                  center = Offset(userPos.x - 1.8.dp.toPx() * s, userPos.y - 7.dp.toPx() * s),
+                  radius = 7.5.dp.toPx() * s
+                ),
+                radius = 6.8.dp.toPx() * s,
+                center = Offset(userPos.x, userPos.y - 5.dp.toPx() * s)
+              )
+              // Dark goggles / visor rim
+              drawRoundRect(
+                color = Color(0xFF0F172A),
+                topLeft = Offset(userPos.x - 4.5.dp.toPx() * s, userPos.y - 9.5.dp.toPx() * s),
+                size = Size(9.dp.toPx() * s, 2.8.dp.toPx() * s),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.2.dp.toPx() * s)
+              )
             }
-            drawContext.canvas.nativeCanvas.drawPath(triPath, arrowPaint)
-            drawContext.canvas.nativeCanvas.restore()
-
-            // Motorbike emoji
-            val iconStr = if (vehicleIconType == VehicleIconType.SCOOTER) "🛵" else "🏍️"
-            drawContext.canvas.nativeCanvas.drawText(iconStr, userPos.x, userPos.y + (5.5f * vScale).dp.toPx(), emojiPaint)
           }
 
           VehicleIconType.CAR -> {
-            val bgPaint = Paint().apply {
-              isAntiAlias = true
-              color = if (activeWarning?.isOverspeeding == true) android.graphics.Color.argb(255, 220, 38, 38) else android.graphics.Color.argb(255, 2, 132, 199)
-              style = Paint.Style.FILL
+            // 3D SPORT CAR SEDAN MODEL
+            val s = vScale * 1.3f
+            val w = 26.dp.toPx() * s
+            val h = 48.dp.toPx() * s
+
+            rotate(degrees = resolvedHeading, pivot = userPos) {
+              // 1. Drop shadow
+              drawRoundRect(
+                color = Color(0x50000000),
+                topLeft = Offset(userPos.x - w * 0.5f, userPos.y - h * 0.48f + 2.dp.toPx() * s),
+                size = Size(w, h),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(8.dp.toPx() * s)
+              )
+
+              // 2. Car Chassis Body
+              val carColor = if (isOverspeeding) Color(0xFFEF4444) else Color(0xFF0284C7)
+              drawRoundRect(
+                color = carColor,
+                topLeft = Offset(userPos.x - 11.dp.toPx() * s, userPos.y - 20.dp.toPx() * s),
+                size = Size(22.dp.toPx() * s, 40.dp.toPx() * s),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(6.dp.toPx() * s)
+              )
+
+              // 3. Front Windshield (Dark glass with highlight)
+              drawRoundRect(
+                color = Color(0xFF0F172A),
+                topLeft = Offset(userPos.x - 8.dp.toPx() * s, userPos.y - 12.dp.toPx() * s),
+                size = Size(16.dp.toPx() * s, 9.dp.toPx() * s),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(3.dp.toPx() * s)
+              )
+
+              // 4. Roof Metallic Panel
+              drawRoundRect(
+                color = if (isOverspeeding) Color(0xFFDC2626) else Color(0xFF0369A1),
+                topLeft = Offset(userPos.x - 7.5.dp.toPx() * s, userPos.y - 2.dp.toPx() * s),
+                size = Size(15.dp.toPx() * s, 11.dp.toPx() * s),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx() * s)
+              )
+
+              // 5. Rear Glass
+              drawRoundRect(
+                color = Color(0xFF0F172A),
+                topLeft = Offset(userPos.x - 8.dp.toPx() * s, userPos.y + 10.dp.toPx() * s),
+                size = Size(16.dp.toPx() * s, 5.dp.toPx() * s),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx() * s)
+              )
+
+              // 6. Dual Headlights (Front LED) & Taillights (Rear Red)
+              drawCircle(color = Color(0xFFFFFBEB), radius = 2.dp.toPx() * s, center = Offset(userPos.x - 8.dp.toPx() * s, userPos.y - 19.dp.toPx() * s))
+              drawCircle(color = Color(0xFFFFFBEB), radius = 2.dp.toPx() * s, center = Offset(userPos.x + 8.dp.toPx() * s, userPos.y - 19.dp.toPx() * s))
+              drawRoundRect(color = Color(0xFFFF2222), topLeft = Offset(userPos.x - 9.dp.toPx() * s, userPos.y + 18.dp.toPx() * s), size = Size(5.dp.toPx() * s, 2.dp.toPx() * s), cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.dp.toPx() * s))
+              drawRoundRect(color = Color(0xFFFF2222), topLeft = Offset(userPos.x + 4.dp.toPx() * s, userPos.y + 18.dp.toPx() * s), size = Size(5.dp.toPx() * s, 2.dp.toPx() * s), cornerRadius = androidx.compose.ui.geometry.CornerRadius(1.dp.toPx() * s))
             }
-            val borderPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.WHITE; style = Paint.Style.STROKE; strokeWidth = 3.2.dp.toPx() * vScale }
-            val emojiPaint = Paint().apply { isAntiAlias = true; textSize = emojiSizePx; textAlign = Paint.Align.CENTER }
-            val arrowPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.WHITE; style = Paint.Style.FILL }
-
-            drawContext.canvas.nativeCanvas.drawCircle(userPos.x, userPos.y, r, bgPaint)
-            drawContext.canvas.nativeCanvas.drawCircle(userPos.x, userPos.y, r, borderPaint)
-
-            drawContext.canvas.nativeCanvas.save()
-            drawContext.canvas.nativeCanvas.translate(userPos.x, userPos.y)
-            drawContext.canvas.nativeCanvas.rotate(resolvedHeading)
-            val triPath = android.graphics.Path().apply {
-              moveTo(0f, -r - 7.dp.toPx() * vScale); lineTo(-4.5.dp.toPx() * vScale, -r); lineTo(4.5.dp.toPx() * vScale, -r); close()
-            }
-            drawContext.canvas.nativeCanvas.drawPath(triPath, arrowPaint)
-            drawContext.canvas.nativeCanvas.restore()
-
-            drawContext.canvas.nativeCanvas.drawText("🚗", userPos.x, userPos.y + (5.5f * vScale).dp.toPx(), emojiPaint)
           }
 
           VehicleIconType.TRUCK -> {
             val bgPaint = Paint().apply {
               isAntiAlias = true
-              color = if (activeWarning?.isOverspeeding == true) android.graphics.Color.argb(255, 220, 38, 38) else android.graphics.Color.argb(255, 100, 116, 139)
+              color = if (isOverspeeding) android.graphics.Color.argb(255, 220, 38, 38) else android.graphics.Color.argb(255, 100, 116, 139)
               style = Paint.Style.FILL
             }
             val borderPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.WHITE; style = Paint.Style.STROKE; strokeWidth = 3.2.dp.toPx() * vScale }
-            val emojiPaint = Paint().apply { isAntiAlias = true; textSize = emojiSizePx; textAlign = Paint.Align.CENTER }
+            val emojiPaint = Paint().apply { isAntiAlias = true; textSize = 16.5.sp.toPx() * vScale; textAlign = Paint.Align.CENTER }
             val arrowPaint = Paint().apply { isAntiAlias = true; color = android.graphics.Color.WHITE; style = Paint.Style.FILL }
 
             drawContext.canvas.nativeCanvas.drawCircle(userPos.x, userPos.y, r, bgPaint)

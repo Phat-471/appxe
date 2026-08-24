@@ -226,6 +226,7 @@ fun LiveMapScreen(
       },
       vehicleIconScale = userSettings.vehicleIconScale,
       roadSnappingEnabled = userSettings.roadSnappingEnabled,
+      cameraTilt3D = userSettings.mapCameraTilt3D,
       modifier = Modifier.fillMaxSize()
     )
 

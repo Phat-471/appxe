@@ -733,41 +733,54 @@ class GpsLocationEngine(private val context: Context) {
     var currentStepIndex = route.currentStepIndex
     val updatedSteps = route.steps.toMutableList()
 
-    if (updatedSteps.isNotEmpty() && currentStepIndex < updatedSteps.size) {
-      val nextStep = updatedSteps[currentStepIndex]
-      val distToNextStep = VietnamTrafficData.calculateDistanceMeters(
-        currentLat, currentLng,
-        nextStep.latitude, nextStep.longitude
-      ).toInt()
-
-      // Update remaining distance for the upcoming maneuver
-      updatedSteps[currentStepIndex] = nextStep.copy(distanceMeters = distToNextStep.coerceAtLeast(0))
-
-      if (distToNextStep < 20 && currentStepIndex < updatedSteps.size - 1) {
-        currentStepIndex++
+    if (updatedSteps.isNotEmpty()) {
+      // Determine which step is the target maneuver ahead:
+      // If at step 0 (DEPART) and there are more steps, target is step 1.
+      var targetManeuverIndex = if (currentStepIndex == 0 && updatedSteps.size > 1 && updatedSteps[0].maneuver == NavigationManeuverType.DEPART) {
+        1
+      } else {
+        (currentStepIndex + 1).coerceAtMost(updatedSteps.size - 1)
       }
 
-      // Voice prompt trigger for upcoming turn
-      val upcomingStep = updatedSteps.getOrNull(currentStepIndex)
-      if (upcomingStep != null) {
-        val stepDist = distToNextStep.coerceAtLeast(15)
-        val band = when {
-          stepDist in 220..380 -> 300
-          stepDist in 60..160 -> 100
-          stepDist < 35 -> 30
-          else -> -1
-        }
+      val targetStep = updatedSteps[targetManeuverIndex]
+      val distToTargetStep = VietnamTrafficData.calculateDistanceMeters(
+        currentLat, currentLng,
+        targetStep.latitude, targetStep.longitude
+      ).toInt()
 
-        if (band != -1 && (lastAlertedStepIndex != currentStepIndex || lastAlertedDistanceBand != band)) {
-          lastAlertedStepIndex = currentStepIndex
-          lastAlertedDistanceBand = band
-          val prompt = if (band == 30) {
-            "${upcomingStep.instruction} ngay bây giờ!"
-          } else {
-            "Phía trước ${band} mét, ${upcomingStep.instruction}"
-          }
-          onTurnVoicePrompt?.invoke(prompt)
+      // Advance to next step once passed current target maneuver (within 18m)
+      if (distToTargetStep < 18 && targetManeuverIndex < updatedSteps.size - 1) {
+        currentStepIndex = targetManeuverIndex
+        targetManeuverIndex = (currentStepIndex + 1).coerceAtMost(updatedSteps.size - 1)
+        lastAlertedDistanceBand = -1
+      }
+
+      // Update remaining distance for the upcoming maneuver
+      val activeManeuverStep = updatedSteps[targetManeuverIndex]
+      val activeDist = VietnamTrafficData.calculateDistanceMeters(
+        currentLat, currentLng,
+        activeManeuverStep.latitude, activeManeuverStep.longitude
+      ).toInt()
+
+      updatedSteps[targetManeuverIndex] = activeManeuverStep.copy(distanceMeters = activeDist.coerceAtLeast(0))
+
+      // Timely Voice Prompt Trigger (Before reaching the turn: 300m, 100m, 30m)
+      val band = when {
+        activeDist in 220..380 -> 300
+        activeDist in 60..150 -> 100
+        activeDist in 15..45 -> 30
+        else -> -1
+      }
+
+      if (band != -1 && (lastAlertedStepIndex != targetManeuverIndex || lastAlertedDistanceBand != band)) {
+        lastAlertedStepIndex = targetManeuverIndex
+        lastAlertedDistanceBand = band
+        val prompt = when (band) {
+          30 -> "Chuẩn bị ${activeManeuverStep.instruction}!"
+          100 -> "Phía trước 100 mét, ${activeManeuverStep.instruction}"
+          else -> "Phía trước ${band} mét, ${activeManeuverStep.instruction}"
         }
+        onTurnVoicePrompt?.invoke(prompt)
       }
     }
 

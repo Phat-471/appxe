@@ -14,18 +14,19 @@ import android.os.Bundle
 import android.os.IBinder
 import android.provider.Settings
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.WindowManager
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -48,13 +50,11 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.example.MainActivity
-import com.example.R
 import com.example.data.model.VisualSpeedAlertState
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlin.math.abs
 
 class FloatingSpeedBubbleService : Service() {
 
@@ -82,10 +82,14 @@ class FloatingSpeedBubbleService : Service() {
       val intent = Intent(context, FloatingSpeedBubbleService::class.java).apply {
         action = ACTION_START
       }
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        context.startForegroundService(intent)
-      } else {
-        context.startService(intent)
+      try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+          context.startForegroundService(intent)
+        } else {
+          context.startService(intent)
+        }
+      } catch (e: Exception) {
+        android.util.Log.e(TAG, "Failed to start FloatingSpeedBubbleService: ${e.message}")
       }
     }
 
@@ -93,7 +97,9 @@ class FloatingSpeedBubbleService : Service() {
       val intent = Intent(context, FloatingSpeedBubbleService::class.java).apply {
         action = ACTION_STOP
       }
-      context.startService(intent)
+      try {
+        context.startService(intent)
+      } catch (_: Exception) {}
     }
   }
 
@@ -169,8 +175,8 @@ class FloatingSpeedBubbleService : Service() {
       PixelFormat.TRANSLUCENT
     ).apply {
       gravity = Gravity.TOP or Gravity.START
-      x = 30
-      y = 180
+      x = 40
+      y = 220
     }
 
     floatingView = ComposeView(this).apply {
@@ -181,6 +187,21 @@ class FloatingSpeedBubbleService : Service() {
         val alertState by SpeedLimitTrackingService.visualAlertState.collectAsState()
         FloatingSpeedBubbleContent(
           alertState = alertState,
+          onDragDelta = { dx, dy ->
+            params.x += dx.toInt()
+            params.y += dy.toInt()
+            try {
+              windowManager?.updateViewLayout(this@apply, params)
+            } catch (_: Exception) {}
+          },
+          onDragEnd = {
+            val screenWidth = resources.displayMetrics.widthPixels
+            val viewWidth = this@apply.width.coerceAtLeast(160)
+            params.x = if (params.x + viewWidth / 2 < screenWidth / 2) 20 else screenWidth - viewWidth - 20
+            try {
+              windowManager?.updateViewLayout(this@apply, params)
+            } catch (_: Exception) {}
+          },
           onOpenApp = {
             val appIntent = Intent(this@FloatingSpeedBubbleService, MainActivity::class.java).apply {
               flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -192,63 +213,12 @@ class FloatingSpeedBubbleService : Service() {
           }
         )
       }
-
-      // Smooth Dragging Touch Handler
-      var initialX = 0
-      var initialY = 0
-      var initialTouchX = 0f
-      var initialTouchY = 0f
-      var isMoving = false
-
-      setOnTouchListener { _, event ->
-        when (event.action) {
-          MotionEvent.ACTION_DOWN -> {
-            initialX = params.x
-            initialY = params.y
-            initialTouchX = event.rawX
-            initialTouchY = event.rawY
-            isMoving = false
-            true
-          }
-          MotionEvent.ACTION_MOVE -> {
-            val dx = (event.rawX - initialTouchX).toInt()
-            val dy = (event.rawY - initialTouchY).toInt()
-            if (abs(dx) > 10 || abs(dy) > 10) {
-              isMoving = true
-            }
-            params.x = initialX + dx
-            params.y = initialY + dy
-            try {
-              windowManager?.updateViewLayout(this, params)
-            } catch (_: Exception) {}
-            true
-          }
-          MotionEvent.ACTION_UP -> {
-            if (!isMoving) {
-              // Quick tap opens the main application
-              val appIntent = Intent(this@FloatingSpeedBubbleService, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-              }
-              startActivity(appIntent)
-            } else {
-              // Magnetic Snap to closest screen edge (Left or Right)
-              val screenWidth = resources.displayMetrics.widthPixels
-              params.x = if (params.x + width / 2 < screenWidth / 2) 20 else screenWidth - width - 20
-              try {
-                windowManager?.updateViewLayout(this, params)
-              } catch (_: Exception) {}
-            }
-            true
-          }
-          else -> false
-        }
-      }
     }
 
     try {
       windowManager?.addView(floatingView, params)
     } catch (e: Exception) {
-      e.printStackTrace()
+      android.util.Log.e(TAG, "Error adding floatingView: ${e.message}")
       stopSelf()
     }
   }
@@ -292,7 +262,7 @@ class FloatingSpeedBubbleService : Service() {
 
     return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
       .setContentTitle("Bong bóng cảnh báo tốc độ đang chạy")
-      .setContentText("Đang nổi trên màn hình dẫn đường")
+      .setContentText("Đang nổi trên màn hình dẫn đường Google Maps")
       .setSmallIcon(android.R.drawable.ic_menu_compass)
       .setContentIntent(pendingIntent)
       .setOngoing(true)
@@ -304,6 +274,8 @@ class FloatingSpeedBubbleService : Service() {
 @Composable
 fun FloatingSpeedBubbleContent(
   alertState: VisualSpeedAlertState,
+  onDragDelta: (Float, Float) -> Unit,
+  onDragEnd: () -> Unit,
   onOpenApp: () -> Unit,
   onClose: () -> Unit
 ) {
@@ -314,13 +286,23 @@ fun FloatingSpeedBubbleContent(
   // Dynamic Border & Glow Colors
   val glowColor = when {
     isOverspeed -> Color(0xFFEF4444)
-    speedInt >= limitInt - 5 -> Color(0xFFF59E0B)
+    speedInt >= limitInt - 5 && limitInt > 0 -> Color(0xFFF59E0B)
     else -> Color(0xFF00B4D8)
   }
 
   Surface(
     modifier = Modifier
       .wrapContentSize()
+      .pointerInput(Unit) {
+        detectDragGestures(
+          onDragEnd = { onDragEnd() },
+          onDragCancel = { onDragEnd() },
+          onDrag = { change, dragAmount ->
+            change.consume()
+            onDragDelta(dragAmount.x, dragAmount.y)
+          }
+        )
+      }
       .shadow(16.dp, RoundedCornerShape(24.dp))
       .border(
         width = if (isOverspeed) 2.5.dp else 1.8.dp,
@@ -342,11 +324,12 @@ fun FloatingSpeedBubbleContent(
           .size(34.dp)
           .clip(CircleShape)
           .background(Color.White)
-          .border(3.2.dp, Color(0xFFDC2626), CircleShape),
+          .border(3.2.dp, Color(0xFFDC2626), CircleShape)
+          .clickable { onOpenApp() },
         contentAlignment = Alignment.Center
       ) {
         Text(
-          text = "$limitInt",
+          text = if (limitInt > 0) "$limitInt" else "50",
           fontSize = 13.sp,
           fontWeight = FontWeight.Black,
           color = Color.Black
@@ -356,7 +339,8 @@ fun FloatingSpeedBubbleContent(
       // 2. Vận tốc thực tế to rõ nét
       Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.clickable { onOpenApp() }
       ) {
         Row(verticalAlignment = Alignment.Bottom) {
           Text(
@@ -376,10 +360,20 @@ fun FloatingSpeedBubbleContent(
         }
       }
 
-      // 3. Nút đóng nhỏ gọn
+      // 3. Biểu tượng cảnh báo quá tốc độ nếu có
+      if (isOverspeed) {
+        Icon(
+          imageVector = Icons.Default.Warning,
+          contentDescription = "Quá tốc độ",
+          tint = Color(0xFFEF4444),
+          modifier = Modifier.size(18.dp)
+        )
+      }
+
+      // 4. Nút đóng nhỏ gọn
       Box(
         modifier = Modifier
-          .size(22.dp)
+          .size(24.dp)
           .clip(CircleShape)
           .background(Color(0xFF334155))
           .clickable { onClose() },
@@ -389,7 +383,7 @@ fun FloatingSpeedBubbleContent(
           imageVector = Icons.Default.Close,
           contentDescription = "Đóng",
           tint = Color(0xFFCBD5E1),
-          modifier = Modifier.size(14.dp)
+          modifier = Modifier.size(15.dp)
         )
       }
     }

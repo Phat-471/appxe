@@ -106,7 +106,7 @@ class TrafficWarningEngine(
       )
 
       // Skip cameras too far away to even consider
-      if (dist > alertMaxDistanceMeters + 100) continue
+      if (dist > alertMaxDistanceMeters + 150) continue
 
       if (isMoving) {
         val bearingToCam = VietnamTrafficData.calculateBearing(
@@ -121,28 +121,28 @@ class TrafficWarningEngine(
         val alongTrack = dist * cos(angleRad)
         val crossTrack = dist * abs(sin(angleRad))
 
-        // Mark camera as passed when it is behind the vehicle (< -10m) and close (< 45m)
-        if (alongTrack < -10.0 && dist < 45.0) {
+        // Mark camera as passed when it is behind the vehicle (< -15m) and close (< 50m)
+        if (alongTrack < -15.0 && dist < 50.0) {
           passedCameraIds.add(cam.id)
-          if (passedCameraIds.size > 80) passedCameraIds.remove(passedCameraIds.first())
+          if (passedCameraIds.size > 100) passedCameraIds.remove(passedCameraIds.first())
           continue
         }
 
-        // Camera must be ahead on the road
+        // Camera must be ahead on the road within alert distance
         if (alongTrack <= 0 || alongTrack > alertMaxDistanceMeters) continue
 
-        // Góc nhìn trực diện: xe phải đang hướng về phía camera (lệch tối đa 32 độ)
-        if (abs(angleDiffDeg) > 32.0f && alongTrack > 30.0) continue
+        // Góc quan sát hình nón phía trước: xe đang hướng về phía camera (lệch tối đa 65 độ theo chuẩn Vietmap/GSpeed)
+        if (abs(angleDiffDeg) > 65.0f && alongTrack > 25.0) continue
 
-        // Cross-Track Corridor Filter (Hành lang làn đường hẹp chuẩn xác):
+        // Cross-Track Corridor Filter (Hành lang làn đường thực tế):
         val maxAllowedCorridor = when {
-          alongTrack > 300.0 -> 30.0  // Bán kính hành lang xa (cho phép khúc cua nhẹ)
-          alongTrack > 100.0 -> 24.0  // Hành lang trung bình
-          else -> 18.0               // Rất gần: phải đúng làn đường đang chạy
+          alongTrack > 300.0 -> 80.0  // Bán kính hành lang xa (bao trọn khúc cua & đại lộ nhiều làn)
+          alongTrack > 100.0 -> 65.0  // Hành lang trung bình
+          else -> 48.0               // Gần camera
         }
 
         if (crossTrack > maxAllowedCorridor) {
-          // Camera ở đường nhánh/đường song song/ngõ hẻm -> BỎ QUA
+          // Camera quá xa hành lang đường đang chạy -> BỎ QUA
           continue
         }
 
@@ -152,8 +152,8 @@ class TrafficWarningEngine(
           nearestCamera = cam
         }
       } else {
-        // Xe dừng/chạy rất chậm: kiểm tra camera ngay phía trước trong phạm vi 60m
-        if (dist <= 60.0 && dist < minEuclideanDistance) {
+        // Xe dừng/chạy chậm: quét toàn bộ camera trong phạm vi 250m
+        if (dist <= 250.0 && dist < minEuclideanDistance) {
           minEuclideanDistance = dist
           minAlongTrackDistance = dist
           nearestCamera = cam

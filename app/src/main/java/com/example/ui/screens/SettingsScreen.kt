@@ -422,6 +422,7 @@ fun SettingsScreen(
             checked = settings.floatingBubbleEnabled,
             onCheckedChange = { isEnabled ->
               if (isEnabled) {
+                onUpdateSettings(settings.copy(floatingBubbleEnabled = true))
                 if (!FloatingSpeedBubbleService.canDrawOverlay(context)) {
                   if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     val intent = Intent(
@@ -432,7 +433,6 @@ fun SettingsScreen(
                   }
                 } else {
                   FloatingSpeedBubbleService.startService(context)
-                  onUpdateSettings(settings.copy(floatingBubbleEnabled = true))
                 }
               } else {
                 FloatingSpeedBubbleService.stopService(context)

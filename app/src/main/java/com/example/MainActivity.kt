@@ -41,7 +41,7 @@ class MainActivity : ComponentActivity() {
       viewModel.toggleGpsOrSimulation(useRealGps = true)
     }
 
-    // Observe user settings for screen-on & background service
+    // Observe user settings for screen-on, background service & floating bubble
     lifecycleScope.launch {
       viewModel.userSettings.collect { settings ->
         if (settings.autoScreenOn) {
@@ -52,6 +52,10 @@ class MainActivity : ComponentActivity() {
 
         if (settings.backgroundServiceEnabled && (hasFine || hasCoarse)) {
           SpeedLimitTrackingService.startService(this@MainActivity)
+        }
+
+        if (settings.floatingBubbleEnabled && com.example.service.FloatingSpeedBubbleService.canDrawOverlay(this@MainActivity)) {
+          com.example.service.FloatingSpeedBubbleService.startService(this@MainActivity)
         }
       }
     }
@@ -84,6 +88,11 @@ class MainActivity : ComponentActivity() {
     val hasCoarse = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
     if (hasFine || hasCoarse) {
       viewModel.toggleGpsOrSimulation(useRealGps = true)
+    }
+
+    val settings = viewModel.userSettings.value
+    if (settings.floatingBubbleEnabled && com.example.service.FloatingSpeedBubbleService.canDrawOverlay(this)) {
+      com.example.service.FloatingSpeedBubbleService.startService(this)
     }
   }
 }

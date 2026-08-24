@@ -49,6 +49,7 @@ fun CockpitDashboardScreen(
   onSelectSimulationRoute: (Int) -> Unit,
   onSetSimulatedSpeed: (Float) -> Unit,
   onSetCustomRoad: (String) -> Unit = {},
+  onTestSound: () -> Unit = {},
   onOpenReportDialog: () -> Unit,
   modifier: Modifier = Modifier
 ) {
@@ -159,6 +160,24 @@ fun CockpitDashboardScreen(
             imageVector = if (voiceEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
             contentDescription = "Bật tắt giọng nói",
             tint = if (voiceEnabled) NavRouteBlue else NavLightTextSecondary,
+            modifier = Modifier.size(20.dp)
+          )
+        }
+
+        // Test Voice Sound Button
+        IconButton(
+          onClick = onTestSound,
+          modifier = Modifier
+            .size(38.dp)
+            .clip(CircleShape)
+            .background(Color(0xFFDCFCE7))
+            .border(1.dp, Color(0xFF10B981), CircleShape)
+            .testTag("test_voice_button")
+        ) {
+          Icon(
+            imageVector = Icons.Default.Hearing,
+            contentDescription = "Thử giọng nói cảnh báo",
+            tint = Color(0xFF047857),
             modifier = Modifier.size(20.dp)
           )
         }

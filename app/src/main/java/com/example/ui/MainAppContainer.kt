@@ -202,6 +202,7 @@ fun MainAppContainer(
               onSelectSimulationRoute = { idx -> viewModel.setSimulationRoute(idx) },
               onSetSimulatedSpeed = { speed -> viewModel.setSimulatedSpeed(speed) },
               onSetCustomRoad = { road -> viewModel.setCustomTestRoad(road) },
+              onTestSound = { viewModel.testVoice() },
               onOpenReportDialog = { showReportDialog = true }
             )
           }

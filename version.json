@@ -2,8 +2,8 @@
   "versionCode": 121,
   "versionName": "1.2.1",
   "releaseDate": "25/08/2026",
-  "downloadUrl": "https://github.com/Phat-471/appxe/releases",
-  "sizeMb": 28.5,
+  "downloadUrl": "https://github.com/Phat-471/appxe/releases/download/v1.2.1/app-debug.apk",
+  "sizeMb": 23.2,
   "isMandatory": false,
   "releaseNotes": [
     "🚀 Tối ưu hóa tính năng Tự Động Cập Nhật Auto Update trong ứng dụng.",

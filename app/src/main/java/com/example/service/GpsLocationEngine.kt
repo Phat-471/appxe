@@ -158,11 +158,25 @@ class GpsLocationEngine(private val context: Context) {
         }
       }
 
+      // 1. Fetch immediate last known location from all available providers
       val lastGps = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
       val lastNet = locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
-      val bestLast = lastGps ?: lastNet
-      if (bestLast != null && !hasInitialGpsFix) {
-        processRealGpsLocation(bestLast)
+      val lastPassive = locationManager?.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER)
+      val bestImmediate = lastGps ?: lastNet ?: lastPassive
+      if (bestImmediate != null) {
+        processRealGpsLocation(bestImmediate)
+      }
+
+      // 2. Instantly request high-accuracy current location fix via FusedClient
+      fusedClient?.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)?.addOnSuccessListener { loc ->
+        if (loc != null) {
+          processRealGpsLocation(loc)
+        }
+      }
+      fusedClient?.lastLocation?.addOnSuccessListener { loc ->
+        if (loc != null && !hasInitialGpsFix) {
+          processRealGpsLocation(loc)
+        }
       }
 
       // 3. High-precision Real-time Fused location stream (150ms interval, 0m displacement)
@@ -185,10 +199,10 @@ class GpsLocationEngine(private val context: Context) {
 
       fusedClient?.requestLocationUpdates(request, locationCallback!!, Looper.getMainLooper())
 
-      // 4. Hardware GPS Fallback listener (Chỉ kích hoạt khi Fused Location không phản hồi)
+      // 4. Dual Hardware GPS + Network Fallback listeners (Lấy vị trí nhanh kể cả khi trong nhà)
       androidLocationListener = object : LocationListener {
         override fun onLocationChanged(loc: Location) {
-          if (loc.accuracy <= 30f || !hasInitialGpsFix) {
+          if (loc.accuracy <= 35f || !hasInitialGpsFix) {
             processRealGpsLocation(loc)
           }
         }
@@ -202,6 +216,13 @@ class GpsLocationEngine(private val context: Context) {
         locationManager?.requestLocationUpdates(
           LocationManager.GPS_PROVIDER,
           200L,
+          0f,
+          androidLocationListener!!,
+          Looper.getMainLooper()
+        )
+        locationManager?.requestLocationUpdates(
+          LocationManager.NETWORK_PROVIDER,
+          500L,
           0f,
           androidLocationListener!!,
           Looper.getMainLooper()
@@ -327,27 +348,34 @@ class GpsLocationEngine(private val context: Context) {
       kalmanFilter.setState(rawLoc.latitude, rawLoc.longitude, rawSpeedKmh)
       smoothLat = rawLoc.latitude
       smoothLng = rawLoc.longitude
-      smoothSpeed = if (rawSpeedKmh >= 2.0f) rawSpeedKmh else 0f
+      smoothSpeed = if (rawSpeedKmh >= 3.0f) rawSpeedKmh else 0f
       smoothHeading = rawBearing
       stationaryAnchorLat = rawLoc.latitude
       stationaryAnchorLng = rawLoc.longitude
-      isStationaryLocked = rawSpeedKmh < 2.0f
+      isStationaryLocked = rawSpeedKmh < 3.0f
       hasInitialGpsFix = true
     } else {
-      if (rawSpeedKmh < 1.2f) {
-        // Xe thực sự dừng / đứng yên
+      // Ngưỡng 3.0 km/h (Chuẩn Google Maps & Vietmap): Triệt tiêu hoàn toàn nhiễu Doppler khi đứng yên
+      if (rawSpeedKmh < 3.0f) {
+        // Xe thực sự dừng / đứng yên: Khóa cứng 0 km/h
         isStationaryLocked = true
         smoothSpeed = 0f
-        if (stationaryAnchorLat == 0.0) {
+
+        if (stationaryAnchorLat == 0.0 || stationaryAnchorLng == 0.0) {
           stationaryAnchorLat = rawLoc.latitude
           stationaryAnchorLng = rawLoc.longitude
         }
-        // Giữ vị trí neo tránh trôi map khi đèn đỏ
-        val distDrift = VietnamTrafficData.calculateDistanceMeters(stationaryAnchorLat, stationaryAnchorLng, rawLoc.latitude, rawLoc.longitude)
-        if (distDrift < 12.0) {
+
+        // Giữ vị trí neo tuyệt đối tránh trôi map khi dừng đèn đỏ / đứng yên trong nhà
+        val distDrift = VietnamTrafficData.calculateDistanceMeters(
+          stationaryAnchorLat, stationaryAnchorLng,
+          rawLoc.latitude, rawLoc.longitude
+        )
+        if (distDrift < 10.0) {
           smoothLat = stationaryAnchorLat
           smoothLng = stationaryAnchorLng
         } else {
+          // Xe di chuyển thực tế > 10m thì cập nhật lại điểm neo
           smoothLat = rawLoc.latitude
           smoothLng = rawLoc.longitude
           stationaryAnchorLat = rawLoc.latitude
@@ -372,8 +400,8 @@ class GpsLocationEngine(private val context: Context) {
         smoothLat = kalmanResult.lat
         smoothLng = kalmanResult.lng
 
-        // Fast, responsive heading update
-        if (rawLoc.hasBearing() && rawLoc.bearing != 0f && smoothSpeed > 2.0f) {
+        // Fast, responsive heading update khi xe đang chạy
+        if (rawLoc.hasBearing() && rawLoc.bearing != 0f && smoothSpeed > 3.0f) {
           var diff = rawLoc.bearing - smoothHeading
           while (diff > 180f) diff -= 360f
           while (diff < -180f) diff += 360f
@@ -381,7 +409,7 @@ class GpsLocationEngine(private val context: Context) {
         }
 
         // Apply Vietmap-Grade Map Matching (Orthogonal Snap-to-Road Centerline)
-        if (smoothSpeed > 2.5f) {
+        if (smoothSpeed > 3.5f) {
           val snapped = MapMatchingEngine.snapToRoad(
             rawLat = smoothLat,
             rawLng = smoothLng,

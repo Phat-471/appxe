@@ -223,7 +223,7 @@ fun OfflineMapCanvas(
             val cTileX = OsmTileManager.lon2tileX(centerLng, anchorZoom)
             val cTileY = OsmTileManager.lat2tileY(centerLat, anchorZoom)
 
-            // Check camera taps với toạ độ đã bù góc xoay
+            // Check camera taps với toạ độ đã bù góc xoay (Hitbox mở rộng 120px)
             var tappedCam: TrafficCamera? = null
             for (cam in cameras) {
               val camTileX = OsmTileManager.lon2tileX(cam.longitude, anchorZoom)
@@ -231,13 +231,13 @@ fun OfflineMapCanvas(
               val cx = midX + (camTileX - cTileX).toFloat() * tileSizePx
               val cy = midY + (camTileY - cTileY).toFloat() * tileSizePx
               val dist = hypot(effectiveTap.x - cx, effectiveTap.y - cy)
-              if (dist < 95f) {
+              if (dist < 120f) {
                 tappedCam = cam
                 break
               }
             }
 
-            // Check POI taps với toạ độ đã bù góc xoay
+            // Check POI taps với toạ độ đã bù góc xoay (Hitbox mở rộng 110px)
             var tappedPoi: MapPoi? = null
             for (poi in pois) {
               val poiTileX = OsmTileManager.lon2tileX(poi.longitude, anchorZoom)
@@ -245,7 +245,7 @@ fun OfflineMapCanvas(
               val px = midX + (poiTileX - cTileX).toFloat() * tileSizePx
               val py = midY + (poiTileY - cTileY).toFloat() * tileSizePx
               val dist = hypot(effectiveTap.x - px, effectiveTap.y - py)
-              if (dist < 85f) {
+              if (dist < 110f) {
                 tappedPoi = poi
                 break
               }

@@ -154,7 +154,31 @@ fun CameraDetailBottomSheet(
         }
       }
 
-      // 4. Action Buttons
+      // 4. Tra cứu phạt nguội online button (Cần Internet)
+      val context = androidx.compose.ui.platform.LocalContext.current
+      Button(
+        onClick = {
+          try {
+            val browserIntent = android.content.Intent(
+              android.content.Intent.ACTION_VIEW,
+              android.net.Uri.parse("https://phatnguoi.vn")
+            )
+            browserIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+            context.startActivity(browserIntent)
+          } catch (e: Exception) {
+            /* ignore */
+          }
+        },
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+      ) {
+        Icon(Icons.Default.Language, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text("Tra Cứu Phạt Nguội Trực Tuyến (Online CSGT)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+      }
+
+      // 5. Action Buttons
       Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp)

@@ -499,8 +499,15 @@ object VietnamTrafficData {
     mode: com.example.data.model.VehicleRoutingMode = com.example.data.model.VehicleRoutingMode.MOTORBIKE
   ): com.example.data.model.NavigationRoute {
     val totalDirectDist = calculateDistanceMeters(startLat, startLng, destLat, destLng)
-    val baseDistanceMeters = (totalDirectDist * 1.25).toInt().coerceAtLeast(350)
-    val baseDurationMinutes = ((baseDistanceMeters / 1000.0) / (if (mode == com.example.data.model.VehicleRoutingMode.MOTORBIKE) 32.0 else 36.0) * 60.0).toInt().coerceAtLeast(2)
+    // Hệ số uốn lượn đường phố đô thị Việt Nam (1.45x so với đường thẳng chim bay)
+    val baseDistanceMeters = (totalDirectDist * 1.45).toInt().coerceAtLeast(350)
+    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    val avgSpeed = when {
+      hour in 7..9 || hour in 16..19 -> 18.5
+      hour in 22..23 || hour in 0..5 -> 38.0
+      else -> 23.5
+    }
+    val baseDurationMinutes = ((baseDistanceMeters / 1000.0) / avgSpeed * 60.0).toInt().coerceAtLeast(2)
 
     // 1. PRIMARY ROUTE (TỐI ƯU NHẤT)
     val waypointsPrimary = mutableListOf<Pair<Double, Double>>()

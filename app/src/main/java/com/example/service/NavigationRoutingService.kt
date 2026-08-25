@@ -21,9 +21,163 @@ object NavigationRoutingService {
   private const val TAG = "NavigationRoutingService"
 
   private val httpClient = OkHttpClient.Builder()
-    .connectTimeout(5, TimeUnit.SECONDS)
-    .readTimeout(6, TimeUnit.SECONDS)
+    .connectTimeout(10, TimeUnit.SECONDS)
+    .readTimeout(12, TimeUnit.SECONDS)
     .build()
+
+  /**
+   * Fetch Multi-Route options from OSRM / OpenStreetMap mirrors with turn-by-turn maneuvers & traffic flow.
+   * Returns primary route with attached alternative routes (Fastest, Shortest, Motorbike safe).
+   */
+  suspend fun fetchRoute(
+    startLat: Double,
+    startLng: Double,
+    destLat: Double,
+    destLng: Double,
+    destName: String,
+    destAddress: String,
+    mode: VehicleRoutingMode = VehicleRoutingMode.MOTORBIKE
+  ): NavigationRoute = withContext(Dispatchers.IO) {
+    val routingUrls = listOf(
+      "https://router.project-osrm.org/route/v1/driving/$startLng,$startLat;$destLng,$destLat?alternatives=true&overview=full&geometries=polyline&steps=true&annotations=true",
+      "https://routing.openstreetmap.de/routed-bike/route/v1/driving/$startLng,$startLat;$destLng,$destLat?alternatives=true&overview=full&geometries=polyline&steps=true&annotations=true",
+      "https://routing.openstreetmap.de/routed-car/route/v1/driving/$startLng,$startLat;$destLng,$destLat?alternatives=true&overview=full&geometries=polyline&steps=true&annotations=true"
+    )
+
+    for (url in routingUrls) {
+      try {
+        val request = Request.Builder()
+          .url(url)
+          .header("User-Agent", "SpeedAlertVietnamApp/2.0 (Android Live Navigation)")
+          .build()
+
+        httpClient.newCall(request).execute().use { response ->
+          if (response.isSuccessful) {
+            val responseBody = response.body?.string()
+            if (!responseBody.isNullOrBlank()) {
+              val json = JSONObject(responseBody)
+              if (json.optString("code") == "Ok") {
+                val routesArray = json.getJSONArray("routes")
+                if (routesArray.length() > 0) {
+                  val parsedRoutes = mutableListOf<NavigationRoute>()
+
+                  for (rIndex in 0 until routesArray.length()) {
+                    val routeObj = routesArray.getJSONObject(rIndex)
+                    val totalDistMeters = routeObj.optDouble("distance", 0.0).roundToInt()
+                    val distKm = totalDistMeters / 1000.0
+
+                    // Tính thời gian chuẩn theo giao thông xe máy Việt Nam
+                    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                    val avgCitySpeed = when {
+                      hour in 7..9 || hour in 16..19 -> 18.5 // Giờ cao điểm
+                      hour in 22..23 || hour in 0..5 -> 40.0 // Đêm vắng
+                      else -> 28.0 // Bình thường
+                    }
+                    val realisticDurationMin = ((distKm / avgCitySpeed) * 60.0).roundToInt().coerceAtLeast(1)
+
+                    val encodedPoly = routeObj.optString("geometry", "")
+
+                    val waypoints = if (encodedPoly.isNotEmpty()) {
+                      decodePolyline(encodedPoly)
+                    } else {
+                      listOf(startLat to startLng, destLat to destLng)
+                    }
+
+                    val steps = mutableListOf<NavigationStep>()
+                    val legs = routeObj.getJSONArray("legs")
+                    if (legs.length() > 0) {
+                      val legSteps = legs.getJSONObject(0).getJSONArray("steps")
+                      for (i in 0 until legSteps.length()) {
+                        val stepObj = legSteps.getJSONObject(i)
+                        val stepDist = stepObj.optDouble("distance", 0.0).roundToInt()
+                        val stepName = stepObj.optString("name", "Tuyến đường chính").ifBlank { "Đường đô thị" }
+                        val maneuverObj = stepObj.getJSONObject("maneuver")
+                        val maneuverTypeStr = maneuverObj.optString("type", "")
+                        val maneuverModifier = maneuverObj.optString("modifier", "")
+                        val exitNumber = maneuverObj.optInt("exit", 0)
+                        val locArray = maneuverObj.getJSONArray("location")
+                        val stepLng = locArray.getDouble(0)
+                        val stepLat = locArray.getDouble(1)
+
+                        val maneuverType = parseManeuver(maneuverTypeStr, maneuverModifier)
+                        val instruction = buildVietnameseInstruction(maneuverType, stepName, stepDist, i == legSteps.length() - 1, destName, exitNumber)
+
+                        steps.add(
+                          NavigationStep(
+                            instruction = instruction,
+                            distanceMeters = stepDist,
+                            maneuver = maneuverType,
+                            roadName = stepName,
+                            latitude = stepLat,
+                            longitude = stepLng,
+                            roundaboutExitNumber = exitNumber
+                          )
+                        )
+                      }
+                    }
+
+                    if (steps.isNotEmpty() && waypoints.size >= 2) {
+                      val (trafficSegments, overallCongestion) = TrafficFlowService.computeRouteTrafficFlow(waypoints, destName)
+                      val tag = when (rIndex) {
+                        0 -> "Tốt nhất (${realisticDurationMin} phút)"
+                        1 -> "Ngắn nhất (-${((parsedRoutes.firstOrNull()?.totalDistanceMeters ?: totalDistMeters) - totalDistMeters).coerceAtLeast(0)}m)"
+                        else -> if (mode == VehicleRoutingMode.MOTORBIKE) "Tuyến xe máy thuận tiện" else "Tránh trạm thu phí BOT"
+                      }
+
+                      parsedRoutes.add(
+                        NavigationRoute(
+                          id = "osrm_route_${rIndex}_${System.currentTimeMillis()}",
+                          destinationName = destName,
+                          destinationAddress = destAddress,
+                          destinationLat = destLat,
+                          destinationLng = destLng,
+                          totalDistanceMeters = totalDistMeters,
+                          estimatedDurationMinutes = realisticDurationMin,
+                          waypoints = waypoints,
+                          steps = steps,
+                          currentStepIndex = 0,
+                          isNavigating = (rIndex == 0),
+                          trafficSegments = trafficSegments,
+                          overallCongestion = overallCongestion,
+                          routeTag = tag,
+                          isMotorbikeSafe = true,
+                          hasTollBooth = mode == VehicleRoutingMode.CAR
+                        )
+                      )
+                    }
+                  }
+
+                  if (parsedRoutes.isNotEmpty()) {
+                    val primary = parsedRoutes[0]
+                    val alternatives = if (parsedRoutes.size > 1) parsedRoutes.subList(1, parsedRoutes.size) else emptyList()
+                    return@withContext primary.copy(alternativeRoutes = alternatives)
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (e: Exception) {
+        Log.w(TAG, "Routing url $url failed: ${e.message}")
+      }
+    }
+
+    // Fallback to high-fidelity multi-route local generator
+    val localRoute = VietnamTrafficData.generateTurnByTurnRoute(
+      startLat = startLat,
+      startLng = startLng,
+      destLat = destLat,
+      destLng = destLng,
+      destName = destName,
+      destAddress = destAddress,
+      mode = mode
+    )
+    val (localTraffic, localCongestion) = TrafficFlowService.computeRouteTrafficFlow(localRoute.waypoints, destName)
+    return@withContext localRoute.copy(
+      trafficSegments = localTraffic,
+      overallCongestion = localCongestion
+    )
+  }
 
   /**
    * Search locations / street names online via Photon / OSM Geocoding with Proximity Bias.
@@ -373,145 +527,6 @@ object NavigationRoutingService {
       Log.w(TAG, "fetchOsmRoadInfo error: ${e.message}")
     }
     return@withContext null
-  }
-
-  /**
-   * Fetch Multi-Route options from OSRM with turn-by-turn maneuvers & traffic flow.
-   * Returns primary route with attached alternative routes (Fastest, Shortest, Motorbike safe).
-   */
-  suspend fun fetchRoute(
-    startLat: Double,
-    startLng: Double,
-    destLat: Double,
-    destLng: Double,
-    destName: String,
-    destAddress: String,
-    mode: VehicleRoutingMode = VehicleRoutingMode.MOTORBIKE
-  ): NavigationRoute = withContext(Dispatchers.IO) {
-    try {
-      // Request alternatives from OSRM
-      val url = "https://router.project-osrm.org/route/v1/driving/$startLng,$startLat;$destLng,$destLat?alternatives=true&overview=full&geometries=polyline&steps=true&annotations=true"
-      val request = Request.Builder()
-        .url(url)
-        .header("User-Agent", "SpeedAlertVietnamApp/2.0 (Android Live Navigation)")
-        .build()
-
-      httpClient.newCall(request).execute().use { response ->
-        if (response.isSuccessful) {
-          val responseBody = response.body?.string()
-          if (!responseBody.isNullOrBlank()) {
-            val json = JSONObject(responseBody)
-            if (json.optString("code") == "Ok") {
-              val routesArray = json.getJSONArray("routes")
-              if (routesArray.length() > 0) {
-                val parsedRoutes = mutableListOf<NavigationRoute>()
-
-                for (rIndex in 0 until routesArray.length()) {
-                  val routeObj = routesArray.getJSONObject(rIndex)
-                  val totalDistMeters = routeObj.optDouble("distance", 0.0).roundToInt()
-                  val durationSec = routeObj.optDouble("duration", 0.0)
-                  val durationMin = (durationSec / 60.0).roundToInt().coerceAtLeast(1)
-                  val encodedPoly = routeObj.optString("geometry", "")
-
-                  val waypoints = if (encodedPoly.isNotEmpty()) {
-                    decodePolyline(encodedPoly)
-                  } else {
-                    listOf(startLat to startLng, destLat to destLng)
-                  }
-
-                  val steps = mutableListOf<NavigationStep>()
-                  val legs = routeObj.getJSONArray("legs")
-                  if (legs.length() > 0) {
-                    val legSteps = legs.getJSONObject(0).getJSONArray("steps")
-                    for (i in 0 until legSteps.length()) {
-                      val stepObj = legSteps.getJSONObject(i)
-                      val stepDist = stepObj.optDouble("distance", 0.0).roundToInt()
-                      val stepName = stepObj.optString("name", "Tuyến đường chính").ifBlank { "Đường đô thị" }
-                      val maneuverObj = stepObj.getJSONObject("maneuver")
-                      val maneuverTypeStr = maneuverObj.optString("type", "")
-                      val maneuverModifier = maneuverObj.optString("modifier", "")
-                      val exitNumber = maneuverObj.optInt("exit", 0)
-                      val locArray = maneuverObj.getJSONArray("location")
-                      val stepLng = locArray.getDouble(0)
-                      val stepLat = locArray.getDouble(1)
-
-                      val maneuverType = parseManeuver(maneuverTypeStr, maneuverModifier)
-                      val instruction = buildVietnameseInstruction(maneuverType, stepName, stepDist, i == legSteps.length() - 1, destName, exitNumber)
-
-                      steps.add(
-                        NavigationStep(
-                          instruction = instruction,
-                          distanceMeters = stepDist,
-                          maneuver = maneuverType,
-                          roadName = stepName,
-                          latitude = stepLat,
-                          longitude = stepLng,
-                          roundaboutExitNumber = exitNumber
-                        )
-                      )
-                    }
-                  }
-
-                  if (steps.isNotEmpty() && waypoints.size >= 2) {
-                    val (trafficSegments, overallCongestion) = TrafficFlowService.computeRouteTrafficFlow(waypoints, destName)
-                    val tag = when (rIndex) {
-                      0 -> "Nhanh nhất (${durationMin} phút)"
-                      1 -> "Ngắn nhất (-${((parsedRoutes.firstOrNull()?.totalDistanceMeters ?: totalDistMeters) - totalDistMeters).coerceAtLeast(0)}m)"
-                      else -> if (mode == VehicleRoutingMode.MOTORBIKE) "Tuyến xe máy an toàn" else "Tránh trạm thu phí BOT"
-                    }
-
-                    parsedRoutes.add(
-                      NavigationRoute(
-                        id = "osrm_route_${rIndex}_${System.currentTimeMillis()}",
-                        destinationName = destName,
-                        destinationAddress = destAddress,
-                        destinationLat = destLat,
-                        destinationLng = destLng,
-                        totalDistanceMeters = totalDistMeters,
-                        estimatedDurationMinutes = durationMin,
-                        waypoints = waypoints,
-                        steps = steps,
-                        currentStepIndex = 0,
-                        isNavigating = (rIndex == 0),
-                        trafficSegments = trafficSegments,
-                        overallCongestion = overallCongestion,
-                        routeTag = tag,
-                        isMotorbikeSafe = true,
-                        hasTollBooth = mode == VehicleRoutingMode.CAR
-                      )
-                    )
-                  }
-                }
-
-                if (parsedRoutes.isNotEmpty()) {
-                  val primary = parsedRoutes[0]
-                  val alternatives = if (parsedRoutes.size > 1) parsedRoutes.subList(1, parsedRoutes.size) else emptyList()
-                  return@withContext primary.copy(alternativeRoutes = alternatives)
-                }
-              }
-            }
-          }
-        }
-      }
-    } catch (e: Exception) {
-      Log.w(TAG, "OSRM online route request failed, falling back to local generator: ${e.message}")
-    }
-
-    // Fallback to high-fidelity multi-route local generator
-    val localRoute = VietnamTrafficData.generateTurnByTurnRoute(
-      startLat = startLat,
-      startLng = startLng,
-      destLat = destLat,
-      destLng = destLng,
-      destName = destName,
-      destAddress = destAddress,
-      mode = mode
-    )
-    val (localTraffic, localCongestion) = TrafficFlowService.computeRouteTrafficFlow(localRoute.waypoints, destName)
-    return@withContext localRoute.copy(
-      trafficSegments = localTraffic,
-      overallCongestion = localCongestion
-    )
   }
 
   private fun parseManeuver(type: String, modifier: String): NavigationManeuverType {

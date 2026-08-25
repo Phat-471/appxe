@@ -128,6 +128,20 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
         }
       }
     }
+
+    // Silent background update check 2.5s after launch
+    viewModelScope.launch {
+      kotlinx.coroutines.delay(2500)
+      try {
+        val result = com.example.service.AppUpdateManager.checkForUpdates(
+          currentVersionName = "1.2.0",
+          currentVersionCode = 120
+        )
+        if (result is UpdateCheckState.UpdateAvailable) {
+          _updateCheckState.value = result
+        }
+      } catch (_: Exception) {}
+    }
   }
 
   private fun startEvaluationLoop() {
@@ -495,6 +509,29 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
       )
       _updateCheckState.value = result
     }
+  }
+
+  fun startInAppDownload(context: android.content.Context, info: AppUpdateInfo) {
+    viewModelScope.launch {
+      _updateCheckState.value = UpdateCheckState.Downloading(info, 0, 0f, info.fileSizeMb)
+      com.example.service.AppUpdateManager.downloadAndInstallApk(
+        context = context.applicationContext,
+        downloadUrl = info.apkDownloadUrl,
+        onProgress = { percent, downloaded, total ->
+          _updateCheckState.value = UpdateCheckState.Downloading(info, percent, downloaded, total)
+        },
+        onCompleted = { file ->
+          _updateCheckState.value = UpdateCheckState.ReadyToInstall(info, file)
+        },
+        onError = { msg ->
+          _updateCheckState.value = UpdateCheckState.Error(msg)
+        }
+      )
+    }
+  }
+
+  fun installDownloadedApk(context: android.content.Context, file: java.io.File) {
+    com.example.service.AppUpdateManager.installApk(context, file)
   }
 
   fun dismissUpdateDialog() {

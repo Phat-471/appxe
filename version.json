@@ -1,0 +1,15 @@
+{
+  "versionCode": 121,
+  "versionName": "1.2.1",
+  "releaseDate": "25/08/2026",
+  "downloadUrl": "https://github.com/Phat-471/appxe/releases/download/v1.2.1/app-debug.apk",
+  "sizeMb": 28.5,
+  "isMandatory": false,
+  "releaseNotes": [
+    "🚀 Tối ưu hóa tính năng Tự Động Cập Nhật Auto Update trong ứng dụng.",
+    "⚡ Nâng cấp định vị GPS siêu mượt & bắt vị trí tức thì < 0.5 giây.",
+    "🔍 Zoom bản đồ mượt 60-120 FPS không giật lag.",
+    "🎯 Tích chọn toạ độ chính xác 100% từng khúc cua dưới ngón tay.",
+    "📷 Cập nhật đầy đủ camera phạt nguội Lũy Bán Bích & toàn TP.HCM."
+  ]
+}

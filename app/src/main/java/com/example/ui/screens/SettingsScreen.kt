@@ -50,6 +50,8 @@ fun SettingsScreen(
   onDownloadPack: (OfflineMapPackEntity) -> Unit,
   updateCheckState: UpdateCheckState = UpdateCheckState.Idle,
   onCheckForUpdates: () -> Unit = {},
+  onStartDownload: (AppUpdateInfo) -> Unit = {},
+  onInstallDownloadedApk: (java.io.File) -> Unit = {},
   onDismissUpdateDialog: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
@@ -764,19 +766,113 @@ fun SettingsScreen(
           }
         },
         confirmButton = {
-          Button(
-            onClick = {
-              AppUpdateManager.openDownloadUrl(context, state.info.apkDownloadUrl)
-              onDismissUpdateDialog()
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
-          ) {
-            Text(if (isEn) "Update Now" else "Cập Nhật Ngay", fontWeight = FontWeight.Bold)
+          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+              onClick = {
+                onStartDownload(state.info)
+              },
+              colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
+            ) {
+              Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+              Spacer(modifier = Modifier.width(6.dp))
+              Text(if (isEn) "Auto Update" else "Tự Động Cập Nhật", fontWeight = FontWeight.Bold)
+            }
           }
         },
         dismissButton = {
           TextButton(onClick = onDismissUpdateDialog) {
             Text(if (isEn) "Later" else "Để Sau", color = Color(0xFF94A3B8))
+          }
+        }
+      )
+    }
+
+    is UpdateCheckState.Downloading -> {
+      AlertDialog(
+        onDismissRequest = {}, // Keep modal while downloading
+        containerColor = Color(0xFF0F172A),
+        icon = {
+          Icon(Icons.Default.Download, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(36.dp))
+        },
+        title = {
+          Text(
+            text = if (isEn) "Downloading Update..." else "Đang Tải Bản Cập Nhật...",
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+          )
+        },
+        text = {
+          Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            LinearProgressIndicator(
+              progress = { state.progressPercent / 100f },
+              modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+              color = Color(0xFF10B981),
+              trackColor = Color(0xFF334155)
+            )
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+              Text(
+                text = "${state.downloadedMb} MB / ${state.totalMb} MB",
+                fontSize = 12.sp,
+                color = Color(0xFF94A3B8)
+              )
+              Text(
+                text = "${state.progressPercent}%",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF38BDF8)
+              )
+            }
+            Text(
+              text = "⚡ Tải trực tiếp trong ứng dụng. Sau khi hoàn tất sẽ tự động mở bảng cài đặt.",
+              fontSize = 11.sp,
+              color = Color(0xFF64748B)
+            )
+          }
+        },
+        confirmButton = {}
+      )
+    }
+
+    is UpdateCheckState.ReadyToInstall -> {
+      AlertDialog(
+        onDismissRequest = onDismissUpdateDialog,
+        containerColor = Color(0xFF0F172A),
+        icon = {
+          Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(36.dp))
+        },
+        title = {
+          Text(
+            text = if (isEn) "Download Completed!" else "Đã Tải Xong Bản Cập Nhật!",
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+          )
+        },
+        text = {
+          Text(
+            text = "File cài đặt đã sẵn sàng. Nhấn 'Cài Đặt Ngay' để nâng cấp ứng dụng lên phiên bản mới nhất.",
+            fontSize = 13.sp,
+            color = Color(0xFFCBD5E1)
+          )
+        },
+        confirmButton = {
+          Button(
+            onClick = {
+              onInstallDownloadedApk(state.apkFile)
+              onDismissUpdateDialog()
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
+          ) {
+            Icon(Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(if (isEn) "Install Now" else "Cài Đặt Ngay", fontWeight = FontWeight.Bold)
+          }
+        },
+        dismissButton = {
+          TextButton(onClick = onDismissUpdateDialog) {
+            Text(if (isEn) "Close" else "Đóng", color = Color(0xFF94A3B8))
           }
         }
       )

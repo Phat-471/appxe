@@ -4,9 +4,15 @@ import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Environment
+import android.provider.Settings
+import android.util.Log
+import androidx.core.content.FileProvider
 import com.example.data.model.AppUpdateInfo
 import com.example.data.model.UpdateCheckState
+import java.io.File
+import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.text.SimpleDateFormat
@@ -14,90 +20,309 @@ import java.util.Date
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.TimeUnit
 
 object AppUpdateManager {
   private const val TAG = "AppUpdateManager"
-  private const val DEFAULT_UPDATE_ENDPOINT = "https://raw.githubusercontent.com/aistudio/speedalert-vngps/main/version.json"
+  private const val GITHUB_RELEASES_API = "https://api.github.com/repos/Phat-471/appxe/releases/latest"
+  private const val RAW_VERSION_ENDPOINT = "https://raw.githubusercontent.com/Phat-471/appxe/main/version.json"
 
+  private val httpClient = OkHttpClient.Builder()
+    .connectTimeout(10, TimeUnit.SECONDS)
+    .readTimeout(20, TimeUnit.SECONDS)
+    .build()
+
+  /**
+   * Check for latest app updates from GitHub Releases API or repository version manifest.
+   */
   suspend fun checkForUpdates(
     currentVersionName: String = "1.2.0",
     currentVersionCode: Int = 120
   ): UpdateCheckState = withContext(Dispatchers.IO) {
     try {
-      // 1. Attempt to fetch remote JSON version metadata
-      var remoteJson: String? = null
+      var latestName = currentVersionName
+      var latestCode = currentVersionCode
+      var releaseDate = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+      var downloadUrl = "https://github.com/Phat-471/appxe/releases"
+      var sizeMb = 28.5f
+      var isMandatory = false
+      val notes = mutableListOf<String>()
+      var foundRemote = false
+
+      // 1. Check GitHub Releases API
       try {
-        val url = URL(DEFAULT_UPDATE_ENDPOINT)
-        val conn = (url.openConnection() as HttpURLConnection).apply {
-          connectTimeout = 4000
-          readTimeout = 4000
-          requestMethod = "GET"
-          setRequestProperty("Accept", "application/json")
+        val request = Request.Builder()
+          .url(GITHUB_RELEASES_API)
+          .header("Accept", "application/vnd.github.v3+json")
+          .header("User-Agent", "SpeedAlert-App/AutoUpdate")
+          .build()
+
+        httpClient.newCall(request).execute().use { response ->
+          if (response.isSuccessful) {
+            val jsonStr = response.body?.string()
+            if (!jsonStr.isNullOrBlank()) {
+              val releaseObj = JSONObject(jsonStr)
+              val tagName = releaseObj.optString("tag_name", "").removePrefix("v")
+              if (tagName.isNotBlank()) {
+                latestName = tagName
+                latestCode = parseVersionCode(tagName)
+                foundRemote = true
+
+                val body = releaseObj.optString("body", "")
+                if (body.isNotBlank()) {
+                  body.lines().filter { it.isNotBlank() }.forEach { line ->
+                    notes.add(line.removePrefix("- ").removePrefix("* ").trim())
+                  }
+                }
+
+                val assets = releaseObj.optJSONArray("assets")
+                if (assets != null && assets.length() > 0) {
+                  for (i in 0 until assets.length()) {
+                    val asset = assets.getJSONObject(i)
+                    val name = asset.optString("name", "")
+                    if (name.endsWith(".apk", ignoreCase = true)) {
+                      downloadUrl = asset.optString("browser_download_url", downloadUrl)
+                      val byteSize = asset.optLong("size", 0L)
+                      if (byteSize > 0) {
+                        sizeMb = (byteSize / (1024f * 1024f) * 10f).toInt() / 10f
+                      }
+                      break
+                    }
+                  }
+                }
+
+                val publishedAt = releaseObj.optString("published_at", "")
+                if (publishedAt.length >= 10) {
+                  releaseDate = publishedAt.substring(0, 10)
+                }
+              }
+            }
+          }
         }
-        if (conn.responseCode == 200) {
-          remoteJson = conn.inputStream.bufferedReader().use { it.readText() }
-        }
-      } catch (_: Exception) {
-        // Offline or connection timeout fallback
+      } catch (e: Exception) {
+        Log.w(TAG, "GitHub releases check failed: ${e.message}")
+      }
+
+      // 2. Fallback to raw version manifest
+      if (!foundRemote) {
+        try {
+          val reqManifest = Request.Builder()
+            .url(RAW_VERSION_ENDPOINT)
+            .header("User-Agent", "SpeedAlert-App/AutoUpdate")
+            .build()
+
+          httpClient.newCall(reqManifest).execute().use { resp ->
+            if (resp.isSuccessful) {
+              val manifestStr = resp.body?.string()
+              if (!manifestStr.isNullOrBlank()) {
+                val obj = JSONObject(manifestStr)
+                latestCode = obj.optInt("versionCode", currentVersionCode)
+                latestName = obj.optString("versionName", currentVersionName)
+                releaseDate = obj.optString("releaseDate", releaseDate)
+                downloadUrl = obj.optString("downloadUrl", downloadUrl)
+                sizeMb = obj.optDouble("sizeMb", sizeMb.toDouble()).toFloat()
+                isMandatory = obj.optBoolean("isMandatory", false)
+
+                val notesArray = obj.optJSONArray("releaseNotes")
+                if (notesArray != null && notesArray.length() > 0) {
+                  notes.clear()
+                  for (i in 0 until notesArray.length()) {
+                    notes.add(notesArray.getString(i))
+                  }
+                }
+                foundRemote = true
+              }
+            }
+          }
+        } catch (_: Exception) {}
       }
 
       val sdf = SimpleDateFormat("HH:mm - dd/MM/yyyy", Locale.getDefault())
       val nowFormatted = sdf.format(Date())
 
-      if (remoteJson != null) {
-        val obj = JSONObject(remoteJson)
-        val latestCode = obj.optInt("versionCode", currentVersionCode)
-        val latestName = obj.optString("versionName", currentVersionName)
-        val releaseDate = obj.optString("releaseDate", "24/08/2026")
-        val downloadUrl = obj.optString("downloadUrl", "https://github.com/aistudio/speedalert-vngps/releases")
-        val sizeMb = obj.optDouble("sizeMb", 24.8).toFloat()
-        val isMandatory = obj.optBoolean("isMandatory", false)
+      if (notes.isEmpty()) {
+        notes.add("✨ Nâng cấp định vị GPS siêu mượt & bắt vị trí nhanh < 0.5s.")
+        notes.add("🔍 Zoom bản đồ 60-120 FPS không giật lag.")
+        notes.add("🎯 Tích chọn toạ độ chính xác 100% từng khúc cua.")
+        notes.add("📷 Bổ sung toàn diện danh sách camera phạt nguội Lũy Bán Bích & TP.HCM.")
+        notes.add("🚀 Tính năng tự động cập nhật Auto Update thông minh.")
+      }
 
-        val notesArray = obj.optJSONArray("releaseNotes")
-        val notes = mutableListOf<String>()
-        if (notesArray != null) {
-          for (i in 0 until notesArray.length()) {
-            notes.add(notesArray.getString(i))
+      val hasUpdate = latestCode > currentVersionCode
+
+      val info = AppUpdateInfo(
+        currentVersionName = currentVersionName,
+        currentVersionCode = currentVersionCode,
+        latestVersionName = latestName,
+        latestVersionCode = latestCode,
+        hasUpdate = hasUpdate,
+        releaseDate = releaseDate,
+        releaseNotes = notes,
+        apkDownloadUrl = downloadUrl,
+        fileSizeMb = sizeMb,
+        isMandatory = isMandatory
+      )
+
+      if (hasUpdate) {
+        UpdateCheckState.UpdateAvailable(info)
+      } else {
+        UpdateCheckState.UpToDate(currentVersionName, nowFormatted)
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Update check error", e)
+      UpdateCheckState.Error("Không thể kết nối máy chủ cập nhật: ${e.message}")
+    }
+  }
+
+  private fun parseVersionCode(versionName: String): Int {
+    return try {
+      val parts = versionName.split(".").map { it.filter { char -> char.isDigit() }.toIntOrNull() ?: 0 }
+      when (parts.size) {
+        1 -> parts[0] * 100
+        2 -> parts[0] * 100 + parts[1] * 10
+        3 -> parts[0] * 100 + parts[1] * 10 + parts[2]
+        else -> 120
+      }
+    } catch (_: Exception) {
+      120
+    }
+  }
+
+  /**
+   * Direct In-App Background APK Downloader with real-time percentage progress.
+   */
+  suspend fun downloadAndInstallApk(
+    context: Context,
+    downloadUrl: String,
+    onProgress: (progressPercent: Int, downloadedMb: Float, totalMb: Float) -> Unit,
+    onCompleted: (apkFile: File) -> Unit,
+    onError: (errorMessage: String) -> Unit
+  ) = withContext(Dispatchers.IO) {
+    try {
+      val destDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.cacheDir
+      if (!destDir.exists()) {
+        destDir.mkdirs()
+      }
+      val apkFile = File(destDir, "SpeedAlert_Update.apk")
+      if (apkFile.exists()) {
+        apkFile.delete()
+      }
+
+      val request = Request.Builder()
+        .url(downloadUrl)
+        .header("User-Agent", "SpeedAlert-AutoUpdate-Client/2.0")
+        .build()
+
+      val client = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .build()
+
+      client.newCall(request).execute().use { response ->
+        if (!response.isSuccessful) {
+          withContext(Dispatchers.Main) {
+            onError("Máy chủ tải về báo lỗi: HTTP ${response.code}")
           }
-        } else {
-          notes.add("Cải tiến hiệu năng & dữ liệu bản đồ 2026")
+          return@withContext
         }
 
-        val hasUpdate = latestCode > currentVersionCode
-        val info = AppUpdateInfo(
-          currentVersionName = currentVersionName,
-          currentVersionCode = currentVersionCode,
-          latestVersionName = latestName,
-          latestVersionCode = latestCode,
-          hasUpdate = hasUpdate,
-          releaseDate = releaseDate,
-          releaseNotes = notes,
-          apkDownloadUrl = downloadUrl,
-          fileSizeMb = sizeMb,
-          isMandatory = isMandatory
-        )
+        val body = response.body
+        if (body == null) {
+          withContext(Dispatchers.Main) {
+            onError("Nội dung tải về rỗng")
+          }
+          return@withContext
+        }
 
-        return@withContext if (hasUpdate) {
-          UpdateCheckState.UpdateAvailable(info)
-        } else {
-          UpdateCheckState.UpToDate(currentVersionName, nowFormatted)
+        val contentLength = body.contentLength()
+        val totalMb = if (contentLength > 0) (contentLength / (1024f * 1024f)) else 28.5f
+
+        val inputStream = body.byteStream()
+        val outputStream = FileOutputStream(apkFile)
+        val buffer = ByteArray(8192)
+        var totalBytesRead = 0L
+        var bytesRead: Int
+        var lastReportedPercent = -1
+
+        try {
+          while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+            outputStream.write(buffer, 0, bytesRead)
+            totalBytesRead += bytesRead
+
+            val percent = if (contentLength > 0) {
+              ((totalBytesRead * 100) / contentLength).toInt().coerceIn(0, 100)
+            } else {
+              ((totalBytesRead / (28.5 * 1024 * 1024)) * 100).toInt().coerceIn(0, 99)
+            }
+
+            if (percent != lastReportedPercent) {
+              lastReportedPercent = percent
+              val downloadedMb = (totalBytesRead / (1024f * 1024f) * 10f).toInt() / 10f
+              withContext(Dispatchers.Main) {
+                onProgress(percent, downloadedMb, totalMb)
+              }
+            }
+          }
+          outputStream.flush()
+        } finally {
+          outputStream.close()
+          inputStream.close()
+        }
+
+        withContext(Dispatchers.Main) {
+          onProgress(100, totalMb, totalMb)
+          onCompleted(apkFile)
+          installApk(context, apkFile)
+        }
+      }
+    } catch (e: Exception) {
+      Log.e(TAG, "Download APK failed", e)
+      withContext(Dispatchers.Main) {
+        onError("Lỗi khi tải bản cập nhật: ${e.localizedMessage ?: "Mất kết nối"}")
+      }
+    }
+  }
+
+  /**
+   * Prompts user with native Android Package Installer via FileProvider.
+   */
+  fun installApk(context: Context, apkFile: File) {
+    try {
+      if (!apkFile.exists() || apkFile.length() < 1000) {
+        Log.e(TAG, "APK file does not exist or corrupted")
+        return
+      }
+
+      // Check Android 8.0+ Unknown sources permission
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (!context.packageManager.canRequestPackageInstalls()) {
+          val permIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+            data = Uri.parse("package:${context.packageName}")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+          }
+          context.startActivity(permIntent)
         }
       }
 
-      // Default curated state when remote is not reached: provide latest info
-      val curatedChangelog = listOf(
-        "⚡ Nâng cấp tìm kiếm tiếng Việt không dấu & gợi ý địa điểm GPS gần xe nhất.",
-        "🗺️ Chỉ đường đa tuyến: 3 lựa chọn (Nhanh nhất, Ngắn nhất, Tránh BOT/Xe máy).",
-        "🧭 Thuật toán chống nhảy lộ trình khi đi hẻm & giọng nói nhắc rẽ 4 tầng.",
-        "📱 Bong bóng nổi Vietmap Live cải tiến hiển thị tốc độ đường, camera và đếm ngược mét.",
-        "🚀 Tối ưu hóa tắt hoàn toàn ứng dụng khi đóng, không chạy ngầm hao pin."
+      val apkUri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.fileprovider",
+        apkFile
       )
 
-      // Compare with latest release 1.2.0 -> Up to date
-      UpdateCheckState.UpToDate(currentVersionName, nowFormatted)
+      val installIntent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(apkUri, "application/vnd.android.package-archive")
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      }
+
+      context.startActivity(installIntent)
     } catch (e: Exception) {
-      UpdateCheckState.Error("Không thể kết nối máy chủ cập nhật: ${e.message}")
+      Log.e(TAG, "Failed to launch package installer", e)
     }
   }
 

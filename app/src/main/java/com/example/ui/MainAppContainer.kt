@@ -50,6 +50,7 @@ fun MainAppContainer(
   val compassHeading by viewModel.compassHeading.collectAsStateWithLifecycle()
   val recentSearches by viewModel.recentSearches.collectAsStateWithLifecycle()
   val vehicleRoutingMode by viewModel.vehicleRoutingMode.collectAsStateWithLifecycle()
+  val context = androidx.compose.ui.platform.LocalContext.current
   val updateCheckState by viewModel.updateCheckState.collectAsStateWithLifecycle()
 
   Scaffold(
@@ -196,6 +197,8 @@ fun MainAppContainer(
               onDownloadPack = { pack -> viewModel.downloadOrUpdateOfflinePack(pack) },
               updateCheckState = updateCheckState,
               onCheckForUpdates = { viewModel.checkForAppUpdates() },
+              onStartDownload = { info -> viewModel.startInAppDownload(context, info) },
+              onInstallDownloadedApk = { file -> viewModel.installDownloadedApk(context, file) },
               onDismissUpdateDialog = { viewModel.dismissUpdateDialog() }
             )
           }

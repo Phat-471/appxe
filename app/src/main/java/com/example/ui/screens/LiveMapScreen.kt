@@ -133,15 +133,22 @@ fun LiveMapScreen(
     }.sortedBy { it.second }
   }
 
-  // Layer filtered lists for canvas
-  val filteredCameras = remember(cameras, userSettings, selectedLayerFilter) {
+  // Layer filtered lists for canvas (Pre-filtered within 4.5km radius for 60FPS fluid canvas)
+  val filteredCameras = remember(cameras, userSettings, selectedLayerFilter, locationState.latitude, locationState.longitude) {
+    val nearCameras = cameras.filter { cam ->
+      VietnamTrafficData.calculateDistanceMeters(
+        locationState.latitude, locationState.longitude,
+        cam.latitude, cam.longitude
+      ) <= 4500.0
+    }
+
     when (selectedLayerFilter) {
-      "Bắn tốc độ" -> cameras.filter { it.type == CameraType.SPEED_CAMERA || it.type == CameraType.SPEED_LIMIT_SIGN }
-      "Phạt nguội" -> cameras.filter { it.type == CameraType.RED_LIGHT_CAMERA || it.type == CameraType.COLD_FINE_SURVEILLANCE }
-      "Camera an ninh" -> cameras.filter { it.type == CameraType.SECURITY_MONITORING }
+      "Bắn tốc độ" -> nearCameras.filter { it.type == CameraType.SPEED_CAMERA || it.type == CameraType.SPEED_LIMIT_SIGN }
+      "Phạt nguội" -> nearCameras.filter { it.type == CameraType.RED_LIGHT_CAMERA || it.type == CameraType.COLD_FINE_SURVEILLANCE }
+      "Camera an ninh" -> nearCameras.filter { it.type == CameraType.SECURITY_MONITORING }
       "Cây xăng", "Trạm BOT", "Cứu hộ/Y tế", "Điểm đen" -> emptyList()
       else -> {
-        cameras.filter { cam ->
+        nearCameras.filter { cam ->
           when (cam.type) {
             CameraType.SPEED_CAMERA, CameraType.COLD_FINE_SURVEILLANCE -> userSettings.showSpeedCamerasOnMap
             CameraType.RED_LIGHT_CAMERA -> userSettings.showRedLightCamerasOnMap
@@ -154,15 +161,22 @@ fun LiveMapScreen(
     }
   }
 
-  val displayedPois = remember(allPois, selectedLayerFilter) {
+  val displayedPois = remember(allPois, selectedLayerFilter, locationState.latitude, locationState.longitude) {
+    val nearPois = allPois.filter { poi ->
+      VietnamTrafficData.calculateDistanceMeters(
+        locationState.latitude, locationState.longitude,
+        poi.latitude, poi.longitude
+      ) <= 4000.0
+    }
+
     when (selectedLayerFilter) {
-      "Tất cả" -> allPois
-      "Cây xăng" -> allPois.filter { it.type == PoiType.GAS_STATION }
-      "Trạm BOT" -> allPois.filter { it.type == PoiType.TOLL_BOOTH }
-      "Cứu hộ/Y tế" -> allPois.filter { it.type == PoiType.HOSPITAL || it.type == PoiType.TIRE_REPAIR }
-      "Điểm đen" -> allPois.filter { it.type == PoiType.ACCIDENT_HOTSPOT }
+      "Tất cả" -> nearPois
+      "Cây xăng" -> nearPois.filter { it.type == PoiType.GAS_STATION }
+      "Trạm BOT" -> nearPois.filter { it.type == PoiType.TOLL_BOOTH }
+      "Cứu hộ/Y tế" -> nearPois.filter { it.type == PoiType.HOSPITAL || it.type == PoiType.TIRE_REPAIR }
+      "Điểm đen" -> nearPois.filter { it.type == PoiType.ACCIDENT_HOTSPOT }
       "Bắn tốc độ", "Phạt nguội", "Camera an ninh" -> emptyList()
-      else -> allPois
+      else -> nearPois
     }
   }
 
@@ -1503,22 +1517,6 @@ fun LiveMapScreen(
               shape = RoundedCornerShape(12.dp),
               modifier = Modifier.fillMaxWidth()
             )
-
-            Text("Gợi ý đường chính:", style = MaterialTheme.typography.labelSmall, color = Color(0xFF94A3B8))
-
-            val quickRoads = listOf("Đại lộ Võ Văn Kiệt (60 km/h)", "Đường Phạm Văn Đồng (60 km/h)", "Đường Nguyễn Văn Linh (60 km/h)", "Đường Nguyễn Trãi (50 km/h)", "Cao Tốc TP.HCM - Long Thành (80 km/h)")
-            quickRoads.forEach { rd ->
-              TextButton(
-                onClick = {
-                  val rawName = rd.substringBefore(" (")
-                  onSetCustomRoad(rawName)
-                  showRoadSelectDialog = false
-                },
-                modifier = Modifier.fillMaxWidth()
-              ) {
-                Text(rd, color = Color(0xFF38BDF8), textAlign = TextAlign.Start, modifier = Modifier.fillMaxWidth())
-              }
-            }
           }
         },
         confirmButton = {

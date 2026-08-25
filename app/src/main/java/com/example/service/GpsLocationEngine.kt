@@ -684,7 +684,30 @@ class GpsLocationEngine(private val context: Context) {
       route.destinationLat, route.destinationLng
     ).toInt()
 
-    val durationMinutes = ((distToDest / 1000.0) / 30.0 * 60.0).toInt().coerceAtLeast(1)
+    // Dynamic Intelligent ETA Calculation based on Vietnam Traffic Time-of-day & Real-time Speed
+    val calendar = java.util.Calendar.getInstance()
+    val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+    val minute = calendar.get(java.util.Calendar.MINUTE)
+    val timeDecimal = hour + (minute / 60.0)
+
+    val isMorningPeak = timeDecimal in 7.0..9.0
+    val isEveningPeak = timeDecimal in 16.5..19.0
+    val isNightClear = timeDecimal >= 21.5 || timeDecimal < 6.0
+
+    val baseTrafficSpeed = when {
+      isMorningPeak || isEveningPeak -> 18.0 // Giờ cao điểm TP.HCM / Hà Nội
+      isNightClear -> 48.0 // Đêm khuya vắng xe
+      else -> 32.0 // Giờ bình thường
+    }
+
+    val curSpeed = _locationState.value.speedKmh
+    val effectiveSpeed = if (curSpeed > 10f) {
+      (curSpeed * 0.6 + baseTrafficSpeed * 0.4).coerceIn(12.0, 80.0)
+    } else {
+      baseTrafficSpeed
+    }
+
+    val durationMinutes = ((distToDest / 1000.0) / effectiveSpeed * 60.0).toInt().coerceAtLeast(1)
 
     // 1. SMART ANTI-SPURIOUS OFF-ROUTE DETECTION & AUTO-REROUTING
     var minDistanceToRoute = Double.MAX_VALUE
@@ -714,7 +737,7 @@ class GpsLocationEngine(private val context: Context) {
         lastRerouteTime = now
         scope.launch {
           try {
-            onTurnVoicePrompt?.invoke("Đang tự động tính lại lộ trình mới!")
+            onTurnVoicePrompt?.invoke("Đang tính lộ trình mới phía trước.")
             val newRoute = NavigationRoutingService.fetchRoute(
               startLat = currentLat,
               startLng = currentLng,
@@ -742,11 +765,11 @@ class GpsLocationEngine(private val context: Context) {
     if (distToDest <= 25) {
       if (lastAlertedDistanceBand != 9999) {
         lastAlertedDistanceBand = 9999
-        onTurnVoicePrompt?.invoke("Bạn đã đến điểm đến: ${route.destinationName}!")
+        onTurnVoicePrompt?.invoke("Bạn đã đến đích!")
       }
     }
 
-    // 3. STEP PROGRESSION & 4-TIER TURN GUIDANCE VOICE SYSTEM
+    // 3. STEP PROGRESSION & MANEUVER VOICE GUIDANCE
     var currentStepIndex = route.currentStepIndex
     val updatedSteps = route.steps.toMutableList()
 
@@ -779,22 +802,22 @@ class GpsLocationEngine(private val context: Context) {
 
       updatedSteps[targetManeuverIndex] = activeManeuverStep.copy(distanceMeters = activeDist.coerceAtLeast(0))
 
-      // 4-Tier Voice Guidance Prompts
+      // Timely, Concise Voice Guidance Prompts (300m, 100m, 30m)
       val band = when {
-        activeDist in 420..580 -> 500
-        activeDist in 100..160 -> 120
-        activeDist in 15..40 -> 25
+        activeDist in 220..380 -> 300
+        activeDist in 60..150 -> 100
+        activeDist in 15..45 -> 30
         else -> -1
       }
 
       if (band != -1 && (lastAlertedStepIndex != targetManeuverIndex || lastAlertedDistanceBand != band)) {
         lastAlertedStepIndex = targetManeuverIndex
         lastAlertedDistanceBand = band
+        val cleanInstruction = activeManeuverStep.instruction.replace("Phía trước ", "", ignoreCase = true)
         val prompt = when (band) {
-          25 -> "${activeManeuverStep.instruction} ngay bây giờ!"
-          120 -> "Sau 120 mét nữa, ${activeManeuverStep.instruction}"
-          500 -> "Phía trước 500 mét, chuẩn bị ${activeManeuverStep.instruction}"
-          else -> "Phía trước ${band} mét, ${activeManeuverStep.instruction}"
+          30 -> "Chuẩn bị $cleanInstruction!"
+          100 -> "100 mét nữa, $cleanInstruction."
+          else -> "300 mét nữa, $cleanInstruction."
         }
         onTurnVoicePrompt?.invoke(prompt)
       }

@@ -564,8 +564,24 @@ fun OfflineMapCanvas(
         }
       }
 
-        // 5. ENHANCED SPECIFIC CAMERA MARKERS ON MAP (Vietmap-style speedometer cards)
-        for (cam in cameras) {
+        // 5. ENHANCED SPECIFIC CAMERA MARKERS ON MAP (Filtered by Zoom Level & Distance Radius)
+        val maxCamRadiusMeters = when {
+          zoomLevel >= 16f -> 2200.0  // Zoom gần: 2.2km
+          zoomLevel >= 14f -> 3500.0  // Zoom trung bình: 3.5km
+          else -> 0.0                // Zoom xa (< 14): ẨN HOÀN TOÀN để bản đồ sạch & nhẹ
+        }
+
+        val visibleCameras = if (maxCamRadiusMeters > 0) {
+          cameras.filter { cam ->
+            val d = VietnamTrafficData.calculateDistanceMeters(centerLat, centerLng, cam.latitude, cam.longitude)
+            d <= maxCamRadiusMeters || cam.id == nearestCamera?.id
+          }
+        } else {
+          // Khi zoom xa, chỉ giữ lại camera gần nhất nếu đang trong phạm vi cảnh báo
+          if (nearestCamera != null && (nearestCameraDistance ?: 9999) < 650) listOf(nearestCamera) else emptyList()
+        }
+
+        for (cam in visibleCameras) {
           val camPos = project(cam.latitude, cam.longitude)
           val isNear = nearestCamera?.id == cam.id
           val distLabel = if (isNear && nearestCameraDistance != null) "${nearestCameraDistance}m" else null
@@ -765,8 +781,14 @@ fun OfflineMapCanvas(
           }
         }
 
-        // 5.2. POI & HAZARD ICONS ON MAP (Gas, Toll, Hospital, Tire Rescue, Blackspots)
-        for (poi in pois) {
+        // 5.2. POI & HAZARD ICONS ON MAP (Only when zoomed in >= 14 for optimal performance)
+        val visiblePois = if (zoomLevel >= 14f) {
+          pois.filter { poi ->
+            VietnamTrafficData.calculateDistanceMeters(centerLat, centerLng, poi.latitude, poi.longitude) <= 3000.0
+          }
+        } else emptyList()
+
+        for (poi in visiblePois) {
           val poiPos = project(poi.latitude, poi.longitude)
 
           val (badgeColor, borderCol, emojiChar) = when (poi.type) {

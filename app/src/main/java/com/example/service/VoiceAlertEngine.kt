@@ -220,8 +220,7 @@ class VoiceAlertEngine(private val context: Context) : TextToSpeech.OnInitListen
   }
 
   fun alertOverspeed(currentSpeed: Int, limit: Int, roadName: String? = null) {
-    val roadClause = if (!roadName.isNullOrBlank() && !roadName.contains("Đang trên") && !roadName.contains("GPS") && !roadName.contains("Tuyến đường hiện tại")) "trên $roadName" else ""
-    val message = "Cảnh báo, bạn đang chạy quá tốc độ $currentSpeed trên $limit kilômét một giờ $roadClause. Vui lòng giảm tốc độ!"
+    val message = "Quá tốc độ! Vui lòng giảm tốc."
     speak(message, isPriority = true, forceVibrate = true, playAudioChime = true)
   }
 
@@ -233,35 +232,29 @@ class VoiceAlertEngine(private val context: Context) : TextToSpeech.OnInitListen
       else -> 100
     }
 
-    val locClause = if (cam.roadName.isNotBlank() && !cam.roadName.contains("GPS", ignoreCase = true) && !cam.roadName.contains("Tuyến đường", ignoreCase = true)) {
-      "trên ${cam.roadName}"
-    } else {
-      ""
-    }
-
     val speech = when (cam.type) {
       CameraType.ZONE_RESIDENTIAL_ENTRY ->
-        "Chú ý: Phía trước $roundedDist mét vào khu đông dân cư $locClause, tốc độ tối đa ${cam.speedLimit} kilômét một giờ."
+        "Phía trước $roundedDist mét, vào khu đông dân cư. Tối đa ${cam.speedLimit}."
       CameraType.ZONE_RESIDENTIAL_EXIT ->
-        "Phía trước $roundedDist mét hết khu đông dân cư $locClause, tốc độ tối đa ${cam.speedLimit} kilômét một giờ."
+        "Hết khu đông dân cư. Tối đa ${cam.speedLimit}."
       CameraType.SPEED_CAMERA ->
-        "Chú ý: Phía trước $roundedDist mét có Camera bắn tốc độ ${cam.speedLimit} kilômét một giờ $locClause."
+        "Phía trước $roundedDist mét, có camera tốc độ ${cam.speedLimit}."
       CameraType.RED_LIGHT_CAMERA ->
-        "Chú ý: Phía trước $roundedDist mét có Camera phạt nguội vượt đèn đỏ $locClause."
+        "Phía trước $roundedDist mét, có camera vượt đèn đỏ."
       CameraType.COLD_FINE_SURVEILLANCE ->
-        "Chú ý: Phía trước $roundedDist mét có Camera phạt nguội lấn làn $locClause."
+        "Phía trước $roundedDist mét, có camera phạt lấn làn."
       CameraType.SECURITY_MONITORING ->
-        "Phía trước $roundedDist mét có Camera an ninh và giám sát trật tự $locClause."
+        "Phía trước $roundedDist mét, có camera an ninh."
       CameraType.HAZARD_ACCIDENT_ZONE ->
-        "Cảnh báo: Phía trước $roundedDist mét là đoạn đường nguy hiểm $locClause. Xin chú ý quan sát!"
+        "Phía trước $roundedDist mét, đoạn đường nguy hiểm. Chú ý quan sát."
       CameraType.MOTORBIKE_PROHIBITED_ZONE ->
-        "CẢNH BÁO NGUY HIỂM: Phía trước $roundedDist mét là đường CẤM XE MÁY và cao tốc $locClause! Xin giữ làn bên phải, không đi vào cao tốc!"
+        "Cảnh báo nguy hiểm! Phía trước cấm xe máy!"
       CameraType.SCHOOL_ZONE ->
-        "Chú ý: Phía trước $roundedDist mét là khu vực trường học $locClause, giảm tốc độ."
+        "Phía trước $roundedDist mét, khu vực trường học. Giảm tốc."
       CameraType.COMMUNITY_REPORT ->
-        "Chú ý: Phía trước $roundedDist mét có chốt kiểm tra tốc độ do tài xế báo $locClause."
+        "Phía trước $roundedDist mét, có chốt kiểm tra tốc độ."
       CameraType.SPEED_LIMIT_SIGN ->
-        "Phía trước $roundedDist mét có biển báo giới hạn ${cam.speedLimit} kilômét một giờ $locClause."
+        "Phía trước $roundedDist mét, giới hạn ${cam.speedLimit}."
     }
 
     speak(speech, isPriority = true, forceVibrate = true, playAudioChime = false)
@@ -272,7 +265,7 @@ class VoiceAlertEngine(private val context: Context) : TextToSpeech.OnInitListen
   }
 
   fun testVoice(volume: Float = 1.0f) {
-    speak("Hệ thống cảnh báo tốc độ và camera giao thông đã sẵn sàng hoạt động.", isPriority = true, forceVibrate = false, playAudioChime = false)
+    speak("Hệ thống cảnh báo giao thông sẵn sàng.", isPriority = true, forceVibrate = false, playAudioChime = false)
   }
 
   fun shutdown() {

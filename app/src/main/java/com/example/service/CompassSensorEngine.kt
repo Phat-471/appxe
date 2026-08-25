@@ -38,7 +38,8 @@ class CompassSensorEngine(context: Context) : SensorEventListener {
 
   // Low-pass filter for smoothing compass heading
   private var smoothedHeading = 0f
-  private val SMOOTHING_FACTOR = 0.15f // Lower = smoother but slower response
+  private val SMOOTHING_FACTOR = 0.08f // Smooth and gentle response
+  private val DEADBAND_DEGREES = 4.5f // Ignore jitter smaller than 4.5 degrees
 
   private var isListening = false
 
@@ -127,8 +128,13 @@ class CompassSensorEngine(context: Context) : SensorEventListener {
   private fun updateSmoothedHeading(rawHeading: Float) {
     // Handle wrap-around smoothing (e.g., from 359° to 1°)
     var diff = rawHeading - smoothedHeading
-    if (diff > 180f) diff -= 360f
-    if (diff < -180f) diff += 360f
+    while (diff > 180f) diff -= 360f
+    while (diff < -180f) diff += 360f
+
+    // Deadband filter: Ignore micro-jitter and hand shaking (< 4.5 degrees)
+    if (abs(diff) < DEADBAND_DEGREES) {
+      return
+    }
 
     smoothedHeading += diff * SMOOTHING_FACTOR
     smoothedHeading = (smoothedHeading + 360f) % 360f
@@ -138,7 +144,7 @@ class CompassSensorEngine(context: Context) : SensorEventListener {
 
   private fun lowPassFilter(input: FloatArray, output: FloatArray?): FloatArray {
     if (output == null) return input
-    val alpha = 0.2f
+    val alpha = 0.15f
     for (i in input.indices) {
       output[i] = output[i] + alpha * (input[i] - output[i])
     }
@@ -149,10 +155,9 @@ class CompassSensorEngine(context: Context) : SensorEventListener {
     private const val TAG = "CompassSensorEngine"
 
     /**
-     * Decide whether to use compass heading vs GPS bearing.
-     * Like Google Maps:
-     *  - Moving fast → GPS bearing (more accurate for direction of travel)
-     *  - Stationary/slow → Compass heading (shows where phone is pointing)
+     * Anti-jitter Heading Resolver:
+     * When vehicle is moving (> 3.5 km/h): GPS course heading is locked (100% stable, ignores hand shake)
+     * When stationary (<= 3.5 km/h): Compass heading with deadband filter is used
      */
     fun resolveHeading(
       gpsHeading: Float,
@@ -161,14 +166,10 @@ class CompassSensorEngine(context: Context) : SensorEventListener {
       compassEnabled: Boolean
     ): Float {
       if (!compassEnabled) return gpsHeading
-      return when {
-        speedKmh > 8f -> gpsHeading  // Moving: GPS is king
-        speedKmh > 3f -> {
-          // Blending zone: interpolate between compass and GPS
-          val gpsWeight = (speedKmh - 3f) / 5f // 0.0 at 3km/h, 1.0 at 8km/h
-          blendAngles(compassHeading, gpsHeading, gpsWeight)
-        }
-        else -> compassHeading  // Stationary: compass is king
+      return if (speedKmh > 3.5f) {
+        gpsHeading // Moving: GPS direction of travel is solid & stable
+      } else {
+        compassHeading // Stationary: phone azimuth
       }
     }
 

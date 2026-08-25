@@ -133,13 +133,13 @@ fun LiveMapScreen(
     }.sortedBy { it.second }
   }
 
-  // Layer filtered lists for canvas (Pre-filtered within 4.5km radius for 60FPS fluid canvas)
+  // Layer filtered lists for canvas (Filtered within 35km radius covering all districts & panning areas)
   val filteredCameras = remember(cameras, userSettings, selectedLayerFilter, locationState.latitude, locationState.longitude) {
     val nearCameras = cameras.filter { cam ->
       VietnamTrafficData.calculateDistanceMeters(
         locationState.latitude, locationState.longitude,
         cam.latitude, cam.longitude
-      ) <= 4500.0
+      ) <= 35000.0
     }
 
     when (selectedLayerFilter) {
@@ -166,7 +166,7 @@ fun LiveMapScreen(
       VietnamTrafficData.calculateDistanceMeters(
         locationState.latitude, locationState.longitude,
         poi.latitude, poi.longitude
-      ) <= 4000.0
+      ) <= 35000.0
     }
 
     when (selectedLayerFilter) {

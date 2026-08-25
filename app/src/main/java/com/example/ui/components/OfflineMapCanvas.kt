@@ -86,9 +86,10 @@ fun OfflineMapCanvas(
   val coroutineScope = rememberCoroutineScope()
   val density = LocalDensity.current
 
-  // Continuous smooth zoom animatable
+  // Continuous smooth zoom state + Animatable
+  var gestureZoom by remember { mutableFloatStateOf(18.0f) }
   val animatedZoom = remember { Animatable(18.0f) }
-  val zoomLevel = animatedZoom.value
+  val zoomLevel = if (animatedZoom.isRunning) animatedZoom.value else gestureZoom
 
   var panOffsetX by remember { mutableFloatStateOf(0f) }
   var panOffsetY by remember { mutableFloatStateOf(0f) }
@@ -184,30 +185,36 @@ fun OfflineMapCanvas(
     modifier = modifier
       .fillMaxSize()
       .background(Color(0xFFF1F5F9))
-      .pointerInput(orientationMode) {
+      .pointerInput(orientationMode, cameraTilt3D) {
         detectTapGestures(
           onDoubleTap = { tapOffset ->
             coroutineScope.launch {
               val canvasW = size.width.toFloat()
               val canvasH = size.height.toFloat()
-              val vehicleBias = if (orientationMode == MapOrientationMode.TRACK_UP) canvasH * 0.12f else 0f
+              val vehicleBias = if (orientationMode == MapOrientationMode.TRACK_UP) {
+                if (cameraTilt3D) canvasH * 0.18f else canvasH * 0.12f
+              } else 0f
               val originX = canvasW / 2f
               val originY = canvasH / 2f + vehicleBias
 
-              val oldZ = animatedZoom.value
+              val oldZ = gestureZoom
               val targetZ = (oldZ + 1.2f).coerceIn(12.0f, 19.5f)
               val actualScale = 2.0.pow((targetZ - oldZ).toDouble()).toFloat()
 
               panOffsetX = panOffsetX * actualScale + (tapOffset.x - originX) * (1f - actualScale)
               panOffsetY = panOffsetY * actualScale + (tapOffset.y - originY) * (1f - actualScale)
 
+              gestureZoom = targetZ
+              animatedZoom.snapTo(oldZ)
               animatedZoom.animateTo(targetZ, tween(260, easing = FastOutSlowInEasing))
             }
           },
           onTap = { tapOffset ->
             val canvasW = size.width.toFloat()
             val canvasH = size.height.toFloat()
-            val vehicleBias = if (orientationMode == MapOrientationMode.TRACK_UP) canvasH * 0.12f else 0f
+            val vehicleBias = if (orientationMode == MapOrientationMode.TRACK_UP) {
+              if (cameraTilt3D) canvasH * 0.18f else canvasH * 0.12f
+            } else 0f
             val midX = canvasW / 2f + panOffsetX
             val midY = canvasH / 2f + panOffsetY + vehicleBias
             val tileSizePx = baseTileSize * zoomMultiplier
@@ -265,18 +272,20 @@ fun OfflineMapCanvas(
           }
         )
       }
-      .pointerInput(orientationMode) {
+      .pointerInput(orientationMode, cameraTilt3D) {
         detectTransformGestures(panZoomLock = false) { centroid, pan, zoom, rotation ->
           val canvasW = size.width.toFloat()
           val canvasH = size.height.toFloat()
-          val vehicleBias = if (orientationMode == MapOrientationMode.TRACK_UP) canvasH * 0.12f else 0f
+          val vehicleBias = if (orientationMode == MapOrientationMode.TRACK_UP) {
+            if (cameraTilt3D) canvasH * 0.18f else canvasH * 0.12f
+          } else 0f
           val originX = canvasW / 2f
           val originY = canvasH / 2f + vehicleBias
 
           if (zoom != 1f && zoom > 0f) {
             // Mercator tile scale delta: deltaZ = log2(zoom) = ln(zoom)/ln(2)
             val deltaZ = (ln(zoom.toDouble()) / ln(2.0)).toFloat()
-            val oldZ = animatedZoom.value
+            val oldZ = gestureZoom
             val newZ = (oldZ + deltaZ).coerceIn(3.0f, 19.5f)
             val actualScaleRatio = 2.0.pow((newZ - oldZ).toDouble()).toFloat()
 
@@ -284,6 +293,7 @@ fun OfflineMapCanvas(
             panOffsetX = panOffsetX * actualScaleRatio + (centroid.x - originX) * (1f - actualScaleRatio)
             panOffsetY = panOffsetY * actualScaleRatio + (centroid.y - originY) * (1f - actualScaleRatio)
 
+            gestureZoom = newZ
             coroutineScope.launch {
               animatedZoom.snapTo(newZ)
             }
@@ -566,19 +576,15 @@ fun OfflineMapCanvas(
 
         // 5. ENHANCED SPECIFIC CAMERA MARKERS ON MAP (Filtered by Zoom Level & Distance Radius)
         val maxCamRadiusMeters = when {
-          zoomLevel >= 16f -> 2200.0  // Zoom gần: 2.2km
-          zoomLevel >= 14f -> 3500.0  // Zoom trung bình: 3.5km
-          else -> 0.0                // Zoom xa (< 14): ẨN HOÀN TOÀN để bản đồ sạch & nhẹ
+          zoomLevel >= 15f -> 8000.0   // Zoom gần: 8km
+          zoomLevel >= 13f -> 18000.0  // Zoom đường phố: 18km (Bao quát toàn bộ trục đường & khu vực)
+          zoomLevel >= 11f -> 35000.0  // Zoom đô thị: 35km (Toàn TP.HCM)
+          else -> 50000.0              // Zoom rộng: 50km
         }
 
-        val visibleCameras = if (maxCamRadiusMeters > 0) {
-          cameras.filter { cam ->
-            val d = VietnamTrafficData.calculateDistanceMeters(centerLat, centerLng, cam.latitude, cam.longitude)
-            d <= maxCamRadiusMeters || cam.id == nearestCamera?.id
-          }
-        } else {
-          // Khi zoom xa, chỉ giữ lại camera gần nhất nếu đang trong phạm vi cảnh báo
-          if (nearestCamera != null && (nearestCameraDistance ?: 9999) < 650) listOf(nearestCamera) else emptyList()
+        val visibleCameras = cameras.filter { cam ->
+          val d = VietnamTrafficData.calculateDistanceMeters(centerLat, centerLng, cam.latitude, cam.longitude)
+          d <= maxCamRadiusMeters || cam.id == nearestCamera?.id
         }
 
         for (cam in visibleCameras) {

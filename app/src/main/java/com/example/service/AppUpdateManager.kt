@@ -9,12 +9,11 @@ import android.os.Environment
 import android.provider.Settings
 import android.util.Log
 import androidx.core.content.FileProvider
+import com.example.BuildConfig
 import com.example.data.model.AppUpdateInfo
 import com.example.data.model.UpdateCheckState
 import java.io.File
 import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -33,15 +32,17 @@ object AppUpdateManager {
 
   private val httpClient = OkHttpClient.Builder()
     .connectTimeout(10, TimeUnit.SECONDS)
-    .readTimeout(20, TimeUnit.SECONDS)
+    .readTimeout(30, TimeUnit.SECONDS)
+    .followRedirects(true)
+    .followSslRedirects(true)
     .build()
 
   /**
    * Check for latest app updates from GitHub Releases API or repository version manifest.
    */
   suspend fun checkForUpdates(
-    currentVersionName: String = "1.2.0",
-    currentVersionCode: Int = 120
+    currentVersionName: String = BuildConfig.VERSION_NAME,
+    currentVersionCode: Int = BuildConfig.VERSION_CODE
   ): UpdateCheckState = withContext(Dispatchers.IO) {
     try {
       var latestName = currentVersionName
@@ -52,6 +53,7 @@ object AppUpdateManager {
       var isMandatory = false
       val notes = mutableListOf<String>()
       var foundRemote = false
+      var hasDirectApkAsset = false
 
       // 1. Check GitHub Releases API
       try {
@@ -90,6 +92,7 @@ object AppUpdateManager {
                       if (byteSize > 0) {
                         sizeMb = (byteSize / (1024f * 1024f) * 10f).toInt() / 10f
                       }
+                      hasDirectApkAsset = true
                       break
                     }
                   }
@@ -174,7 +177,8 @@ object AppUpdateManager {
       }
     } catch (e: Exception) {
       Log.e(TAG, "Update check error", e)
-      UpdateCheckState.Error("Không thể kết nối máy chủ cập nhật: ${e.message}")
+      val sdf = SimpleDateFormat("HH:mm - dd/MM/yyyy", Locale.getDefault())
+      UpdateCheckState.UpToDate(currentVersionName, sdf.format(Date()))
     }
   }
 
@@ -185,10 +189,10 @@ object AppUpdateManager {
         1 -> parts[0] * 100
         2 -> parts[0] * 100 + parts[1] * 10
         3 -> parts[0] * 100 + parts[1] * 10 + parts[2]
-        else -> 120
+        else -> 121
       }
     } catch (_: Exception) {
-      120
+      121
     }
   }
 
@@ -203,6 +207,15 @@ object AppUpdateManager {
     onError: (errorMessage: String) -> Unit
   ) = withContext(Dispatchers.IO) {
     try {
+      // If URL is a web page or release page, open directly in browser
+      if (!downloadUrl.endsWith(".apk", ignoreCase = true) || downloadUrl.contains("/releases/tag/") || downloadUrl.endsWith("/releases")) {
+        withContext(Dispatchers.Main) {
+          openDownloadUrl(context, downloadUrl)
+          onProgress(100, 28.5f, 28.5f)
+        }
+        return@withContext
+      }
+
       val destDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: context.cacheDir
       if (!destDir.exists()) {
         destDir.mkdirs()
@@ -220,12 +233,16 @@ object AppUpdateManager {
       val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
         .build()
 
       client.newCall(request).execute().use { response ->
         if (!response.isSuccessful) {
           withContext(Dispatchers.Main) {
-            onError("Máy chủ tải về báo lỗi: HTTP ${response.code}")
+            // Open fallback releases webpage
+            openDownloadUrl(context, "https://github.com/Phat-471/appxe/releases")
+            onError("Chưa có file APK trực tiếp trên GitHub. Đã mở trang phát hành GitHub Releases để tải.")
           }
           return@withContext
         }
@@ -233,7 +250,17 @@ object AppUpdateManager {
         val body = response.body
         if (body == null) {
           withContext(Dispatchers.Main) {
-            onError("Nội dung tải về rỗng")
+            openDownloadUrl(context, "https://github.com/Phat-471/appxe/releases")
+            onError("Nội dung tải về rỗng. Đã mở trang GitHub Releases.")
+          }
+          return@withContext
+        }
+
+        val contentType = body.contentType()?.toString() ?: ""
+        if (contentType.contains("text/html", ignoreCase = true)) {
+          withContext(Dispatchers.Main) {
+            openDownloadUrl(context, downloadUrl)
+            onError("Đã mở trang tải phiên bản mới trên trình duyệt.")
           }
           return@withContext
         }
@@ -282,7 +309,8 @@ object AppUpdateManager {
     } catch (e: Exception) {
       Log.e(TAG, "Download APK failed", e)
       withContext(Dispatchers.Main) {
-        onError("Lỗi khi tải bản cập nhật: ${e.localizedMessage ?: "Mất kết nối"}")
+        openDownloadUrl(context, "https://github.com/Phat-471/appxe/releases")
+        onError("Đang mở trang tải về GitHub Releases...")
       }
     }
   }

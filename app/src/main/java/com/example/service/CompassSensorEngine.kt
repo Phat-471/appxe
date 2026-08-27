@@ -42,22 +42,35 @@ class CompassSensorEngine(context: Context) : SensorEventListener {
   private val DEADBAND_DEGREES = 4.5f // Ignore jitter smaller than 4.5 degrees
 
   private var isListening = false
+  private var isBatterySaverMode = false
+
+  fun setBatterySaverMode(enabled: Boolean) {
+    if (isBatterySaverMode != enabled) {
+      isBatterySaverMode = enabled
+      if (isListening) {
+        stopListening()
+        startListening()
+      }
+    }
+  }
 
   fun startListening() {
     if (isListening) return
     isListening = true
 
+    val sensorDelay = if (isBatterySaverMode) SensorManager.SENSOR_DELAY_NORMAL else SensorManager.SENSOR_DELAY_UI
+
     // Prefer rotation vector sensor (fused, more accurate)
     if (rotationVector != null) {
-      sensorManager.registerListener(this, rotationVector, SensorManager.SENSOR_DELAY_UI)
+      sensorManager.registerListener(this, rotationVector, sensorDelay)
       _isCompassAvailable.value = true
-      Log.d(TAG, "Compass: Using ROTATION_VECTOR sensor")
+      Log.d(TAG, "Compass: Using ROTATION_VECTOR sensor (delay=$sensorDelay)")
     } else if (accelerometer != null && magnetometer != null) {
       // Fallback to accelerometer + magnetometer
-      sensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_UI)
-      sensorManager.registerListener(this, magnetometer, SensorManager.SENSOR_DELAY_UI)
+      sensorManager.registerListener(this, accelerometer, sensorDelay)
+      sensorManager.registerListener(this, magnetometer, sensorDelay)
       _isCompassAvailable.value = true
-      Log.d(TAG, "Compass: Using ACCELEROMETER + MAGNETOMETER sensors")
+      Log.d(TAG, "Compass: Using ACCELEROMETER + MAGNETOMETER sensors (delay=$sensorDelay)")
     } else {
       _isCompassAvailable.value = false
       Log.w(TAG, "Compass: No suitable sensors available")

@@ -134,4 +134,71 @@ class TrafficWarningEngineTest {
 
     assertNull("Camera tagged as alley must be completely ignored when car is cruising on main road", result.activeWarning)
   }
+
+  @Test
+  fun testHighSpeedHighway_TriggersEarlyAlertAt850m() {
+    // Car driving at 80 km/h on highway (heading East = 90 deg)
+    val location = GpsLocationState(
+      latitude = 10.7580,
+      longitude = 106.6850,
+      speedKmh = 80f,
+      headingDegrees = 90f,
+      detectedRoadName = "Quốc Lộ 51"
+    )
+
+    // Camera 850m directly ahead (0.0077 deg longitude ≈ 850m)
+    val highwayCam = TrafficCamera(
+      id = "cam_highway_01",
+      latitude = 10.7580,
+      longitude = 106.6927,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Quốc Lộ 51",
+      speedLimit = 80,
+      description = "Camera bắn tốc độ quốc lộ",
+      districtCity = "Đồng Nai",
+      bearingDegrees = 90f,
+      directionName = "Hướng đi Vũng Tàu"
+    )
+
+    val result = warningEngine.evaluateTrafficState(
+      location = location,
+      allCameras = listOf(highwayCam)
+    )
+
+    assertNotNull("At 80 km/h, camera at 850m MUST be detected early (speed-adaptive threshold)", result.activeWarning)
+    assertEquals("cam_highway_01", result.activeWarning?.camera?.id)
+  }
+
+  @Test
+  fun testOppositeDirectionCamera_IsFilteredOut() {
+    // Car driving East (heading = 90 deg)
+    val location = GpsLocationState(
+      latitude = 10.7580,
+      longitude = 106.6850,
+      speedKmh = 60f,
+      headingDegrees = 90f,
+      detectedRoadName = "Đại lộ Võ Văn Kiệt"
+    )
+
+    // Camera ahead but facing West (bearing 270 deg) for opposite traffic
+    val oppositeCam = TrafficCamera(
+      id = "cam_opposite_01",
+      latitude = 10.7580,
+      longitude = 106.6880,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Đại lộ Võ Văn Kiệt",
+      speedLimit = 60,
+      description = "Camera làn ngược chiều",
+      districtCity = "TP.HCM",
+      bearingDegrees = 270f,
+      directionName = "Hướng đi Bình Chánh"
+    )
+
+    val result = warningEngine.evaluateTrafficState(
+      location = location,
+      allCameras = listOf(oppositeCam)
+    )
+
+    assertNull("Camera monitoring opposite traffic direction must NOT trigger false alert", result.activeWarning)
+  }
 }

@@ -37,6 +37,7 @@ import com.example.data.local.UserSettingsEntity
 import com.example.data.model.AppUpdateInfo
 import com.example.data.model.UpdateCheckState
 import com.example.service.AppUpdateManager
+import com.example.BuildConfig
 import com.example.ui.i18n.AppStrings
 import com.example.ui.theme.*
 
@@ -49,6 +50,8 @@ fun SettingsScreen(
   onTestVoice: () -> Unit,
   onDownloadPack: (OfflineMapPackEntity) -> Unit,
   updateCheckState: UpdateCheckState = UpdateCheckState.Idle,
+  batteryPercentage: Int = 100,
+  isCharging: Boolean = false,
   onCheckForUpdates: () -> Unit = {},
   onStartDownload: (AppUpdateInfo) -> Unit = {},
   onInstallDownloadedApk: (java.io.File) -> Unit = {},
@@ -68,6 +71,7 @@ fun SettingsScreen(
   var expandedMap by remember { mutableStateOf(true) }
   var expandedMountainGps by remember { mutableStateOf(false) }
   var expandedOffline by remember { mutableStateOf(false) }
+  var expandedBatterySaver by remember { mutableStateOf(false) }
   var expandedUpdates by remember { mutableStateOf(true) }
 
   val lang = settings.appLanguage
@@ -549,11 +553,139 @@ fun SettingsScreen(
       }
 
       // ==========================================
-      // NHÓM 7: PHIÊN BẢN & CẬP NHẬT ỨNG DỤNG
+      // NHÓM 7: TIẾT KIỆM PIN & TỐI ƯU NĂNG LƯỢNG
+      // ==========================================
+      AccordionSectionCard(
+        title = if (isEn) "Battery Saver & Power Optimization" else "Tiết Kiệm Pin & Tối Ưu Năng Lượng",
+        subtitle = if (settings.batterySaverEnabled)
+          (if (isEn) "ECO Mode Active (-75% Battery)" else "Đang Bật Siêu Tiết Kiệm (-75% Pin)")
+        else
+          (if (isEn) "Standard Performance" else "Hiệu năng tiêu chuẩn (150ms GPS)"),
+        icon = Icons.Default.BatteryChargingFull,
+        iconTint = if (settings.batterySaverEnabled) Color(0xFF10B981) else Color(0xFFF59E0B),
+        isExpanded = expandedBatterySaver,
+        onToggle = { expandedBatterySaver = !expandedBatterySaver }
+      ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+          // Battery Status Card
+          Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = Color(0xFF0F172A),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Row(
+              modifier = Modifier.padding(14.dp),
+              verticalAlignment = Alignment.CenterVertically,
+              horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+              Box(
+                modifier = Modifier
+                  .size(44.dp)
+                  .clip(CircleShape)
+                  .background(
+                    if (batteryPercentage <= 20 && !isCharging)
+                      Color(0xFFEF4444).copy(alpha = 0.2f)
+                    else
+                      Color(0xFF10B981).copy(alpha = 0.2f)
+                  ),
+                contentAlignment = Alignment.Center
+              ) {
+                Icon(
+                  imageVector = when {
+                    isCharging -> Icons.Default.BatteryChargingFull
+                    batteryPercentage > 80 -> Icons.Default.BatteryFull
+                    batteryPercentage > 20 -> Icons.Default.Battery5Bar
+                    else -> Icons.Default.BatteryAlert
+                  },
+                  contentDescription = null,
+                  tint = if (isCharging) Color(0xFF38BDF8) else if (batteryPercentage > 20) Color(0xFF10B981) else Color(0xFFEF4444),
+                  modifier = Modifier.size(24.dp)
+                )
+              }
+              Column(modifier = Modifier.weight(1f)) {
+                Row(
+                  verticalAlignment = Alignment.CenterVertically,
+                  horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                  Text(
+                    text = if (isEn) "Device Battery: $batteryPercentage%" else "Mức pin thiết bị: $batteryPercentage%",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                  )
+                  if (isCharging) {
+                    Surface(
+                      shape = RoundedCornerShape(4.dp),
+                      color = Color(0xFF0284C7).copy(alpha = 0.3f)
+                    ) {
+                      Text(
+                        text = if (isEn) "CHARGING" else "ĐANG SẠC",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color(0xFF38BDF8),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                      )
+                    }
+                  }
+                }
+                Text(
+                  text = if (settings.batterySaverEnabled)
+                    (if (isEn) "GPS 1000ms • Sensors idle • Saves ~75% power" else "GPS 1000ms • Cảm biến nghỉ • Tiết kiệm ~75% pin")
+                  else
+                    (if (isEn) "High precision 150ms GPS • 60Hz sensors" else "Định vị siêu mượt 150ms • Cảm biến 60Hz"),
+                  fontSize = 11.sp,
+                  color = Color(0xFF94A3B8)
+                )
+              }
+            }
+          }
+
+          // Toggle 1: Battery Saver Mode
+          SettingsSwitchRow(
+            icon = Icons.Default.Bolt,
+            title = if (isEn) "Smart Battery Saver Mode" else "Chế độ Tiết Kiệm Pin Thông Minh",
+            subtitle = if (isEn)
+              "Adaptive GPS (1000ms), stops background sensors at high speed"
+            else
+              "Tự điều chỉnh tần suất GPS (1000ms), tắt cảm biến la bàn phụ khi xe chạy nhanh",
+            checked = settings.batterySaverEnabled,
+            onCheckedChange = { onUpdateSettings(settings.copy(batterySaverEnabled = it)) }
+          )
+          RowDivider()
+
+          // Toggle 2: Auto activate on low battery
+          SettingsSwitchRow(
+            icon = Icons.Default.BatteryAlert,
+            title = if (isEn) "Auto Enable on Low Battery (<20%)" else "Tự động kích hoạt khi pin yếu (<20%)",
+            subtitle = if (isEn)
+              "Automatically switches to battery saver mode when battery drops below 20%"
+            else
+              "Tự chuyển sang chế độ tiết kiệm pin khi dung lượng pin xuống dưới 20%",
+            checked = settings.autoBatterySaverOnLowBattery,
+            onCheckedChange = { onUpdateSettings(settings.copy(autoBatterySaverOnLowBattery = it)) }
+          )
+          RowDivider()
+
+          // Toggle 3: OLED Pure Black HUD
+          SettingsSwitchRow(
+            icon = Icons.Default.DarkMode,
+            title = if (isEn) "OLED Pure Black HUD Screen" else "Màn hình HUD Đen Tuyền OLED",
+            subtitle = if (isEn)
+              "Pure #000000 background, turns off 100% OLED black pixels (Saves 80%+ battery)"
+            else
+              "Nền đen tuyệt đối #000000, tắt toàn bộ điểm ảnh đen trên màn hình AMOLED (Tiết kiệm > 80% pin)",
+            checked = settings.amoledPureBlackMode,
+            onCheckedChange = { onUpdateSettings(settings.copy(amoledPureBlackMode = it)) }
+          )
+        }
+      }
+
+      // ==========================================
+      // NHÓM 8: PHIÊN BẢN & CẬP NHẬT ỨNG DỤNG
       // ==========================================
       AccordionSectionCard(
         title = if (isEn) "App Version & In-App Updates" else "Phiên Bản Ứng Dụng & Cập Nhật",
-        subtitle = "v1.2.0 (Build 2026.08.24) • Bản chính thức",
+        subtitle = "v${BuildConfig.VERSION_NAME} (Build ${BuildConfig.VERSION_CODE}) • " + (if (isEn) "Official Release" else "Bản chính thức"),
         icon = Icons.Default.SystemUpdate,
         iconTint = Color(0xFF10B981),
         isExpanded = expandedUpdates,
@@ -593,7 +725,8 @@ fun SettingsScreen(
                   color = Color.White
                 )
                 Text(
-                  text = "Phiên bản: v1.2.0 • Build 120 (2026.08)",
+                  text = if (isEn) "Version: v${BuildConfig.VERSION_NAME} • Build ${BuildConfig.VERSION_CODE}"
+                         else "Phiên bản: v${BuildConfig.VERSION_NAME} • Build ${BuildConfig.VERSION_CODE}",
                   fontSize = 12.sp,
                   color = Color(0xFF38BDF8)
                 )
@@ -681,9 +814,18 @@ fun SettingsScreen(
     )
   }
 
-  // ==========================================
-  // APP UPDATE DIALOGS
-  // ==========================================
+  // Popup dialogs are hosted above
+}
+
+@Composable
+fun AppUpdateDialogHost(
+  updateCheckState: UpdateCheckState,
+  isEn: Boolean,
+  onCheckForUpdates: () -> Unit = {},
+  onStartDownload: (AppUpdateInfo) -> Unit,
+  onInstallDownloadedApk: (java.io.File) -> Unit,
+  onDismissUpdateDialog: () -> Unit
+) {
   when (val state = updateCheckState) {
     is UpdateCheckState.UpdateAvailable -> {
       AlertDialog(

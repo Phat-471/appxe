@@ -26,7 +26,9 @@ data class TrafficCamera(
   val verified: Boolean = true,
   val votesCount: Int = 12,
   val fineAmountText: String = "Phạt 800.000đ - 1.000.000đ (NĐ 100/123/NĐ-CP)",
-  val source: String = "Hệ thống CSGT / Sở GTVT"
+  val source: String = "Hệ thống CSGT / Sở GTVT",
+  val bearingDegrees: Float? = null,
+  val directionName: String = "Hai chiều / Giao lộ"
 )
 
 data class ActiveWarning(

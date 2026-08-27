@@ -50,6 +50,8 @@ fun MainAppContainer(
   val compassHeading by viewModel.compassHeading.collectAsStateWithLifecycle()
   val recentSearches by viewModel.recentSearches.collectAsStateWithLifecycle()
   val vehicleRoutingMode by viewModel.vehicleRoutingMode.collectAsStateWithLifecycle()
+  val batteryPercentage by viewModel.batteryPercentage.collectAsStateWithLifecycle()
+  val isCharging by viewModel.isCharging.collectAsStateWithLifecycle()
   val context = androidx.compose.ui.platform.LocalContext.current
   val updateCheckState by viewModel.updateCheckState.collectAsStateWithLifecycle()
 
@@ -184,7 +186,12 @@ fun MainAppContainer(
               onSpeakAlert = { msg -> viewModel.speakCustom(msg) },
               onSaveFavorite = { name, addr, cat, lat, lng, icon -> viewModel.saveFavoritePlace(name, addr, cat, lat, lng, icon) },
               onDeleteFavorite = { id -> viewModel.deleteFavoritePlace(id) },
-              onSearchNearbyUtilities = { cat -> viewModel.searchNearbyUtilities(cat) }
+              onSearchNearbyUtilities = { cat -> viewModel.searchNearbyUtilities(cat) },
+              batteryPercentage = batteryPercentage,
+              isCharging = isCharging,
+              onToggleBatterySaver = { viewModel.toggleBatterySaver() },
+              onToggleAmoledHud = { viewModel.toggleAmoledHud() },
+              onReportCamera = { type, limit, desc -> viewModel.reportNewCamera(type, limit, desc) }
             )
           }
 
@@ -196,6 +203,8 @@ fun MainAppContainer(
               onTestVoice = { viewModel.testVoice() },
               onDownloadPack = { pack -> viewModel.downloadOrUpdateOfflinePack(pack) },
               updateCheckState = updateCheckState,
+              batteryPercentage = batteryPercentage,
+              isCharging = isCharging,
               onCheckForUpdates = { viewModel.checkForAppUpdates() },
               onStartDownload = { info -> viewModel.startInAppDownload(context, info) },
               onInstallDownloadedApk = { file -> viewModel.installDownloadedApk(context, file) },
@@ -204,6 +213,15 @@ fun MainAppContainer(
           }
         }
       }
+
+      AppUpdateDialogHost(
+        updateCheckState = updateCheckState,
+        isEn = userSettings.appLanguage == "en",
+        onCheckForUpdates = { viewModel.checkForAppUpdates() },
+        onStartDownload = { info -> viewModel.startInAppDownload(context, info) },
+        onInstallDownloadedApk = { file -> viewModel.installDownloadedApk(context, file) },
+        onDismissUpdateDialog = { viewModel.dismissUpdateDialog() }
+      )
     }
   }
 }

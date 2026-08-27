@@ -132,6 +132,17 @@ class GpsLocationEngine(private val context: Context) {
     }
   }
 
+  private var isBatterySaverMode = false
+
+  fun setBatterySaverMode(enabled: Boolean) {
+    if (isBatterySaverMode != enabled) {
+      isBatterySaverMode = enabled
+      if (_locationState.value.isGpsActive && !_locationState.value.isSimulated) {
+        startRealGpsTracking()
+      }
+    }
+  }
+
   @SuppressLint("MissingPermission")
   fun startRealGpsTracking() {
     stopSimulation()
@@ -140,22 +151,11 @@ class GpsLocationEngine(private val context: Context) {
     kalmanFilter.reset()
 
     try {
-      // Register sensor fusion accelerometer
-      if (linearAccSensor != null && sensorListener != null) {
+      // Register sensor fusion accelerometer only if not in battery saver
+      if (!isBatterySaverMode && linearAccSensor != null && sensorListener != null) {
         sensorManager?.registerListener(sensorListener, linearAccSensor, SensorManager.SENSOR_DELAY_UI)
-      }
-      // 1. Instantly request high-accuracy current location fix
-      fusedClient?.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)?.addOnSuccessListener { loc ->
-        if (loc != null) {
-          processRealGpsLocation(loc)
-        }
-      }
-
-      // 2. Fetch last known location as instant baseline
-      fusedClient?.lastLocation?.addOnSuccessListener { loc ->
-        if (loc != null && !hasInitialGpsFix) {
-          processRealGpsLocation(loc)
-        }
+      } else if (sensorListener != null) {
+        sensorManager?.unregisterListener(sensorListener)
       }
 
       // 1. Fetch immediate last known location from all available providers
@@ -179,9 +179,11 @@ class GpsLocationEngine(private val context: Context) {
         }
       }
 
-      // 3. High-precision Real-time Fused location stream (150ms interval, 0m displacement)
-      val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 150L)
-        .setMinUpdateIntervalMillis(100L)
+      // 3. Fused location stream (1000ms for battery saver, 150ms for performance mode)
+      val interval = if (isBatterySaverMode) 1000L else 150L
+      val minInterval = if (isBatterySaverMode) 800L else 100L
+      val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, interval)
+        .setMinUpdateIntervalMillis(minInterval)
         .setMinUpdateDistanceMeters(0f)
         .setWaitForAccurateLocation(false)
         .build()
@@ -199,40 +201,42 @@ class GpsLocationEngine(private val context: Context) {
 
       fusedClient?.requestLocationUpdates(request, locationCallback!!, Looper.getMainLooper())
 
-      // 4. Dual Hardware GPS + Network Fallback listeners (Lấy vị trí nhanh kể cả khi trong nhà)
-      androidLocationListener = object : LocationListener {
-        override fun onLocationChanged(loc: Location) {
-          if (loc.accuracy <= 35f || !hasInitialGpsFix) {
-            processRealGpsLocation(loc)
+      // 4. Dual Hardware GPS + Network Fallback listeners (Only in high-performance mode)
+      if (!isBatterySaverMode) {
+        androidLocationListener = object : LocationListener {
+          override fun onLocationChanged(loc: Location) {
+            if (loc.accuracy <= 35f || !hasInitialGpsFix) {
+              processRealGpsLocation(loc)
+            }
           }
+          override fun onProviderEnabled(provider: String) {}
+          override fun onProviderDisabled(provider: String) {}
+          @Deprecated("Deprecated in Java")
+          override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
         }
-        override fun onProviderEnabled(provider: String) {}
-        override fun onProviderDisabled(provider: String) {}
-        @Deprecated("Deprecated in Java")
-        override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
-      }
 
-      try {
-        locationManager?.requestLocationUpdates(
-          LocationManager.GPS_PROVIDER,
-          200L,
-          0f,
-          androidLocationListener!!,
-          Looper.getMainLooper()
-        )
-        locationManager?.requestLocationUpdates(
-          LocationManager.NETWORK_PROVIDER,
-          500L,
-          0f,
-          androidLocationListener!!,
-          Looper.getMainLooper()
-        )
-      } catch (e: Exception) { /* ignore */ }
+        try {
+          locationManager?.requestLocationUpdates(
+            LocationManager.GPS_PROVIDER,
+            200L,
+            0f,
+            androidLocationListener!!,
+            Looper.getMainLooper()
+          )
+          locationManager?.requestLocationUpdates(
+            LocationManager.NETWORK_PROVIDER,
+            500L,
+            0f,
+            androidLocationListener!!,
+            Looper.getMainLooper()
+          )
+        } catch (e: Exception) { /* ignore */ }
+      }
 
       _locationState.value = _locationState.value.copy(
         isGpsActive = true,
         isSimulated = false,
-        provider = "GPS Vệ Tinh (Đang dò)",
+        provider = if (isBatterySaverMode) "GPS Tiết Kiệm Pin" else "GPS Vệ Tinh (Đang dò)",
         hasInitialFix = hasInitialGpsFix
       )
 

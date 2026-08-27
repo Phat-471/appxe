@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
     FavoritePlaceEntity::class,
     RecentSearchEntity::class
   ],
-  version = 9,
+  version = 10,
   exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -124,6 +124,20 @@ abstract class AppDatabase : RoomDatabase() {
       }
     }
 
+    val MIGRATION_9_10 = object : Migration(9, 10) {
+      override fun migrate(db: SupportSQLiteDatabase) {
+        try {
+          db.execSQL("ALTER TABLE user_settings ADD COLUMN batterySaverEnabled INTEGER NOT NULL DEFAULT 0")
+        } catch (_: Exception) {}
+        try {
+          db.execSQL("ALTER TABLE user_settings ADD COLUMN autoBatterySaverOnLowBattery INTEGER NOT NULL DEFAULT 1")
+        } catch (_: Exception) {}
+        try {
+          db.execSQL("ALTER TABLE user_settings ADD COLUMN amoledPureBlackMode INTEGER NOT NULL DEFAULT 0")
+        } catch (_: Exception) {}
+      }
+    }
+
     fun getDatabase(context: Context): AppDatabase {
       return INSTANCE ?: synchronized(this) {
         val instance = Room.databaseBuilder(
@@ -131,7 +145,10 @@ abstract class AppDatabase : RoomDatabase() {
           AppDatabase::class.java,
           "speed_alert_vietnam.db"
         )
-          .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
+          .addMigrations(
+            MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5,
+            MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10
+          )
           .fallbackToDestructiveMigration(dropAllTables = true)
           .addCallback(object : Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {

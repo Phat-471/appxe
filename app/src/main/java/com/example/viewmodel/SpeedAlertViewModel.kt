@@ -3,6 +3,7 @@ package com.example.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.BuildConfig
 import com.example.data.local.AppDatabase
 import com.example.data.local.OfflineMapPackEntity
 import com.example.data.local.TripRecordEntity
@@ -93,11 +94,31 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
   private var evaluationJob: Job? = null
   private var tripTickerJob: Job? = null
 
+  // Battery State Monitoring
+  private val _batteryPercentage = MutableStateFlow(100)
+  val batteryPercentage: StateFlow<Int> = _batteryPercentage.asStateFlow()
+
+  private val _isCharging = MutableStateFlow(false)
+  val isCharging: StateFlow<Boolean> = _isCharging.asStateFlow()
+
+  private var batteryReceiver: android.content.BroadcastReceiver? = null
+
   init {
     startEvaluationLoop()
     startLiveOsmCameraSyncLoop()
     // Start compass sensor for phone rotation heading
     compassEngine.startListening()
+
+    // Sync battery saver mode to engines
+    viewModelScope.launch {
+      userSettings.collect { settings ->
+        gpsLocationEngine.setBatterySaverMode(settings.batterySaverEnabled)
+        compassEngine.setBatterySaverMode(settings.batterySaverEnabled)
+      }
+    }
+
+    // Monitor battery level
+    setupBatteryMonitoring(application)
 
     // Background OTA Traffic Data Sync (Vietmap Standard)
     viewModelScope.launch {
@@ -108,6 +129,41 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
     gpsLocationEngine.onTurnVoicePrompt = { prompt ->
       voiceAlertEngine.alertNavigationTurn(prompt)
     }
+  }
+
+  private fun setupBatteryMonitoring(context: android.content.Context) {
+    try {
+      val filter = android.content.IntentFilter().apply {
+        addAction(android.content.Intent.ACTION_BATTERY_CHANGED)
+        addAction(android.content.Intent.ACTION_POWER_CONNECTED)
+        addAction(android.content.Intent.ACTION_POWER_DISCONNECTED)
+      }
+      batteryReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(ctx: android.content.Context?, intent: android.content.Intent?) {
+          intent?.let {
+            val level = it.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL, -1)
+            val scale = it.getIntExtra(android.os.BatteryManager.EXTRA_SCALE, -1)
+            val status = it.getIntExtra(android.os.BatteryManager.EXTRA_STATUS, -1)
+            val isChargingNow = status == android.os.BatteryManager.BATTERY_STATUS_CHARGING ||
+              status == android.os.BatteryManager.BATTERY_STATUS_FULL
+
+            if (level >= 0 && scale > 0) {
+              val pct = ((level / scale.toFloat()) * 100).toInt()
+              _batteryPercentage.value = pct
+              _isCharging.value = isChargingNow
+
+              // Auto activate battery saver if battery <= 20% and not charging
+              val currentSettings = userSettings.value
+              if (pct <= 20 && !isChargingNow && currentSettings.autoBatterySaverOnLowBattery && !currentSettings.batterySaverEnabled) {
+                updateSettings(currentSettings.copy(batterySaverEnabled = true))
+                voiceAlertEngine.speak("Pin yếu dưới 20 phần trăm. Đã tự động bật chế độ tiết kiệm pin.", isPriority = false)
+              }
+            }
+          }
+        }
+      }
+      context.registerReceiver(batteryReceiver, filter)
+    } catch (_: Exception) {}
   }
 
   private fun startLiveOsmCameraSyncLoop() {
@@ -134,8 +190,8 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
       kotlinx.coroutines.delay(2500)
       try {
         val result = com.example.service.AppUpdateManager.checkForUpdates(
-          currentVersionName = "1.2.0",
-          currentVersionCode = 120
+          currentVersionName = BuildConfig.VERSION_NAME,
+          currentVersionCode = BuildConfig.VERSION_CODE
         )
         if (result is UpdateCheckState.UpdateAvailable) {
           _updateCheckState.value = result
@@ -366,6 +422,28 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
     )
   }
 
+  fun reportNewCamera(
+    type: CameraType,
+    speedLimit: Int = 60,
+    description: String = ""
+  ) {
+    viewModelScope.launch {
+      val loc = locationState.value
+      val road = loc.detectedRoadName?.ifBlank { "Tuyến đường hiện tại" } ?: "Tuyến đường hiện tại"
+      val district = loc.detectedAddress ?: "Việt Nam"
+      repository.reportNewCamera(
+        lat = loc.latitude,
+        lng = loc.longitude,
+        type = type,
+        roadName = road,
+        speedLimit = speedLimit,
+        description = if (description.isNotBlank()) description else "Chốt/Camera do cộng đồng tài xế báo",
+        districtCity = district
+      )
+      voiceAlertEngine.speak("Cảm ơn bạn đã đóng góp cảnh báo giao thông tại $road.", isPriority = true)
+    }
+  }
+
   fun downloadOrUpdateOfflinePack(pack: OfflineMapPackEntity) {
     viewModelScope.launch {
       voiceAlertEngine.speak("Bắt đầu tải dữ liệu bản đồ ngoại tuyến.", isPriority = true)
@@ -504,8 +582,8 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
       _updateCheckState.value = UpdateCheckState.Checking
       kotlinx.coroutines.delay(650)
       val result = com.example.service.AppUpdateManager.checkForUpdates(
-        currentVersionName = "1.2.0",
-        currentVersionCode = 120
+        currentVersionName = BuildConfig.VERSION_NAME,
+        currentVersionCode = BuildConfig.VERSION_CODE
       )
       _updateCheckState.value = result
     }
@@ -538,6 +616,22 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
     _updateCheckState.value = UpdateCheckState.Idle
   }
 
+  fun toggleBatterySaver() {
+    val current = userSettings.value
+    val newMode = !current.batterySaverEnabled
+    updateSettings(current.copy(batterySaverEnabled = newMode))
+    if (newMode) {
+      voiceAlertEngine.speak("Đã bật chế độ tiết kiệm pin", isPriority = false)
+    } else {
+      voiceAlertEngine.speak("Đã tắt chế độ tiết kiệm pin", isPriority = false)
+    }
+  }
+
+  fun toggleAmoledHud() {
+    val current = userSettings.value
+    updateSettings(current.copy(amoledPureBlackMode = !current.amoledPureBlackMode))
+  }
+
   override fun onCleared() {
     super.onCleared()
     evaluationJob?.cancel()
@@ -545,5 +639,10 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
     gpsLocationEngine.stopGpsTracking()
     compassEngine.stopListening()
     voiceAlertEngine.shutdown()
+    try {
+      batteryReceiver?.let {
+        getApplication<Application>().unregisterReceiver(it)
+      }
+    } catch (_: Exception) {}
   }
 }

@@ -1,15 +1,15 @@
 {
-  "versionCode": 121,
-  "versionName": "1.2.1",
-  "releaseDate": "25/08/2026",
-  "downloadUrl": "https://github.com/Phat-471/appxe/releases/download/v1.2.1/app-debug.apk",
-  "sizeMb": 23.2,
+  "versionCode": 122,
+  "versionName": "1.2.2",
+  "releaseDate": "27/08/2026",
+  "downloadUrl": "https://github.com/Phat-471/appxe/releases/download/v1.2.2/app-debug.apk",
+  "sizeMb": 24.8,
   "isMandatory": false,
   "releaseNotes": [
-    "🚀 Tối ưu hóa tính năng Tự Động Cập Nhật Auto Update trong ứng dụng.",
-    "⚡ Nâng cấp định vị GPS siêu mượt & bắt vị trí tức thì < 0.5 giây.",
-    "🔍 Zoom bản đồ mượt 60-120 FPS không giật lag.",
-    "🎯 Tích chọn toạ độ chính xác 100% từng khúc cua dưới ngón tay.",
-    "📷 Cập nhật đầy đủ camera phạt nguội Lũy Bán Bích & toàn TP.HCM."
+    "⚡ Chế độ Siêu Tiết Kiệm Pin Thông Minh (Adaptive GPS & Tiết kiệm > 80% pin).",
+    "🖤 Màn hình HUD Đen Tuyền OLED (Pure Black AMOLED HUD) hắt kính lái ban đêm.",
+    "🛡️ Thuật toán Cảnh Báo Sớm Thích Ứng Vận Tốc (Speed-Adaptive Early Warning) chống phạt nguội triệt để.",
+    "🗺️ Mở rộng kho dữ liệu Camera Phạt Nguội & Bắn Tốc Độ chính xác cao toàn quốc (Hà Nội, TP.HCM, QL51, QL13, Cao Tốc...).",
+    "📸 Nút báo cáo 1-chạm: Đóng góp điểm camera & chốt CSGT mới tức thì."
   ]
 }

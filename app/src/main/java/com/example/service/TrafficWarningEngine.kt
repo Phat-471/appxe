@@ -62,6 +62,13 @@ class TrafficWarningEngine(
     val currentSpeed = location.speedKmh.toInt()
     val isMoving = location.speedKmh > 3.5f
 
+    // Dynamic Speed-Adaptive Alert Distance: Higher speed requires much earlier alert distance (up to 1500m)
+    val speedAdaptiveMaxDistance = if (isMoving) {
+      (location.speedKmh * 12.0).coerceIn(alertMaxDistanceMeters.toDouble(), 1500.0)
+    } else {
+      alertMaxDistanceMeters.toDouble()
+    }
+
     // 1. Find nearest RELEVANT camera ahead (Strict Road Corridor + Continuous Distance Bands)
     val nearestMajorRoad = VietnamTrafficData.ALL_ROADS.minByOrNull { road ->
       road.coordinates.minOfOrNull { (lat, lng) ->
@@ -106,9 +113,20 @@ class TrafficWarningEngine(
       )
 
       // Skip cameras too far away to even consider
-      if (dist > alertMaxDistanceMeters + 150) continue
+      if (dist > speedAdaptiveMaxDistance + 200) continue
 
       if (isMoving) {
+        // Directional Camera Filter: If camera has a known facing bearing (e.g. northbound),
+        // reject if driver is driving in the opposite direction (e.g. southbound) on divided roads
+        if (cam.bearingDegrees != null) {
+          var bearingDiff = cam.bearingDegrees - location.headingDegrees
+          while (bearingDiff > 180f) bearingDiff -= 360f
+          while (bearingDiff < -180f) bearingDiff += 360f
+          if (abs(bearingDiff) > 85.0f && !cam.directionName.contains("Hai chiều", ignoreCase = true)) {
+            continue
+          }
+        }
+
         val bearingToCam = VietnamTrafficData.calculateBearing(
           location.latitude, location.longitude,
           cam.latitude, cam.longitude
@@ -125,17 +143,21 @@ class TrafficWarningEngine(
         if (alongTrack < -15.0 && dist < 50.0) {
           passedCameraIds.add(cam.id)
           if (passedCameraIds.size > 100) passedCameraIds.remove(passedCameraIds.first())
+          if (voiceEnabled) {
+            voiceAlertEngine?.alertPassedCamera()
+          }
           continue
         }
 
-        // Camera must be ahead on the road within alert distance
-        if (alongTrack <= 0 || alongTrack > alertMaxDistanceMeters) continue
+        // Camera must be ahead on the road within adaptive alert distance
+        if (alongTrack <= 0 || alongTrack > speedAdaptiveMaxDistance) continue
 
         // Góc quan sát hình nón phía trước: xe đang hướng về phía camera (lệch tối đa 65 độ theo chuẩn Vietmap/GSpeed)
         if (abs(angleDiffDeg) > 65.0f && alongTrack > 25.0) continue
 
         // Cross-Track Corridor Filter (Hành lang làn đường thực tế):
         val maxAllowedCorridor = when {
+          alongTrack > 500.0 -> 110.0 // Bán kính hành lang xa trên cao tốc / quốc lộ
           alongTrack > 300.0 -> 80.0  // Bán kính hành lang xa (bao trọn khúc cua & đại lộ nhiều làn)
           alongTrack > 100.0 -> 65.0  // Hành lang trung bình
           else -> 48.0               // Gần camera
@@ -249,7 +271,7 @@ class TrafficWarningEngine(
     var activeWarning: ActiveWarning? = null
     val effectiveDist = if (minAlongTrackDistance < Double.MAX_VALUE) minAlongTrackDistance else minEuclideanDistance
 
-    if (nearestCamera != null && effectiveDist <= alertMaxDistanceMeters) {
+    if (nearestCamera != null && effectiveDist <= speedAdaptiveMaxDistance) {
       val distInt = effectiveDist.toInt()
       val warningLevel = when {
         isFineEligibleOverspeed -> WarningLevel.DANGER
@@ -283,12 +305,14 @@ class TrafficWarningEngine(
         formattedMessage = formattedMsg
       )
 
-      // Cảnh báo giọng nói theo Dải khoảng cách liên tục (Không khoảng trống, không bị lỡ nhịp)
+      // Cảnh báo giọng nói theo Dải khoảng cách thích ứng (1000m, 800m, 500m, 300m, 150m)
       if (voiceEnabled) {
         val currentDistanceBand = when {
-          distInt in 350..650 -> 500
-          distInt in 150..349 -> 300
-          distInt in 25..149 -> 100
+          distInt in 850..1400 -> 1000
+          distInt in 650..849 -> 800
+          distInt in 380..649 -> 500
+          distInt in 160..379 -> 300
+          distInt in 25..159 -> 100
           else -> -1
         }
 
@@ -300,7 +324,7 @@ class TrafficWarningEngine(
         }
       }
     } else {
-      if (effectiveDist > alertMaxDistanceMeters + 150) {
+      if (effectiveDist > speedAdaptiveMaxDistance + 150) {
         lastAlertCameraId = null
         lastAlertDistanceBand = -1
       }

@@ -155,7 +155,7 @@ object AppUpdateManager {
         notes.add("🚀 Tính năng tự động cập nhật Auto Update thông minh.")
       }
 
-      val hasUpdate = latestCode > currentVersionCode
+      val hasUpdate = (latestCode > currentVersionCode) || isSemanticVersionNewer(latestName, currentVersionName)
 
       val info = AppUpdateInfo(
         currentVersionName = currentVersionName,
@@ -182,9 +182,33 @@ object AppUpdateManager {
     }
   }
 
+  fun isSemanticVersionNewer(latestVersion: String, currentVersion: String): Boolean {
+    return try {
+      val cleanLatest = latestVersion.trim().removePrefix("v").removePrefix("V")
+      val cleanCurrent = currentVersion.trim().removePrefix("v").removePrefix("V")
+      if (cleanLatest.isBlank() || cleanCurrent.isBlank()) return false
+      if (cleanLatest == cleanCurrent) return false
+
+      val latestParts = cleanLatest.split(".").map { it.filter { c -> c.isDigit() }.toIntOrNull() ?: 0 }
+      val currentParts = cleanCurrent.split(".").map { it.filter { c -> c.isDigit() }.toIntOrNull() ?: 0 }
+
+      val maxLen = maxOf(latestParts.size, currentParts.size)
+      for (i in 0 until maxLen) {
+        val l = latestParts.getOrElse(i) { 0 }
+        val c = currentParts.getOrElse(i) { 0 }
+        if (l > c) return true
+        if (l < c) return false
+      }
+      false
+    } catch (_: Exception) {
+      false
+    }
+  }
+
   private fun parseVersionCode(versionName: String): Int {
     return try {
-      val parts = versionName.split(".").map { it.filter { char -> char.isDigit() }.toIntOrNull() ?: 0 }
+      val clean = versionName.trim().removePrefix("v").removePrefix("V")
+      val parts = clean.split(".").map { it.filter { char -> char.isDigit() }.toIntOrNull() ?: 0 }
       when (parts.size) {
         1 -> parts[0] * 100
         2 -> parts[0] * 100 + parts[1] * 10

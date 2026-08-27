@@ -78,6 +78,11 @@ fun LiveMapScreen(
   onDeleteFavorite: (id: String) -> Unit = {},
   onSearchNearbyUtilities: (suspend (String) -> List<DestinationPlace>)? = null,
   onRefreshLocation: () -> Unit = {},
+  batteryPercentage: Int = 100,
+  isCharging: Boolean = false,
+  onToggleBatterySaver: () -> Unit = {},
+  onToggleAmoledHud: () -> Unit = {},
+  onReportCamera: (CameraType, Int, String) -> Unit = { _, _, _ -> },
   modifier: Modifier = Modifier
 ) {
   val coroutineScope = rememberCoroutineScope()
@@ -97,6 +102,11 @@ fun LiveMapScreen(
   var utilityPlacesList by remember { mutableStateOf<List<DestinationPlace>>(emptyList()) }
   var isUtilityLoading by remember { mutableStateOf(false) }
   var showFavoriteToast by remember { mutableStateOf<String?>(null) }
+
+  // HUD Mode States
+  var isLocalHudActive by remember { mutableStateOf(false) }
+  var isMirrorHudActive by remember { mutableStateOf(false) }
+  var showReportCameraDialog by remember { mutableStateOf(false) }
 
   // Online Geocoding Search States
   var searchResults by remember { mutableStateOf<List<DestinationPlace>>(emptyList()) }
@@ -205,6 +215,27 @@ fun LiveMapScreen(
         isSearchingOnline = false
       }
     }
+  }
+
+  if (userSettings.amoledPureBlackMode || isLocalHudActive) {
+    com.example.ui.components.OledHudScreen(
+      locationState = locationState,
+      trafficEvaluation = trafficEvaluation,
+      batteryPercentage = batteryPercentage,
+      isCharging = isCharging,
+      isBatterySaverActive = userSettings.batterySaverEnabled,
+      isMirrorMode = isMirrorHudActive,
+      isEn = userSettings.appLanguage.equals("en", ignoreCase = true),
+      onToggleMirror = { isMirrorHudActive = !isMirrorHudActive },
+      onExitHud = {
+        isLocalHudActive = false
+        if (userSettings.amoledPureBlackMode) {
+          onToggleAmoledHud()
+        }
+      },
+      modifier = modifier
+    )
+    return
   }
 
   Box(
@@ -319,6 +350,47 @@ fun LiveMapScreen(
               overflow = TextOverflow.Ellipsis,
               modifier = Modifier.weight(1f)
             )
+            Spacer(modifier = Modifier.width(6.dp))
+            // Quick HUD / Battery Saver Trigger
+            Surface(
+              onClick = { isLocalHudActive = true },
+              shape = RoundedCornerShape(12.dp),
+              color = if (userSettings.batterySaverEnabled) Color(0xFF0284C7).copy(alpha = 0.15f) else Color(0xFFF1F5F9),
+              border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                if (userSettings.batterySaverEnabled) Color(0xFF0284C7).copy(alpha = 0.4f) else Color(0xFFE2E8F0)
+              )
+            ) {
+              Row(
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+              ) {
+                Icon(
+                  imageVector = when {
+                    isCharging -> Icons.Default.BatteryChargingFull
+                    batteryPercentage > 80 -> Icons.Default.BatteryFull
+                    batteryPercentage > 20 -> Icons.Default.Battery5Bar
+                    else -> Icons.Default.BatteryAlert
+                  },
+                  contentDescription = "HUD Mode",
+                  tint = if (isCharging) Color(0xFF0284C7) else if (batteryPercentage > 20) Color(0xFF10B981) else Color(0xFFEF4444),
+                  modifier = Modifier.size(16.dp)
+                )
+                Text(
+                  text = "$batteryPercentage%",
+                  fontSize = 11.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = Color(0xFF1E293B)
+                )
+                Text(
+                  text = "HUD",
+                  fontSize = 10.sp,
+                  fontWeight = FontWeight.Black,
+                  color = Color(0xFF0284C7)
+                )
+              }
+            }
           }
         }
 
@@ -503,6 +575,25 @@ fun LiveMapScreen(
             imageVector = Icons.Default.Layers,
             contentDescription = "Bong bóng nổi",
             tint = if (isBubbleRunning) Color(0xFF0F172A) else Color(0xFF38BDF8),
+            modifier = Modifier.size(20.dp)
+          )
+        }
+      }
+
+      // 4. Report Camera / Traffic Trap to Community
+      Surface(
+        onClick = { showReportCameraDialog = true },
+        shape = CircleShape,
+        color = Color(0xFFDC2626),
+        shadowElevation = 6.dp,
+        border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFFEF4444)),
+        modifier = Modifier.size(42.dp)
+      ) {
+        Box(contentAlignment = Alignment.Center) {
+          Icon(
+            imageVector = Icons.Default.AddLocationAlt,
+            contentDescription = "Báo camera/chốt",
+            tint = Color.White,
             modifier = Modifier.size(20.dp)
           )
         }
@@ -1568,7 +1659,113 @@ fun LiveMapScreen(
         onStartNavigation = onStartNavigation
       )
     }
+
+    // 13. COMMUNITY REPORT CAMERA DIALOG
+    if (showReportCameraDialog) {
+      CommunityReportCameraDialog(
+        currentRoadName = locationState.detectedRoadName?.ifBlank { "Vị trí hiện tại" } ?: "Vị trí hiện tại",
+        onDismiss = { showReportCameraDialog = false },
+        onSubmit = { type, limit, desc ->
+          onReportCamera(type, limit, desc)
+          showReportCameraDialog = false
+        }
+      )
+    }
   }
+}
+
+@Composable
+fun CommunityReportCameraDialog(
+  currentRoadName: String,
+  onDismiss: () -> Unit,
+  onSubmit: (CameraType, Int, String) -> Unit
+) {
+  var selectedType by remember { mutableStateOf(CameraType.SPEED_CAMERA) }
+  var selectedSpeedLimit by remember { mutableIntStateOf(60) }
+  var noteInput by remember { mutableStateOf("") }
+
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    containerColor = Color(0xFF0F172A),
+    title = {
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Default.AddLocationAlt, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(24.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text("Báo Cáo Điểm Camera Mới", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 16.sp)
+      }
+    },
+    text = {
+      Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Vị trí: $currentRoadName", fontSize = 12.sp, color = Color(0xFF38BDF8), fontWeight = FontWeight.SemiBold)
+
+        Text("Chọn loại cảnh báo:", fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Bold)
+
+        val reportOptions = listOf(
+          Triple(CameraType.SPEED_CAMERA, "Camera bắn tốc độ", Icons.Default.Speed),
+          Triple(CameraType.RED_LIGHT_CAMERA, "Phạt nguội vượt đèn đỏ", Icons.Default.Traffic),
+          Triple(CameraType.COLD_FINE_SURVEILLANCE, "Phạt đè vạch / Lấn làn", Icons.AutoMirrored.Filled.AltRoute),
+          Triple(CameraType.COMMUNITY_REPORT, "Chốt CSGT đang đo tốc độ", Icons.Default.Warning)
+        )
+
+        reportOptions.forEach { (type, label, icon) ->
+          val isSelected = selectedType == type
+          Surface(
+            onClick = { selectedType = type },
+            shape = RoundedCornerShape(10.dp),
+            color = if (isSelected) Color(0xFF0284C7).copy(alpha = 0.3f) else Color(0xFF1E293B),
+            border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) Color(0xFF38BDF8) else Color(0xFF334155)),
+            modifier = Modifier.fillMaxWidth()
+          ) {
+            Row(
+              modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Icon(icon, contentDescription = null, tint = if (isSelected) Color(0xFF38BDF8) else Color(0xFF94A3B8), modifier = Modifier.size(18.dp))
+              Spacer(modifier = Modifier.width(8.dp))
+              Text(label, color = Color.White, fontSize = 13.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+            }
+          }
+        }
+
+        if (selectedType == CameraType.SPEED_CAMERA) {
+          Text("Tốc độ giới hạn:", fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Bold)
+          Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(50, 60, 80, 100).forEach { limit ->
+              val isLimSelected = selectedSpeedLimit == limit
+              Surface(
+                onClick = { selectedSpeedLimit = limit },
+                shape = RoundedCornerShape(8.dp),
+                color = if (isLimSelected) Color(0xFFEF4444) else Color(0xFF1E293B),
+                modifier = Modifier.weight(1f)
+              ) {
+                Text(
+                  text = "$limit",
+                  fontSize = 13.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = Color.White,
+                  textAlign = TextAlign.Center,
+                  modifier = Modifier.padding(vertical = 6.dp)
+                )
+              }
+            }
+          }
+        }
+      }
+    },
+    confirmButton = {
+      Button(
+        onClick = { onSubmit(selectedType, selectedSpeedLimit, noteInput) },
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981))
+      ) {
+        Text("Gửi Báo Cáo", fontWeight = FontWeight.Bold)
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) {
+        Text("Huỷ", color = Color(0xFF94A3B8))
+      }
+    }
+  )
 }
 
 @Composable

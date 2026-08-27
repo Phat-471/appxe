@@ -226,38 +226,57 @@ class VoiceAlertEngine(private val context: Context) : TextToSpeech.OnInitListen
 
   fun alertCameraApproaching(warning: ActiveWarning) {
     val cam = warning.camera
-    val roundedDist = when {
-      warning.distanceMeters >= 400 -> 500
-      warning.distanceMeters >= 200 -> 300
-      else -> 100
+    val dist = warning.distanceMeters
+    val distText = when {
+      dist >= 950 -> "1 ki lô mét"
+      dist >= 750 -> "800 mét"
+      dist >= 450 -> "500 mét"
+      dist >= 250 -> "300 mét"
+      dist >= 120 -> "150 mét"
+      else -> "gần"
+    }
+
+    // If driver is overspeeding and camera is within 350m, trigger urgent braking reminder
+    if (warning.isOverspeeding && cam.speedLimit > 0 && dist <= 350) {
+      speak(
+        "Chú ý! Quá tốc độ. Còn $distText đến camera, giảm tốc dưới ${cam.speedLimit} km/h.",
+        isPriority = true,
+        forceVibrate = true,
+        playAudioChime = true
+      )
+      return
     }
 
     val speech = when (cam.type) {
       CameraType.ZONE_RESIDENTIAL_ENTRY ->
-        "Phía trước $roundedDist mét, vào khu đông dân cư. Tối đa ${cam.speedLimit}."
+        "Phía trước $distText, vào khu đông dân cư. Tối đa ${cam.speedLimit}."
       CameraType.ZONE_RESIDENTIAL_EXIT ->
         "Hết khu đông dân cư. Tối đa ${cam.speedLimit}."
       CameraType.SPEED_CAMERA ->
-        "Phía trước $roundedDist mét, có camera tốc độ ${cam.speedLimit}."
+        "Phía trước $distText, có camera bắn tốc độ ${cam.speedLimit}."
       CameraType.RED_LIGHT_CAMERA ->
-        "Phía trước $roundedDist mét, có camera vượt đèn đỏ."
+        "Phía trước $distText, có camera phạt nguội vượt đèn đỏ."
       CameraType.COLD_FINE_SURVEILLANCE ->
-        "Phía trước $roundedDist mét, có camera phạt lấn làn."
+        "Phía trước $distText, có camera phạt lấn làn và sai tuyến."
       CameraType.SECURITY_MONITORING ->
-        "Phía trước $roundedDist mét, có camera an ninh."
+        "Phía trước $distText, có camera an ninh."
       CameraType.HAZARD_ACCIDENT_ZONE ->
-        "Phía trước $roundedDist mét, đoạn đường nguy hiểm. Chú ý quan sát."
+        "Phía trước $distText, đoạn đường nguy hiểm. Chú ý quan sát."
       CameraType.MOTORBIKE_PROHIBITED_ZONE ->
-        "Cảnh báo nguy hiểm! Phía trước cấm xe máy!"
+        "Cảnh báo nguy hiểm! Phía trước cấm xe máy! Không đi vào cao tốc!"
       CameraType.SCHOOL_ZONE ->
-        "Phía trước $roundedDist mét, khu vực trường học. Giảm tốc."
+        "Phía trước $distText, khu vực trường học. Giảm tốc độ."
       CameraType.COMMUNITY_REPORT ->
-        "Phía trước $roundedDist mét, có chốt kiểm tra tốc độ."
+        "Phía trước $distText, có chốt kiểm tra tốc độ do tài xế báo."
       CameraType.SPEED_LIMIT_SIGN ->
-        "Phía trước $roundedDist mét, giới hạn ${cam.speedLimit}."
+        "Phía trước $distText, biển báo tốc độ giới hạn ${cam.speedLimit}."
     }
 
     speak(speech, isPriority = true, forceVibrate = true, playAudioChime = false)
+  }
+
+  fun alertPassedCamera() {
+    speak("Đã qua camera.", isPriority = false, forceVibrate = false, playAudioChime = true)
   }
 
   fun alertNavigationTurn(prompt: String) {

@@ -85,7 +85,11 @@ data class UserSettingsEntity(
   val mapTileSource: String = "GOOGLE_MAPS_HD",  // Nguồn tile bản đồ mặc định
   val floatingBubbleEnabled: Boolean = false,    // Cửa sổ nổi / Bong bóng Mini HUD đè lên Google Maps
   val mapCameraTilt3D: Boolean = true,           // Góc nhìn Camera 3D Tilt khi di chuyển
-  val vehicle3DModel: String = "3D_SCOOTER"      // 3D_SCOOTER, 3D_MOTORBIKE, 3D_SPORT_CAR, 3D_ARROW
+  val vehicle3DModel: String = "3D_SCOOTER",     // 3D_SCOOTER, 3D_MOTORBIKE, 3D_SPORT_CAR, 3D_ARROW
+  // === SMART BATTERY SAVER & AMOLED HUD ===
+  val batterySaverEnabled: Boolean = false,              // Chế độ siêu tiết kiệm pin (Adaptive GPS & Sensors)
+  val autoBatterySaverOnLowBattery: Boolean = true,     // Tự kích hoạt khi pin dưới 20%
+  val amoledPureBlackMode: Boolean = false              // Màn hình đen tuyền AMOLED tiết kiệm pin 80%
 )
 
 @Entity(tableName = "favorite_places")

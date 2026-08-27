@@ -16,7 +16,7 @@ fun String.unaccent(): String {
 
 object VietnamTrafficData {
 
-  // Realistic verified camera database for Vietnam routes (August 2026 update)
+  // Realistic verified camera database for Vietnam routes (August 2026 update - Nationwide)
   val ALL_CAMERAS: List<TrafficCamera> = listOf(
     // ====== TP. HỒ CHÍ MINH ======
     TrafficCamera(
@@ -27,7 +27,9 @@ object VietnamTrafficData {
       roadName = "Đại lộ Võ Văn Kiệt (Gần Cầu Chữ Y)",
       speedLimit = 60,
       description = "Camera bắn tốc độ cố định 60 km/h làn hỗn hợp gần Cầu Chữ Y",
-      districtCity = "Quận 5, TP.HCM"
+      districtCity = "Quận 5, TP.HCM",
+      bearingDegrees = 245f,
+      directionName = "Hướng về Bình Chánh / Miền Tây"
     ),
     TrafficCamera(
       id = "cam_sg_vvk_02",
@@ -37,7 +39,9 @@ object VietnamTrafficData {
       roadName = "Võ Văn Kiệt giao An Dương Vương",
       speedLimit = 60,
       description = "Camera phạt nguội vượt đèn đỏ và đè vạch rẽ nhánh",
-      districtCity = "Quận 6, TP.HCM"
+      districtCity = "Quận 6, TP.HCM",
+      bearingDegrees = null,
+      directionName = "Hai chiều / Ngã tư"
     ),
     TrafficCamera(
       id = "cam_sg_vvk_03",
@@ -47,7 +51,21 @@ object VietnamTrafficData {
       roadName = "Đầu Hầm Vượt Sông Sài Gòn (Phía Quận 1)",
       speedLimit = 60,
       description = "Camera phạt nguội tốc độ và bật đèn chiếu gần trong hầm",
-      districtCity = "Quận 1, TP.HCM"
+      districtCity = "Quận 1, TP.HCM",
+      bearingDegrees = 110f,
+      directionName = "Hướng Quận 1 qua Thủ Thiêm"
+    ),
+    TrafficCamera(
+      id = "cam_sg_vvk_04",
+      latitude = 10.7720,
+      longitude = 106.7090,
+      type = CameraType.COLD_FINE_SURVEILLANCE,
+      roadName = "Đầu Hầm Thủ Thiêm (Phía TP. Thủ Đức)",
+      speedLimit = 60,
+      description = "Camera phạt nguội tốc độ 60 km/h và sai làn lối ra hầm",
+      districtCity = "TP. Thủ Đức, TP.HCM",
+      bearingDegrees = 290f,
+      directionName = "Hướng Thủ Thiêm vào Quận 1"
     ),
     TrafficCamera(
       id = "cam_sg_pvd_01",
@@ -57,7 +75,9 @@ object VietnamTrafficData {
       roadName = "Đường Phạm Văn Đồng (Gần Cầu Bình Lợi)",
       speedLimit = 60,
       description = "Camera bắn tốc độ tự động 60 km/h làn xe máy",
-      districtCity = "Bình Thạnh, TP.HCM"
+      districtCity = "Bình Thạnh, TP.HCM",
+      bearingDegrees = 65f,
+      directionName = "Hướng Sân bay đi Thủ Đức"
     ),
     TrafficCamera(
       id = "cam_sg_pvd_02",
@@ -67,7 +87,9 @@ object VietnamTrafficData {
       roadName = "Phạm Văn Đồng giao Tô Ngọc Vân",
       speedLimit = 60,
       description = "Camera phạt nguội chạy sai làn đường và lấn tuyến",
-      districtCity = "TP. Thủ Đức, TP.HCM"
+      districtCity = "TP. Thủ Đức, TP.HCM",
+      bearingDegrees = null,
+      directionName = "Hai chiều / Giao lộ"
     ),
     TrafficCamera(
       id = "cam_sg_pvd_03",
@@ -77,7 +99,9 @@ object VietnamTrafficData {
       roadName = "Phạm Văn Đồng giao Phan Văn Trị",
       speedLimit = 60,
       description = "Camera phạt nguội không tuân thủ đèn tín hiệu",
-      districtCity = "Gò Vấp, TP.HCM"
+      districtCity = "Gò Vấp, TP.HCM",
+      bearingDegrees = null,
+      directionName = "Ngã tư Phan Văn Trị"
     ),
     TrafficCamera(
       id = "cam_sg_nvl_01",
@@ -87,7 +111,9 @@ object VietnamTrafficData {
       roadName = "Nguyễn Văn Linh giao Nguyễn Hữu Thọ",
       speedLimit = 50,
       description = "Phạt nguội vượt đèn đỏ và đè vạch ngã tư lớn",
-      districtCity = "Quận 7, TP.HCM"
+      districtCity = "Quận 7, TP.HCM",
+      bearingDegrees = null,
+      directionName = "Nút giao Nguyễn Hữu Thọ"
     ),
     TrafficCamera(
       id = "cam_sg_nvl_02",
@@ -97,7 +123,9 @@ object VietnamTrafficData {
       roadName = "Đại lộ Nguyễn Văn Linh (Gần Quốc Lộ 50)",
       speedLimit = 60,
       description = "Camera đo tốc độ tự động 60 km/h đoạn đường thẳng",
-      districtCity = "Bình Chánh, TP.HCM"
+      districtCity = "Bình Chánh, TP.HCM",
+      bearingDegrees = 260f,
+      directionName = "Hướng về Quốc Lộ 1A"
     ),
     TrafficCamera(
       id = "cam_sg_ql1a_01",
@@ -107,7 +135,9 @@ object VietnamTrafficData {
       roadName = "Quốc Lộ 1A (Ngã Tư An Sương)",
       speedLimit = 50,
       description = "Camera bắn tốc độ đoạn vào vòng xoay An Sương",
-      districtCity = "Quận 12, TP.HCM"
+      districtCity = "Quận 12, TP.HCM",
+      bearingDegrees = null,
+      directionName = "Vòng xoay An Sương"
     ),
     TrafficCamera(
       id = "cam_sg_ql1a_02",
@@ -117,7 +147,45 @@ object VietnamTrafficData {
       roadName = "Quốc Lộ 1A (Đoạn Cầu Bình Điền)",
       speedLimit = 50,
       description = "Giám sát tốc độ 50 km/h khu đông dân cư và lấn làn",
-      districtCity = "Bình Chánh, TP.HCM"
+      districtCity = "Bình Chánh, TP.HCM",
+      bearingDegrees = 210f,
+      directionName = "Hướng đi Long An / Miền Tây"
+    ),
+    TrafficCamera(
+      id = "cam_sg_ql1a_03",
+      latitude = 10.8710,
+      longitude = 106.7720,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Quốc Lộ 1A (Khu Công Nghệ Cao - Đại Học Quốc Gia)",
+      speedLimit = 60,
+      description = "Camera bắn tốc độ tự động 60 km/h làn hỗn hợp",
+      districtCity = "TP. Thủ Đức, TP.HCM",
+      bearingDegrees = 45f,
+      directionName = "Hướng đi Biên Hòa / Đồng Nai"
+    ),
+    TrafficCamera(
+      id = "cam_sg_ql22_01",
+      latitude = 10.8850,
+      longitude = 106.5610,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Quốc Lộ 22 (Ngã Tư Hóc Môn)",
+      speedLimit = 60,
+      description = "Camera đo tốc độ tự động và phạt đè vạch",
+      districtCity = "Hóc Môn, TP.HCM",
+      bearingDegrees = 315f,
+      directionName = "Hướng đi Củ Chi / Tây Ninh"
+    ),
+    TrafficCamera(
+      id = "cam_sg_ql22_02",
+      latitude = 10.9780,
+      longitude = 106.4920,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Quốc Lộ 22 (Thị Trấn Củ Chi)",
+      speedLimit = 50,
+      description = "Camera phạt nguội tốc độ 50 km/h khu đông dân cư",
+      districtCity = "Củ Chi, TP.HCM",
+      bearingDegrees = null,
+      directionName = "Khu đông dân cư Củ Chi"
     ),
     TrafficCamera(
       id = "cam_sg_mct_01",
@@ -127,7 +195,33 @@ object VietnamTrafficData {
       roadName = "Đại Lộ Mai Chí Thọ (Gần Nút Giao An Phú)",
       speedLimit = 50,
       description = "Camera bắn tốc độ 50 km/h làn đường gom",
-      districtCity = "TP. Thủ Đức, TP.HCM"
+      districtCity = "TP. Thủ Đức, TP.HCM",
+      bearingDegrees = 75f,
+      directionName = "Hướng về Nút giao An Phú"
+    ),
+    TrafficCamera(
+      id = "cam_sg_xlhn_01",
+      latitude = 10.8020,
+      longitude = 106.7380,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Xa Lộ Hà Nội (Cầu Sài Gòn 2)",
+      speedLimit = 60,
+      description = "Camera bắn tốc độ cố định 60 km/h lối xuống cầu",
+      districtCity = "Bình Thạnh, TP.HCM",
+      bearingDegrees = 60f,
+      directionName = "Hướng ra Ngã tư Thủ Đức"
+    ),
+    TrafficCamera(
+      id = "cam_sg_xlhn_02",
+      latitude = 10.8520,
+      longitude = 106.7720,
+      type = CameraType.RED_LIGHT_CAMERA,
+      roadName = "Xa Lộ Hà Nội (Ngã Tư Thủ Đức)",
+      speedLimit = 60,
+      description = "Camera phạt nguội vượt đèn và đè vạch dừng dưới chân cầu vượt",
+      districtCity = "TP. Thủ Đức, TP.HCM",
+      bearingDegrees = null,
+      directionName = "Ngã tư Thủ Đức"
     ),
     TrafficCamera(
       id = "cam_sg_cmt8_01",
@@ -137,17 +231,9 @@ object VietnamTrafficData {
       roadName = "Cách Mạng Tháng 8 (Ngã 6 Dân Chủ)",
       speedLimit = 50,
       description = "Camera phạt nguội vượt đèn và lấn vạch vòng xoay",
-      districtCity = "Quận 3, TP.HCM"
-    ),
-    TrafficCamera(
-      id = "cam_sg_cmt8_02",
-      latitude = 10.7920,
-      longitude = 106.6570,
-      type = CameraType.COLD_FINE_SURVEILLANCE,
-      roadName = "Cách Mạng Tháng 8 giao Tô Hiến Thành",
-      speedLimit = 50,
-      description = "Camera giám sát lấn làn và dừng đỗ sai quy định",
-      districtCity = "Quận 10, TP.HCM"
+      districtCity = "Quận 3, TP.HCM",
+      bearingDegrees = null,
+      directionName = "Vòng xoay Dân Chủ"
     ),
     TrafficCamera(
       id = "cam_sg_ch_01",
@@ -157,7 +243,9 @@ object VietnamTrafficData {
       roadName = "Đường Cộng Hòa (Cầu vượt Hoàng Hoa Thám)",
       speedLimit = 50,
       description = "Camera bắn tốc độ tự động 50 km/h trên cầu vượt",
-      districtCity = "Tân Bình, TP.HCM"
+      districtCity = "Tân Bình, TP.HCM",
+      bearingDegrees = 300f,
+      directionName = "Hướng về Ngã tư An Sương"
     ),
     TrafficCamera(
       id = "cam_sg_dbp_01",
@@ -167,50 +255,24 @@ object VietnamTrafficData {
       roadName = "Điện Biên Phủ (Ngã Tư Hàng Xanh)",
       speedLimit = 50,
       description = "Camera phạt nguội vượt đèn tín hiệu và đè vạch dừng",
-      districtCity = "Bình Thạnh, TP.HCM"
+      districtCity = "Bình Thạnh, TP.HCM",
+      bearingDegrees = null,
+      directionName = "Ngã tư Hàng Xanh"
     ),
     TrafficCamera(
-      id = "cam_sg_ntr_01",
-      latitude = 10.7605,
-      longitude = 106.6775,
-      type = CameraType.SPEED_LIMIT_SIGN,
-      roadName = "Đường Nguyễn Trãi",
-      speedLimit = 50,
-      description = "Khu vực đô thị đông dân cư, tốc độ tối đa 50 km/h",
-      districtCity = "Quận 5, TP.HCM"
-    ),
-    TrafficCamera(
-      id = "cam_sg_sec_01",
-      latitude = 10.7745,
-      longitude = 106.7035,
-      type = CameraType.SECURITY_MONITORING,
-      roadName = "Phố Đi Bộ Nguyễn Huệ",
-      speedLimit = 50,
-      description = "Camera an ninh đô thị và giám sát trật tự công cộng",
-      districtCity = "Quận 1, TP.HCM"
-    ),
-    TrafficCamera(
-      id = "cam_sg_sec_02",
-      latitude = 10.7985,
-      longitude = 106.7210,
-      type = CameraType.SECURITY_MONITORING,
-      roadName = "Cầu Sài Gòn (Đoạn nối Bình Thạnh - TP. Thủ Đức)",
+      id = "cam_sg_cpm_01",
+      latitude = 10.7430,
+      longitude = 106.7450,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Đường Dẫn Cầu Phú Mỹ",
       speedLimit = 60,
-      description = "Camera giám sát luồng phương tiện và tình trạng kẹt xe",
-      districtCity = "Bình Thạnh, TP.HCM"
-    ),
-    TrafficCamera(
-      id = "cam_sg_zone_01",
-      latitude = 10.7760,
-      longitude = 106.6950,
-      type = CameraType.ZONE_RESIDENTIAL_ENTRY,
-      roadName = "Khu vực Trung Tâm TP.HCM",
-      speedLimit = 50,
-      description = "Biển báo khu đông dân cư: Tối đa 50 km/h xe máy",
-      districtCity = "Quận 1, TP.HCM"
+      description = "Camera đo tốc độ 60 km/h đoạn dốc cầu Phú Mỹ",
+      districtCity = "Quận 7, TP.HCM",
+      bearingDegrees = 65f,
+      directionName = "Hướng Quận 7 qua TP. Thủ Đức"
     ),
 
-    // ====== HÀ NỘI ======
+    // ====== HÀ NỘI & MIỀN BẮC ======
     TrafficCamera(
       id = "cam_hn_vd3_01",
       latitude = 20.9982,
@@ -219,7 +281,21 @@ object VietnamTrafficData {
       roadName = "Đường Vành Đai 3 dưới thấp (Khuất Duy Tiến)",
       speedLimit = 50,
       description = "Phạt nguội đè vạch liền, lấn làn xe buýt BRT, vượt đèn đỏ",
-      districtCity = "Thanh Xuân, Hà Nội"
+      districtCity = "Thanh Xuân, Hà Nội",
+      bearingDegrees = null,
+      directionName = "Trục Vành Đai 3"
+    ),
+    TrafficCamera(
+      id = "cam_hn_vd3_02",
+      latitude = 21.0280,
+      longitude = 105.7790,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Đường Phạm Hùng (Trước Bến Xe Mỹ Đình)",
+      speedLimit = 50,
+      description = "Camera phạt nguội tốc độ 50 km/h và dừng đỗ sai quy định",
+      districtCity = "Nam Từ Liêm, Hà Nội",
+      bearingDegrees = 350f,
+      directionName = "Hướng đi Cầu Giấy / Mai Dịch"
     ),
     TrafficCamera(
       id = "cam_hn_tl_01",
@@ -229,7 +305,9 @@ object VietnamTrafficData {
       roadName = "Đại Lộ Thăng Long (Đường gom xe máy)",
       speedLimit = 50,
       description = "Bắn tốc độ 50 km/h đường gom, phạt xe máy đi vào cao tốc",
-      districtCity = "Nam Từ Liêm, Hà Nội"
+      districtCity = "Nam Từ Liêm, Hà Nội",
+      bearingDegrees = 265f,
+      directionName = "Hướng đi Hòa Lạc"
     ),
     TrafficCamera(
       id = "cam_hn_vng_01",
@@ -239,7 +317,9 @@ object VietnamTrafficData {
       roadName = "Đường Võ Nguyên Giáp (Cầu Nhật Tân - Nội Bài)",
       speedLimit = 60,
       description = "Camera đo tốc độ tự động 60 km/h đường gom xe 2 bánh",
-      districtCity = "Đông Anh, Hà Nội"
+      districtCity = "Đông Anh, Hà Nội",
+      bearingDegrees = 345f,
+      directionName = "Hướng đi Sân bay Nội Bài"
     ),
     TrafficCamera(
       id = "cam_hn_pvd_01",
@@ -249,7 +329,9 @@ object VietnamTrafficData {
       roadName = "Phạm Văn Đồng giao Hoàng Quốc Việt",
       speedLimit = 50,
       description = "Phạt nguội vượt đèn đỏ ngã tư giao cắt lớn",
-      districtCity = "Cầu Giấy, Hà Nội"
+      districtCity = "Cầu Giấy, Hà Nội",
+      bearingDegrees = null,
+      directionName = "Ngã tư Hoàng Quốc Việt"
     ),
     TrafficCamera(
       id = "cam_hn_gp_01",
@@ -259,7 +341,9 @@ object VietnamTrafficData {
       roadName = "Đường Giải Phóng (Gần Bến Xe Nước Ngầm)",
       speedLimit = 50,
       description = "Giám sát tốc độ 50 km/h và dừng đỗ sai quy định",
-      districtCity = "Hoàng Mai, Hà Nội"
+      districtCity = "Hoàng Mai, Hà Nội",
+      bearingDegrees = 180f,
+      directionName = "Hướng ra Cửa ngõ phía Nam / QL1A"
     ),
     TrafficCamera(
       id = "cam_hn_nts_01",
@@ -269,7 +353,21 @@ object VietnamTrafficData {
       roadName = "Ngã Tư Sở (Nguyễn Trãi - Trường Chinh)",
       speedLimit = 50,
       description = "Camera phạt nguội vượt đèn đỏ và đè vạch ngã tư lớn",
-      districtCity = "Đống Đa, Hà Nội"
+      districtCity = "Đống Đa, Hà Nội",
+      bearingDegrees = null,
+      directionName = "Ngã Tư Sở"
+    ),
+    TrafficCamera(
+      id = "cam_hn_ql5_01",
+      latitude = 21.0310,
+      longitude = 105.9120,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Quốc Lộ 5 (Đoạn Cầu Chui Long Biên)",
+      speedLimit = 50,
+      description = "Camera bắn tốc độ tự động 50 km/h khu đông dân cư",
+      districtCity = "Long Biên, Hà Nội",
+      bearingDegrees = 95f,
+      directionName = "Hướng đi Hải Dương / Hải Phòng"
     ),
 
     // ====== QUỐC LỘ 51 & ĐỒNG NAI - BÀ RỊA VŨNG TÀU ======
@@ -281,7 +379,9 @@ object VietnamTrafficData {
       roadName = "Quốc Lộ 51 (Đoạn Long Thành - Đồng Nai)",
       speedLimit = 60,
       description = "Camera phạt nguội tốc độ 60 km/h toàn tuyến tự động",
-      districtCity = "Long Thành, Đồng Nai"
+      districtCity = "Long Thành, Đồng Nai",
+      bearingDegrees = 150f,
+      directionName = "Hướng Biên Hòa đi Vũng Tàu"
     ),
     TrafficCamera(
       id = "cam_ql51_02",
@@ -291,10 +391,62 @@ object VietnamTrafficData {
       roadName = "Quốc Lộ 51 (Đoạn Thị Xã Phú Mỹ)",
       speedLimit = 60,
       description = "Khu đông dân cư, camera đo tốc độ 60 km/h cố định",
-      districtCity = "Thị xã Phú Mỹ, BR-VT"
+      districtCity = "Thị xã Phú Mỹ, BR-VT",
+      bearingDegrees = 145f,
+      directionName = "Hướng đi TP. Bà Rịa"
+    ),
+    TrafficCamera(
+      id = "cam_ql51_03",
+      latitude = 10.4280,
+      longitude = 107.1250,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Quốc Lộ 51 (Cửa ngõ TP. Vũng Tàu)",
+      speedLimit = 60,
+      description = "Camera đo tốc độ 60 km/h đoạn vào trung tâm TP. Vũng Tàu",
+      districtCity = "TP. Vũng Tàu, BR-VT",
+      bearingDegrees = 190f,
+      directionName = "Hướng vào Trung tâm Vũng Tàu"
     ),
 
-    // ====== ĐÀ NẴNG ======
+    // ====== BÌNH DƯƠNG - BÌNH PHƯỚC ======
+    TrafficCamera(
+      id = "cam_bd_ql13_01",
+      latitude = 10.9250,
+      longitude = 106.6980,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Đại Lộ Bình Dương / QL13 (Gần Cổng Chào Lái Thiêu)",
+      speedLimit = 60,
+      description = "Camera đo tốc độ tự động 60 km/h làn hỗn hợp",
+      districtCity = "Thuận An, Bình Dương",
+      bearingDegrees = 350f,
+      directionName = "Hướng TP.HCM đi Thủ Dầu Một"
+    ),
+    TrafficCamera(
+      id = "cam_bd_ql13_02",
+      latitude = 10.9850,
+      longitude = 106.6620,
+      type = CameraType.RED_LIGHT_CAMERA,
+      roadName = "QL13 giao Đại Lộ Hùng Vương (TP. Thủ Dầu Một)",
+      speedLimit = 60,
+      description = "Camera phạt nguội vượt đèn đỏ và lấn làn",
+      districtCity = "TP. Thủ Dầu Một, Bình Dương",
+      bearingDegrees = null,
+      directionName = "Ngã tư Hùng Vương"
+    ),
+    TrafficCamera(
+      id = "cam_bd_mptv_01",
+      latitude = 10.9520,
+      longitude = 106.7210,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Đường Mỹ Phước - Tân Vạn",
+      speedLimit = 60,
+      description = "Camera giám sát tốc độ 60 km/h và làn xe tải nặng",
+      districtCity = "Dĩ An, Bình Dương",
+      bearingDegrees = 10f,
+      directionName = "Hướng đi Bến Cát"
+    ),
+
+    // ====== ĐÀ NẴNG & MIỀN TRUNG ======
     TrafficCamera(
       id = "cam_dn_ntt_01",
       latitude = 16.0790,
@@ -303,7 +455,9 @@ object VietnamTrafficData {
       roadName = "Đường Nguyễn Tất Thành (Đà Nẵng)",
       speedLimit = 50,
       description = "Camera đo tốc độ 50 km/h dọc tuyến đường ven biển",
-      districtCity = "Thanh Khê, Đà Nẵng"
+      districtCity = "Thanh Khê, Đà Nẵng",
+      bearingDegrees = 295f,
+      directionName = "Hướng đi Cửa ô Nam Ô"
     ),
     TrafficCamera(
       id = "cam_dn_cr_01",
@@ -313,7 +467,47 @@ object VietnamTrafficData {
       roadName = "Đầu Cầu Rồng (Đường 2 Tháng 9)",
       speedLimit = 40,
       description = "Camera phạt nguội vượt đèn và đè vạch rẽ trái",
-      districtCity = "Hải Châu, Đà Nẵng"
+      districtCity = "Hải Châu, Đà Nẵng",
+      bearingDegrees = null,
+      directionName = "Ngã tư Cầu Rồng"
+    ),
+    TrafficCamera(
+      id = "cam_dn_vng_01",
+      latitude = 16.0520,
+      longitude = 108.2450,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Đường Võ Nguyên Giáp (Bãi Biển Mỹ Khê)",
+      speedLimit = 50,
+      description = "Camera đo tốc độ tuyến du lịch ven biển 50 km/h",
+      districtCity = "Sơn Trà, Đà Nẵng",
+      bearingDegrees = 170f,
+      directionName = "Hướng đi Ngũ Hành Sơn / Hội An"
+    ),
+
+    // ====== MIỀN TÂY (TIỀN GIANG, CẦN THƠ) ======
+    TrafficCamera(
+      id = "cam_tg_ql1a_01",
+      latitude = 10.3650,
+      longitude = 106.3520,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Quốc Lộ 1A (Tuyến Tránh TP. Mỹ Tho)",
+      speedLimit = 60,
+      description = "Camera phạt nguội tốc độ 60 km/h tuyến tránh",
+      districtCity = "Mỹ Tho, Tiền Giang",
+      bearingDegrees = 240f,
+      directionName = "Hướng đi Cầu Mỹ Thuận"
+    ),
+    TrafficCamera(
+      id = "cam_ct_ql1a_01",
+      latitude = 10.0210,
+      longitude = 105.7810,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Quốc Lộ 1A (Đoạn Cầu Cần Thơ)",
+      speedLimit = 60,
+      description = "Camera đo tốc độ 60 km/h đường dẫn lên cầu Cần Thơ",
+      districtCity = "Cái Răng, Cần Thơ",
+      bearingDegrees = 205f,
+      directionName = "Hướng đi Sóc Trăng / Cà Mau"
     ),
 
     // ====== ĐIỂM CẢNH BÁO ĐƯỜNG CẤM XE MÁY / CAO TỐC ======
@@ -325,7 +519,9 @@ object VietnamTrafficData {
       roadName = "Lối vào Cao Tốc TP.HCM - Long Thành (Nút Giao An Phú)",
       speedLimit = 0,
       description = "CẤM XE MÁY ĐI VÀO CAO TỐC! Phạt 2-3 triệu & tước GPLX 3-5 tháng",
-      districtCity = "TP. Thủ Đức, TP.HCM"
+      districtCity = "TP. Thủ Đức, TP.HCM",
+      bearingDegrees = 85f,
+      directionName = "Nhánh rẽ vào Cao tốc Long Thành"
     ),
     TrafficCamera(
       id = "cam_prohibit_tl_01",
@@ -335,7 +531,9 @@ object VietnamTrafficData {
       roadName = "Lối vào Cao Tốc TP.HCM - Trung Lương (Nút Giao Chợ Đệm)",
       speedLimit = 0,
       description = "CẤM XE MÁY ĐI VÀO CAO TỐC! Chú ý rẽ vào đường gom Quốc Lộ 1A",
-      districtCity = "Bình Chánh, TP.HCM"
+      districtCity = "Bình Chánh, TP.HCM",
+      bearingDegrees = 215f,
+      directionName = "Nhánh rẽ vào Cao tốc Trung Lương"
     ),
     TrafficCamera(
       id = "cam_prohibit_vvk_01",
@@ -345,7 +543,9 @@ object VietnamTrafficData {
       roadName = "Làn Ô Tô Giữa Đại Lộ Võ Văn Kiệt",
       speedLimit = 0,
       description = "Làn ô tô cấm xe máy! Xe máy chỉ được đi làn hỗn hợp bên phải",
-      districtCity = "Quận 5, TP.HCM"
+      districtCity = "Quận 5, TP.HCM",
+      bearingDegrees = null,
+      directionName = "Dải phân cách làn ô tô"
     ),
     TrafficCamera(
       id = "cam_prohibit_pvd_01",
@@ -355,7 +555,9 @@ object VietnamTrafficData {
       roadName = "Làn Ô Tô Giữa Đường Phạm Văn Đồng",
       speedLimit = 0,
       description = "Làn ô tô 80km/h cấm xe máy! Đi đúng làn xe 2 bánh bên phải",
-      districtCity = "Gò Vấp, TP.HCM"
+      districtCity = "Gò Vấp, TP.HCM",
+      bearingDegrees = null,
+      directionName = "Dải phân cách làn ô tô"
     ),
     TrafficCamera(
       id = "cam_prohibit_hn_tl_01",

@@ -47,7 +47,7 @@ class TrafficRepository(private val dao: TrafficDao) {
       )
     }
     // Merge: Built-in + Live OSM + Community reports (distinct by approximate coordinates or ID)
-    (VietnamTrafficData.ALL_CAMERAS_FULL + liveOsmList + convertedCommunity).distinctBy { it.id }
+    (VietnamTrafficData.ALL_CAMERAS + liveOsmList + convertedCommunity).distinctBy { it.id }
   }
 
   suspend fun syncLiveOsmCameras(centerLat: Double, centerLng: Double) = withContext(Dispatchers.IO) {

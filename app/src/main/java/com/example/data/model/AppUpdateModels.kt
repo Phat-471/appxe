@@ -3,12 +3,12 @@ package com.example.data.model
 import java.io.File
 
 data class AppUpdateInfo(
-  val currentVersionName: String = "1.2.0",
-  val currentVersionCode: Int = 120,
-  val latestVersionName: String = "1.2.1",
-  val latestVersionCode: Int = 121,
+  val currentVersionName: String = "",
+  val currentVersionCode: Int = 0,
+  val latestVersionName: String = "",
+  val latestVersionCode: Int = 0,
   val hasUpdate: Boolean = false,
-  val releaseDate: String = "25/08/2026",
+  val releaseDate: String = "",
   val releaseNotes: List<String> = emptyList(),
   val apkDownloadUrl: String = "https://github.com/Phat-471/appxe/releases",
   val fileSizeMb: Float = 28.5f,

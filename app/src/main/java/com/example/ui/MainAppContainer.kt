@@ -52,6 +52,10 @@ fun MainAppContainer(
   val vehicleRoutingMode by viewModel.vehicleRoutingMode.collectAsStateWithLifecycle()
   val batteryPercentage by viewModel.batteryPercentage.collectAsStateWithLifecycle()
   val isCharging by viewModel.isCharging.collectAsStateWithLifecycle()
+  val releaseHistory by viewModel.releaseHistory.collectAsStateWithLifecycle()
+  val rollbackBackupInfo by viewModel.rollbackBackupInfo.collectAsStateWithLifecycle()
+  val isCrashRecoveryMode by viewModel.isCrashRecoveryMode.collectAsStateWithLifecycle()
+  val isHistoryLoading by viewModel.isHistoryLoading.collectAsStateWithLifecycle()
   val context = androidx.compose.ui.platform.LocalContext.current
   val updateCheckState by viewModel.updateCheckState.collectAsStateWithLifecycle()
 
@@ -208,7 +212,15 @@ fun MainAppContainer(
               onCheckForUpdates = { viewModel.checkForAppUpdates() },
               onStartDownload = { info -> viewModel.startInAppDownload(context, info) },
               onInstallDownloadedApk = { file -> viewModel.installDownloadedApk(context, file) },
-              onDismissUpdateDialog = { viewModel.dismissUpdateDialog() }
+              onDismissUpdateDialog = { viewModel.dismissUpdateDialog() },
+              releaseHistory = releaseHistory,
+              rollbackBackupInfo = rollbackBackupInfo,
+              isCrashRecoveryMode = isCrashRecoveryMode,
+              isHistoryLoading = isHistoryLoading,
+              onLoadReleaseHistory = { viewModel.loadReleaseHistory() },
+              onPerformLocalRollback = { viewModel.rollbackToPreviousLocalVersion(context) },
+              onRollbackToSpecificRelease = { item -> viewModel.rollbackToSpecificRelease(context, item) },
+              onDismissCrashRecovery = { viewModel.dismissCrashRecoveryMode(context) }
             )
           }
         }

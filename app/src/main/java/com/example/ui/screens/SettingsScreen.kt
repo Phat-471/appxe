@@ -36,6 +36,8 @@ import com.example.data.local.OfflineMapPackEntity
 import com.example.data.local.UserSettingsEntity
 import com.example.data.model.AppUpdateInfo
 import com.example.data.model.UpdateCheckState
+import com.example.data.model.AppReleaseHistoryItem
+import com.example.data.model.RollbackBackupInfo
 import com.example.service.AppUpdateManager
 import com.example.BuildConfig
 import com.example.ui.i18n.AppStrings
@@ -56,12 +58,21 @@ fun SettingsScreen(
   onStartDownload: (AppUpdateInfo) -> Unit = {},
   onInstallDownloadedApk: (java.io.File) -> Unit = {},
   onDismissUpdateDialog: () -> Unit = {},
+  releaseHistory: List<AppReleaseHistoryItem> = emptyList(),
+  rollbackBackupInfo: RollbackBackupInfo = RollbackBackupInfo(),
+  isCrashRecoveryMode: Boolean = false,
+  isHistoryLoading: Boolean = false,
+  onLoadReleaseHistory: () -> Unit = {},
+  onPerformLocalRollback: () -> Unit = {},
+  onRollbackToSpecificRelease: (AppReleaseHistoryItem) -> Unit = {},
+  onDismissCrashRecovery: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   var showSpeedBufferDialog by remember { mutableStateOf(false) }
   var showDistanceDialog by remember { mutableStateOf(false) }
   var showVehicleTypeDialog by remember { mutableStateOf(false) }
   var showLanguageDialog by remember { mutableStateOf(false) }
+  var showReleaseHistorySheet by remember { mutableStateOf(false) }
   val context = LocalContext.current
 
   // Accordion Expand/Collapse States (Mở sẵn mục 1 và 4 làm điểm nhấn)
@@ -769,6 +780,65 @@ fun SettingsScreen(
               )
             }
           }
+
+          // Local Rollback Button if local backup is present
+          if (rollbackBackupInfo.hasLocalBackup) {
+            Surface(
+              shape = RoundedCornerShape(12.dp),
+              color = Color(0xFF10B981).copy(alpha = 0.15f),
+              border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f)),
+              modifier = Modifier.fillMaxWidth()
+            ) {
+              Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                  Icon(Icons.Default.Restore, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(18.dp))
+                  Spacer(modifier = Modifier.width(6.dp))
+                  Text(
+                    text = "Bản sao lưu trước đó: v${rollbackBackupInfo.backupVersionName}",
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF10B981)
+                  )
+                }
+                Text(
+                  text = "Nếu bản mới v${BuildConfig.VERSION_NAME} phát sinh lỗi hoặc giật lag, bạn có thể hạ cấp quay về bản v${rollbackBackupInfo.backupVersionName} ngay lập tức (không cần tải lại).",
+                  fontSize = 11.5.sp,
+                  color = Color(0xFF64748B),
+                  lineHeight = 16.sp
+                )
+                Button(
+                  onClick = onPerformLocalRollback,
+                  colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
+                  shape = RoundedCornerShape(10.dp),
+                  modifier = Modifier.fillMaxWidth().height(40.dp)
+                ) {
+                  Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(16.dp))
+                  Spacer(modifier = Modifier.width(6.dp))
+                  Text("Hạ Cấp Về Bản v${rollbackBackupInfo.backupVersionName} (Rollback)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+              }
+            }
+          }
+
+          // Version History & Online Downgrade Button
+          OutlinedButton(
+            onClick = {
+              onLoadReleaseHistory()
+              showReleaseHistorySheet = true
+            },
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0284C7)),
+            border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFF0284C7)),
+            modifier = Modifier.fillMaxWidth().height(44.dp)
+          ) {
+            Icon(Icons.Default.ListAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = if (isEn) "Version History & Rollback" else "📜 Lịch Sử Tất Cả Phiên Bản & Hạ Cấp",
+              fontWeight = FontWeight.Bold,
+              fontSize = 13.5.sp
+            )
+          }
         }
       }
 
@@ -814,7 +884,230 @@ fun SettingsScreen(
     )
   }
 
-  // Popup dialogs are hosted above
+  // Crash Recovery Emergency Dialog
+  if (isCrashRecoveryMode) {
+    CrashRecoveryDialog(
+      currentVersion = BuildConfig.VERSION_NAME,
+      backupVersion = rollbackBackupInfo.backupVersionName,
+      onRollback = onPerformLocalRollback,
+      onOpenHistory = {
+        onLoadReleaseHistory()
+        showReleaseHistorySheet = true
+      },
+      onDismiss = onDismissCrashRecovery
+    )
+  }
+
+  // Release History & Rollback Bottom Sheet
+  if (showReleaseHistorySheet) {
+    ReleaseHistoryBottomSheet(
+      historyList = releaseHistory,
+      isLoading = isHistoryLoading,
+      currentVersionName = BuildConfig.VERSION_NAME,
+      onDismiss = { showReleaseHistorySheet = false },
+      onSelectReleaseToRollback = { releaseItem ->
+        onRollbackToSpecificRelease(releaseItem)
+        showReleaseHistorySheet = false
+      }
+    )
+  }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ReleaseHistoryBottomSheet(
+  historyList: List<AppReleaseHistoryItem>,
+  isLoading: Boolean,
+  currentVersionName: String,
+  onDismiss: () -> Unit,
+  onSelectReleaseToRollback: (AppReleaseHistoryItem) -> Unit
+) {
+  ModalBottomSheet(
+    onDismissRequest = onDismiss,
+    containerColor = Color(0xFF0F172A),
+    dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0xFF64748B)) }
+  ) {
+    Column(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp, vertical = 8.dp)
+        .padding(bottom = 32.dp),
+      verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+      Row(verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Default.History, contentDescription = null, tint = Color(0xFF38BDF8), modifier = Modifier.size(24.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+          text = "Lịch Sử Phiên Bản & Hạ Cấp (Rollback)",
+          fontSize = 16.sp,
+          fontWeight = FontWeight.Bold,
+          color = Color.White
+        )
+      }
+
+      Text(
+        text = "Nếu bạn gặp sự cố trên bản mới, hãy chọn bất kỳ phiên bản ổn định bên dưới để tải và khôi phục.",
+        fontSize = 12.sp,
+        color = Color(0xFF94A3B8)
+      )
+
+      if (isLoading) {
+        Box(
+          modifier = Modifier.fillMaxWidth().padding(32.dp),
+          contentAlignment = Alignment.Center
+        ) {
+          CircularProgressIndicator(color = Color(0xFF0284C7))
+        }
+      } else {
+        androidx.compose.foundation.lazy.LazyColumn(
+          verticalArrangement = Arrangement.spacedBy(10.dp),
+          modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
+        ) {
+          items(historyList.size) { idx ->
+            val item = historyList[idx]
+            val isCurrent = item.isCurrentVersion || item.versionName == currentVersionName.removePrefix("v").removePrefix("V")
+            Surface(
+              shape = RoundedCornerShape(12.dp),
+              color = if (isCurrent) Color(0xFF0284C7).copy(alpha = 0.15f) else Color(0xFF1E293B),
+              border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                if (isCurrent) Color(0xFF0284C7) else Color(0xFF334155)
+              ),
+              modifier = Modifier.fillMaxWidth()
+            ) {
+              Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(
+                  modifier = Modifier.fillMaxWidth(),
+                  horizontalArrangement = Arrangement.SpaceBetween,
+                  verticalAlignment = Alignment.CenterVertically
+                ) {
+                  Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                      text = "Phiên bản v${item.versionName}",
+                      fontSize = 14.sp,
+                      fontWeight = FontWeight.Bold,
+                      color = Color.White
+                    )
+                    if (isCurrent) {
+                      Spacer(modifier = Modifier.width(6.dp))
+                      Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFF0284C7)
+                      ) {
+                        Text(
+                          text = "ĐANG DÙNG",
+                          fontSize = 9.sp,
+                          fontWeight = FontWeight.Black,
+                          color = Color.White,
+                          modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                      }
+                    }
+                  }
+                  Text(
+                    text = item.releaseDate,
+                    fontSize = 11.sp,
+                    color = Color(0xFF94A3B8)
+                  )
+                }
+
+                if (item.releaseNotes.isNotEmpty()) {
+                  item.releaseNotes.take(3).forEach { note ->
+                    Text(
+                      text = "• $note",
+                      fontSize = 11.5.sp,
+                      color = Color(0xFFCBD5E1),
+                      lineHeight = 15.sp
+                    )
+                  }
+                }
+
+                if (!isCurrent) {
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                  ) {
+                    Button(
+                      onClick = { onSelectReleaseToRollback(item) },
+                      colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706)),
+                      shape = RoundedCornerShape(8.dp),
+                      contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                      modifier = Modifier.height(34.dp)
+                    ) {
+                      Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(14.dp))
+                      Spacer(modifier = Modifier.width(4.dp))
+                      Text("Hạ cấp về bản này (Rollback)", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+@Composable
+fun CrashRecoveryDialog(
+  currentVersion: String,
+  backupVersion: String,
+  onRollback: () -> Unit,
+  onOpenHistory: () -> Unit,
+  onDismiss: () -> Unit
+) {
+  AlertDialog(
+    onDismissRequest = onDismiss,
+    containerColor = Color(0xFF0F172A),
+    icon = {
+      Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(36.dp))
+    },
+    title = {
+      Text(
+        text = "Chế Độ Cứu Hộ / Phục Hồi Khẩn Cấp",
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Bold,
+        color = Color.White,
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+      )
+    },
+    text = {
+      Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(
+          text = "Phát hiện ứng dụng gặp sự cố khởi động liên tục sau khi cập nhật phiên bản v$currentVersion.",
+          fontSize = 13.sp,
+          color = Color(0xFFCBD5E1)
+        )
+        Text(
+          text = "Bạn có muốn hạ cấp (Rollback) về phiên bản ổn định trước đó ngay không?",
+          fontSize = 12.sp,
+          color = Color(0xFF38BDF8),
+          fontWeight = FontWeight.SemiBold
+        )
+      }
+    },
+    confirmButton = {
+      Button(
+        onClick = {
+          if (backupVersion.isNotBlank()) {
+            onRollback()
+          } else {
+            onOpenHistory()
+          }
+          onDismiss()
+        },
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD97706))
+      ) {
+        Text("⏮️ Hạ cấp (Rollback) Ngay", fontWeight = FontWeight.Bold)
+      }
+    },
+    dismissButton = {
+      TextButton(onClick = onDismiss) {
+        Text("Bỏ qua", color = Color(0xFF94A3B8))
+      }
+    }
+  )
 }
 
 @Composable

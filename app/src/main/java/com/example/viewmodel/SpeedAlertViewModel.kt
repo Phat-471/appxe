@@ -120,6 +120,9 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
     // Monitor battery level
     setupBatteryMonitoring(application)
 
+    // Startup stability watchdog & rollback check
+    initStartupWatchdog(application)
+
     // Background OTA Traffic Data Sync (Vietmap Standard)
     viewModelScope.launch {
       cloudTrafficSyncEngine.syncTrafficDataIfNeeded()
@@ -614,6 +617,77 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
 
   fun dismissUpdateDialog() {
     _updateCheckState.value = UpdateCheckState.Idle
+  }
+
+  // === ROLLBACK & RECOVERY MANAGEMENT ===
+  private val _releaseHistory = MutableStateFlow<List<AppReleaseHistoryItem>>(emptyList())
+  val releaseHistory: StateFlow<List<AppReleaseHistoryItem>> = _releaseHistory.asStateFlow()
+
+  private val _rollbackBackupInfo = MutableStateFlow(RollbackBackupInfo())
+  val rollbackBackupInfo: StateFlow<RollbackBackupInfo> = _rollbackBackupInfo.asStateFlow()
+
+  private val _isCrashRecoveryMode = MutableStateFlow(false)
+  val isCrashRecoveryMode: StateFlow<Boolean> = _isCrashRecoveryMode.asStateFlow()
+
+  private val _isHistoryLoading = MutableStateFlow(false)
+  val isHistoryLoading: StateFlow<Boolean> = _isHistoryLoading.asStateFlow()
+
+  fun initStartupWatchdog(context: android.content.Context) {
+    val isCrashLoop = com.example.service.AppUpdateManager.checkStartupStability(context)
+    if (isCrashLoop) {
+      _isCrashRecoveryMode.value = true
+      voiceAlertEngine.speak("Phát hiện ứng dụng gặp sự cố. Đang kích hoạt chế độ cứu hộ khẩn cấp.", isPriority = true)
+    } else {
+      viewModelScope.launch {
+        kotlinx.coroutines.delay(4000)
+        com.example.service.AppUpdateManager.recordSuccessfulStartup(context)
+      }
+    }
+    loadRollbackBackupInfo(context)
+  }
+
+  fun loadRollbackBackupInfo(context: android.content.Context) {
+    _rollbackBackupInfo.value = com.example.service.AppUpdateManager.getRollbackBackupInfo(context)
+  }
+
+  fun loadReleaseHistory() {
+    viewModelScope.launch {
+      _isHistoryLoading.value = true
+      _releaseHistory.value = com.example.service.AppUpdateManager.fetchReleaseHistory(BuildConfig.VERSION_NAME)
+      _isHistoryLoading.value = false
+    }
+  }
+
+  fun rollbackToPreviousLocalVersion(context: android.content.Context): Boolean {
+    val success = com.example.service.AppUpdateManager.performLocalRollback(context)
+    if (success) {
+      voiceAlertEngine.speak("Đang mở trình cài đặt để hạ cấp về phiên bản trước.", isPriority = true)
+    } else {
+      voiceAlertEngine.speak("Không tìm thấy bản sao lưu cục bộ. Đang tải danh sách phiên bản GitHub.", isPriority = true)
+      loadReleaseHistory()
+    }
+    return success
+  }
+
+  fun rollbackToSpecificRelease(context: android.content.Context, item: AppReleaseHistoryItem) {
+    val info = AppUpdateInfo(
+      currentVersionName = BuildConfig.VERSION_NAME,
+      currentVersionCode = BuildConfig.VERSION_CODE,
+      latestVersionName = item.versionName,
+      latestVersionCode = item.versionCode,
+      hasUpdate = true,
+      releaseDate = item.releaseDate,
+      releaseNotes = item.releaseNotes,
+      apkDownloadUrl = item.apkDownloadUrl,
+      fileSizeMb = item.sizeMb,
+      isMandatory = false
+    )
+    startInAppDownload(context, info)
+  }
+
+  fun dismissCrashRecoveryMode(context: android.content.Context) {
+    _isCrashRecoveryMode.value = false
+    com.example.service.AppUpdateManager.recordSuccessfulStartup(context)
   }
 
   fun toggleBatterySaver() {

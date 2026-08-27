@@ -32,3 +32,24 @@ sealed interface UpdateCheckState {
   data class UpToDate(val currentVersion: String, val lastCheckedTime: String) : UpdateCheckState
   data class Error(val message: String) : UpdateCheckState
 }
+
+data class AppReleaseHistoryItem(
+  val tagName: String,
+  val versionName: String,
+  val versionCode: Int,
+  val releaseDate: String,
+  val releaseNotes: List<String>,
+  val apkDownloadUrl: String,
+  val sizeMb: Float,
+  val isCurrentVersion: Boolean = false,
+  val isOlderVersion: Boolean = false
+)
+
+data class RollbackBackupInfo(
+  val hasLocalBackup: Boolean = false,
+  val backupVersionName: String = "",
+  val backupVersionCode: Int = 0,
+  val backupFilePath: String = "",
+  val backupTimestamp: Long = 0L
+)
+

@@ -44,24 +44,31 @@ class MainActivity : ComponentActivity() {
     // Observe user settings for screen-on, background service & floating bubble
     lifecycleScope.launch {
       viewModel.userSettings.collect { settings ->
-        if (settings.autoScreenOn) {
-          window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        } else {
-          window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        }
-
-        if (settings.backgroundServiceEnabled && (hasFine || hasCoarse)) {
-          SpeedLimitTrackingService.startService(this@MainActivity)
-        } else if (!settings.backgroundServiceEnabled) {
-          SpeedLimitTrackingService.stopService(this@MainActivity)
-        }
-
-        if (settings.floatingBubbleEnabled) {
-          if (com.example.service.FloatingSpeedBubbleService.canDrawOverlay(this@MainActivity)) {
-            com.example.service.FloatingSpeedBubbleService.startService(this@MainActivity)
+        try {
+          if (settings.autoScreenOn) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+          } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
           }
-        } else {
-          com.example.service.FloatingSpeedBubbleService.stopService(this@MainActivity)
+
+          val hasLoc = ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                       ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+          if (settings.backgroundServiceEnabled && hasLoc) {
+            SpeedLimitTrackingService.startService(this@MainActivity)
+          } else if (!settings.backgroundServiceEnabled) {
+            SpeedLimitTrackingService.stopService(this@MainActivity)
+          }
+
+          if (settings.floatingBubbleEnabled) {
+            if (com.example.service.FloatingSpeedBubbleService.canDrawOverlay(this@MainActivity)) {
+              com.example.service.FloatingSpeedBubbleService.startService(this@MainActivity)
+            }
+          } else {
+            com.example.service.FloatingSpeedBubbleService.stopService(this@MainActivity)
+          }
+        } catch (e: Exception) {
+          android.util.Log.w("MainActivity", "Settings application error: ${e.message}")
         }
       }
     }

@@ -20,11 +20,11 @@ import kotlin.math.abs
  */
 class CompassSensorEngine(context: Context) : SensorEventListener {
 
-  private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+  private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
 
-  private val accelerometer: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
-  private val magnetometer: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
-  private val rotationVector: Sensor? = sensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
+  private val accelerometer: Sensor? = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+  private val magnetometer: Sensor? = sensorManager?.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+  private val rotationVector: Sensor? = sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
 
   private val _compassHeading = MutableStateFlow(0f)
   val compassHeading: StateFlow<Float> = _compassHeading.asStateFlow()
@@ -61,11 +61,11 @@ class CompassSensorEngine(context: Context) : SensorEventListener {
     val sensorDelay = if (isBatterySaverMode) SensorManager.SENSOR_DELAY_NORMAL else SensorManager.SENSOR_DELAY_UI
 
     // Prefer rotation vector sensor (fused, more accurate)
-    if (rotationVector != null) {
+    if (rotationVector != null && sensorManager != null) {
       sensorManager.registerListener(this, rotationVector, sensorDelay)
       _isCompassAvailable.value = true
       Log.d(TAG, "Compass: Using ROTATION_VECTOR sensor (delay=$sensorDelay)")
-    } else if (accelerometer != null && magnetometer != null) {
+    } else if (accelerometer != null && magnetometer != null && sensorManager != null) {
       // Fallback to accelerometer + magnetometer
       sensorManager.registerListener(this, accelerometer, sensorDelay)
       sensorManager.registerListener(this, magnetometer, sensorDelay)
@@ -80,7 +80,9 @@ class CompassSensorEngine(context: Context) : SensorEventListener {
   fun stopListening() {
     if (!isListening) return
     isListening = false
-    sensorManager.unregisterListener(this)
+    try {
+      sensorManager?.unregisterListener(this)
+    } catch (_: Exception) {}
   }
 
   override fun onSensorChanged(event: SensorEvent?) {

@@ -316,6 +316,11 @@ fun OfflineMapCanvas(
 
       val canvasWidth = size.width
       val canvasHeight = size.height
+      val tileSizePx = baseTileSize * zoomMultiplier
+
+      if (canvasWidth <= 0f || canvasHeight <= 0f || tileSizePx <= 0f) {
+        return@Canvas
+      }
 
       // Navigation Lookahead: in Track-Up mode, place vehicle lower to see road ahead (Google Maps 3D style)
       val vehicleVerticalBias = if (orientationMode == MapOrientationMode.TRACK_UP) {
@@ -324,7 +329,6 @@ fun OfflineMapCanvas(
       val midX = canvasWidth / 2f + panOffsetX
       val midY = canvasHeight / 2f + panOffsetY + vehicleVerticalBias
 
-      val tileSizePx = baseTileSize * zoomMultiplier
       val cTileX = OsmTileManager.lon2tileX(centerLng, anchorZoom)
       val cTileY = OsmTileManager.lat2tileY(centerLat, anchorZoom)
 

@@ -165,8 +165,19 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
           }
         }
       }
-      context.registerReceiver(batteryReceiver, filter)
-    } catch (_: Exception) {}
+      if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        androidx.core.content.ContextCompat.registerReceiver(
+          context,
+          batteryReceiver!!,
+          filter,
+          androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+      } else {
+        context.registerReceiver(batteryReceiver, filter)
+      }
+    } catch (e: Exception) {
+      android.util.Log.w("SpeedAlertViewModel", "Battery receiver registration skipped: ${e.message}")
+    }
   }
 
   private fun startLiveOsmCameraSyncLoop() {

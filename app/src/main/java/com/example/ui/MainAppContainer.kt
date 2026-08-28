@@ -220,7 +220,8 @@ fun MainAppContainer(
               onLoadReleaseHistory = { viewModel.loadReleaseHistory() },
               onPerformLocalRollback = { viewModel.rollbackToPreviousLocalVersion(context) },
               onRollbackToSpecificRelease = { item -> viewModel.rollbackToSpecificRelease(context, item) },
-              onDismissCrashRecovery = { viewModel.dismissCrashRecoveryMode(context) }
+              onDismissCrashRecovery = { viewModel.dismissCrashRecoveryMode(context) },
+              onSyncSouthernCameras = { viewModel.syncAllSouthernCameras() }
             )
           }
         }

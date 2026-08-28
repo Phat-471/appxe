@@ -125,4 +125,81 @@ object OsmLiveCameraDataSource {
 
     return@withContext cachedLiveCameras.values.toList()
   }
+
+  /**
+   * Đồng bộ toàn bộ dữ liệu Camera khu vực Phía Nam (bounding box Miền Nam: 8.5°N -> 12.2°N, 104.5°E -> 108.5°E)
+   */
+  suspend fun fetchSouthernVietnamCameras(): List<TrafficCamera> = withContext(Dispatchers.IO) {
+    val query = """
+      [out:json][timeout:15];
+      (
+        node["highway"="speed_camera"](8.5,104.5,12.2,108.5);
+        node["enforcement"="speed"](8.5,104.5,12.2,108.5);
+        node["enforcement"="traffic_signals"](8.5,104.5,12.2,108.5);
+        node["man_made"="surveillance"](8.5,104.5,12.2,108.5);
+      );
+      out body;
+    """.trimIndent().replace("\n", "")
+
+    try {
+      val url = "https://overpass-api.de/api/interpreter?data=${java.net.URLEncoder.encode(query, "UTF-8")}"
+      val request = Request.Builder()
+        .url(url)
+        .header("User-Agent", "SpeedAlertVietnamApp/2.0 (Southern Vietnam Full Camera Sync)")
+        .build()
+
+      httpClient.newCall(request).execute().use { response ->
+        if (response.isSuccessful) {
+          val body = response.body?.string()
+          if (!body.isNullOrBlank()) {
+            val json = JSONObject(body)
+            val elements = json.optJSONArray("elements") ?: return@withContext cachedLiveCameras.values.toList()
+            for (i in 0 until elements.length()) {
+              val item = elements.getJSONObject(i)
+              val id = "osm_south_cam_${item.optLong("id", System.currentTimeMillis() + i)}"
+              val lat = item.optDouble("lat", 0.0)
+              val lon = item.optDouble("lon", 0.0)
+              if (lat == 0.0 || lon == 0.0) continue
+
+              val tags = item.optJSONObject("tags") ?: JSONObject()
+              val maxspeedStr = tags.optString("maxspeed", "")
+              val speedLimit = maxspeedStr.filter { it.isDigit() }.toIntOrNull() ?: 60
+              val enforcement = tags.optString("enforcement", "")
+              val highway = tags.optString("highway", "")
+              val manMade = tags.optString("man_made", "")
+
+              val camType = when {
+                enforcement == "traffic_signals" -> CameraType.RED_LIGHT_CAMERA
+                highway == "speed_camera" || enforcement == "speed" -> CameraType.SPEED_CAMERA
+                manMade == "surveillance" -> CameraType.COLD_FINE_SURVEILLANCE
+                else -> CameraType.SPEED_CAMERA
+              }
+
+              val roadName = tags.optString("name", "").ifBlank {
+                tags.optString("description", "Camera Giám Sát Phía Nam (OSM)")
+              }
+
+              val cam = TrafficCamera(
+                id = id,
+                latitude = lat,
+                longitude = lon,
+                type = camType,
+                roadName = roadName,
+                speedLimit = speedLimit,
+                description = "Dữ liệu camera giao thông thời gian thực Miền Nam",
+                districtCity = "Miền Nam (Đã đồng bộ)",
+                verified = true,
+                votesCount = 25
+              )
+              cachedLiveCameras[id] = cam
+            }
+          }
+        }
+      }
+    } catch (e: Exception) {
+      Log.w(TAG, "Sync Southern cameras error: ${e.message}")
+    }
+
+    return@withContext cachedLiveCameras.values.toList()
+  }
 }

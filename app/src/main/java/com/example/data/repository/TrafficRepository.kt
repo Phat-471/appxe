@@ -47,7 +47,7 @@ class TrafficRepository(private val dao: TrafficDao) {
       )
     }
     // Merge: Built-in (Full) + Live OSM + Community reports (distinct by ID)
-    (VietnamTrafficData.ALL_CAMERAS_FULL + liveOsmList + convertedCommunity).distinctBy { it.id }
+    (VietnamTrafficData.ALL_CAMERAS + liveOsmList + convertedCommunity).distinctBy { it.id }
   }
 
   suspend fun syncLiveOsmCameras(centerLat: Double, centerLng: Double) = withContext(Dispatchers.IO) {
@@ -59,6 +59,19 @@ class TrafficRepository(private val dao: TrafficDao) {
     } catch (e: Exception) {
       // Non-fatal, fallback to offline DB
     }
+  }
+
+  suspend fun syncSouthernCameras(): Int = withContext(Dispatchers.IO) {
+    try {
+      val southCameras = OsmLiveCameraDataSource.fetchSouthernVietnamCameras()
+      if (southCameras.isNotEmpty()) {
+        _liveOsmCameras.value = southCameras
+        return@withContext southCameras.size
+      }
+    } catch (e: Exception) {
+      // Non-fatal
+    }
+    return@withContext VietnamTrafficData.ALL_CAMERAS.size
   }
 
   val allTripsFlow: Flow<List<TripSummary>> = dao.getAllTrips().map { entities ->

@@ -72,6 +72,9 @@ fun OfflineMapCanvas(
   onMapTapLocation: ((lat: Double, lng: Double) -> Unit)? = null,
   onRefreshLocation: (() -> Unit)? = null,
   onToggleVoice: (() -> Unit)? = null,
+  onReportCamera: (() -> Unit)? = null,
+  onToggleFloatingBubble: (() -> Unit)? = null,
+  isFloatingBubbleRunning: Boolean = false,
   voiceEnabled: Boolean = true,
   compassHeading: Float = 0f,
   compassEnabled: Boolean = true,
@@ -1335,7 +1338,25 @@ fun OfflineMapCanvas(
         )
       }
 
-      // 2. Voice Audio Toggle
+      // 2. Floating Speed Bubble HUD Toggle (Over Google Maps)
+      if (onToggleFloatingBubble != null) {
+        FloatingActionButton(
+          onClick = { onToggleFloatingBubble() },
+          containerColor = if (isFloatingBubbleRunning) Color(0xFFF59E0B) else Color.White.copy(alpha = 0.95f),
+          contentColor = if (isFloatingBubbleRunning) Color.White else Color(0xFF0284C7),
+          shape = CircleShape,
+          elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
+          modifier = Modifier.size(46.dp)
+        ) {
+          Icon(
+            imageVector = Icons.Default.Layers,
+            contentDescription = "Bong bóng nổi",
+            modifier = Modifier.size(22.dp)
+          )
+        }
+      }
+
+      // 3. Voice Audio Toggle
       if (onToggleVoice != null) {
         FloatingActionButton(
           onClick = { onToggleVoice() },
@@ -1353,7 +1374,25 @@ fun OfflineMapCanvas(
         }
       }
 
-      // 3. Recenter Button (🎯)
+      // 4. Report Camera / Trap to Community
+      if (onReportCamera != null) {
+        FloatingActionButton(
+          onClick = { onReportCamera() },
+          containerColor = Color(0xFFDC2626),
+          contentColor = Color.White,
+          shape = CircleShape,
+          elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
+          modifier = Modifier.size(46.dp)
+        ) {
+          Icon(
+            imageVector = Icons.Default.AddLocationAlt,
+            contentDescription = "Báo camera",
+            modifier = Modifier.size(22.dp)
+          )
+        }
+      }
+
+      // 5. Recenter Button (🎯)
       FloatingActionButton(
         onClick = {
           coroutineScope.launch {

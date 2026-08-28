@@ -36,10 +36,10 @@ class CompassSensorEngine(context: Context) : SensorEventListener {
   private var gravity: FloatArray? = null
   private var geomagnetic: FloatArray? = null
 
-  // Low-pass filter for smoothing compass heading
+  // Low-pass filter for smoothing compass heading (Google Maps anti-jitter)
   private var smoothedHeading = 0f
-  private val SMOOTHING_FACTOR = 0.08f // Smooth and gentle response
-  private val DEADBAND_DEGREES = 4.5f // Ignore jitter smaller than 4.5 degrees
+  private val SMOOTHING_FACTOR = 0.05f // Smooth and gentle response, no rapid jumps
+  private val DEADBAND_DEGREES = 6.0f // Ignore jitter smaller than 6 degrees
 
   private var isListening = false
   private var isBatterySaverMode = false

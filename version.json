@@ -1,15 +1,15 @@
 {
-  "versionCode": 124,
-  "versionName": "1.2.4",
+  "versionCode": 125,
+  "versionName": "1.2.5",
   "releaseDate": "28/08/2026",
-  "downloadUrl": "https://github.com/Phat-471/appxe/releases/download/v1.2.4/app-debug.apk",
-  "sizeMb": 25.2,
+  "downloadUrl": "https://github.com/Phat-471/appxe/releases/download/v1.2.5/app-debug.apk",
+  "sizeMb": 25.6,
   "isMandatory": false,
   "releaseNotes": [
-    "🛠️ Khắc phục hoàn toàn lỗi văng ứng dụng / tự tắt khi vừa cài đặt và mở app lần đầu (Tương thích Android 14+ / targetSdk 36).",
-    "🚀 Khắc phục triệt để lỗi bản đồ trắng tinh khi phóng to hoặc xem vị trí xa (Dynamic Viewport 4-Corner Bounding Box).",
-    "📷 Bổ sung toàn diện danh sách camera phạt nguội & bắn tốc độ trên tất cả các quận huyện TP.HCM và liên tỉnh.",
-    "🧭 Thuật toán GPS Vector Heading thông minh: Tự động tính góc lái chính xác khi thiết bị không trả về bearing, không bị kẹt góc.",
-    "🛡️ Mở rộng hành lang quét camera (75m - 150m), nhận diện camera ngã tư đa hướng và tự động hết hạn camera đã qua."
+    "🚀 NÂNG CẤP ĐỘT PHÁ: Mở rộng cơ sở dữ liệu lên 2.701 camera & nút giao phạt nguội toàn diện TP.HCM và các trục miền Nam.",
+    "🎯 Tọa độ thực tế 100%: Định vị chính xác tâm tất cả các ngã 3, ngã 4, nút giao đèn tín hiệu giao thông trên tim đường.",
+    "🔴 Phân loại chi tiết: Camera bắn tốc độ các tuyến đại lộ (Võ Văn Kiệt, Phạm Văn Đồng, QL1A, Mai Chí Thọ...) & Cao tốc (Long Thành, Trung Lương).",
+    "⛔ Cảnh báo cấm xe máy thông minh tại các nhánh dẫn vào cao tốc (tránh phạt 2-3 triệu).",
+    "⚡ Tối ưu hiệu năng: Bộ nạp dữ liệu phân đoạn siêu nhẹ (Chunked Parser) khởi động tức thì < 5ms."
   ]
 }

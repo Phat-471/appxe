@@ -66,6 +66,7 @@ fun SettingsScreen(
   onPerformLocalRollback: () -> Unit = {},
   onRollbackToSpecificRelease: (AppReleaseHistoryItem) -> Unit = {},
   onDismissCrashRecovery: () -> Unit = {},
+  onSyncSouthernCameras: () -> Unit = {},
   modifier: Modifier = Modifier
 ) {
   var showSpeedBufferDialog by remember { mutableStateOf(false) }
@@ -779,6 +780,26 @@ fun SettingsScreen(
                 fontSize = 14.sp
               )
             }
+          }
+
+          // Đồng Bộ Toàn Bộ Camera Phía Nam
+          Button(
+            onClick = onSyncSouthernCameras,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0D9488)),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth().height(46.dp)
+          ) {
+            Icon(
+              imageVector = Icons.Default.CloudSync,
+              contentDescription = null,
+              modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+              text = if (isEn) "Sync All Southern Cameras (OTA)" else "⚡ Đồng bộ toàn bộ Camera Miền Nam",
+              fontWeight = FontWeight.Bold,
+              fontSize = 14.sp
+            )
           }
 
           // Local Rollback Button if local backup is present

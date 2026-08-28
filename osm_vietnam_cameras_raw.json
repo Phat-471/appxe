@@ -1,0 +1,74 @@
+[
+  {
+    "id": "osm_14064450116",
+    "latitude": 10.8062097,
+    "longitude": 106.629111,
+    "type": "COLD_FINE_SURVEILLANCE",
+    "roadName": "School",
+    "speedLimit": 50,
+    "description": "Camera giao thông (OpenStreetMap ID: 14064450116)",
+    "districtCity": "Việt Nam",
+    "bearingDegrees": 0,
+    "directionName": ""
+  },
+  {
+    "id": "osm_14064450117",
+    "latitude": 10.8071941,
+    "longitude": 106.6624609,
+    "type": "COLD_FINE_SURVEILLANCE",
+    "roadName": "An Ninh",
+    "speedLimit": 50,
+    "description": "Camera giao thông (OpenStreetMap ID: 14064450117)",
+    "districtCity": "Việt Nam",
+    "bearingDegrees": 0,
+    "directionName": ""
+  },
+  {
+    "id": "osm_12216026888",
+    "latitude": 10.3777231,
+    "longitude": 107.0609611,
+    "type": "COLD_FINE_SURVEILLANCE",
+    "roadName": "OSM #12216026888",
+    "speedLimit": 50,
+    "description": "Camera giao thông (OpenStreetMap ID: 12216026888)",
+    "districtCity": "Việt Nam",
+    "bearingDegrees": 0,
+    "directionName": ""
+  },
+  {
+    "id": "osm_12216026889",
+    "latitude": 10.3641881,
+    "longitude": 107.0675584,
+    "type": "COLD_FINE_SURVEILLANCE",
+    "roadName": "OSM #12216026889",
+    "speedLimit": 50,
+    "description": "Camera giao thông (OpenStreetMap ID: 12216026889)",
+    "districtCity": "Việt Nam",
+    "bearingDegrees": 0,
+    "directionName": ""
+  },
+  {
+    "id": "osm_12567216003",
+    "latitude": 15.8709648,
+    "longitude": 108.3309364,
+    "type": "COLD_FINE_SURVEILLANCE",
+    "roadName": "OSM #12567216003",
+    "speedLimit": 50,
+    "description": "Camera giao thông (OpenStreetMap ID: 12567216003)",
+    "districtCity": "Việt Nam",
+    "bearingDegrees": 0,
+    "directionName": ""
+  },
+  {
+    "id": "osm_12567271102",
+    "latitude": 15.8710325,
+    "longitude": 108.3310246,
+    "type": "COLD_FINE_SURVEILLANCE",
+    "roadName": "OSM #12567271102",
+    "speedLimit": 50,
+    "description": "Camera giao thông (OpenStreetMap ID: 12567271102)",
+    "districtCity": "Việt Nam",
+    "bearingDegrees": 0,
+    "directionName": ""
+  }
+]

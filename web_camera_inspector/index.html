@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vietnam Traffic Camera Inspector — Hệ Thống Kiểm Tra Dữ Liệu Camera Giao Thông</title>
+  
+  <!-- Google Fonts: Inter & Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Leaflet CSS & MarkerCluster CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+  <!-- APP CONTAINER -->
+  <div class="app-layout">
+    
+    <!-- SIDEBAR / CONTROL PANEL -->
+    <aside class="sidebar" id="sidebar">
+      <!-- HEADER BRAND -->
+      <div class="sidebar-header">
+        <div class="brand-badge">
+          <div class="radar-pulse"></div>
+          <i class="fa-solid fa-camera text-cyan"></i>
+        </div>
+        <div class="brand-text">
+          <h1>VN Traffic Radar</h1>
+          <span class="version-tag">Camera Inspector v2.0</span>
+        </div>
+        <button class="icon-btn close-sidebar-btn" id="toggleSidebarBtn" title="Thu gọn bảng điều khiển">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+      </div>
+
+      <!-- STATS OVERVIEW CARDS -->
+      <div class="stats-grid">
+        <div class="stat-card total-card">
+          <span class="stat-label">Tổng Camera</span>
+          <span class="stat-value" id="statTotalCam">216</span>
+          <span class="stat-sub" id="statFilteredCam">Hiển thị: 216</span>
+        </div>
+        <div class="stat-card speed-card">
+          <span class="stat-label">Bắn Tốc Độ</span>
+          <span class="stat-value text-red" id="statSpeedCam">85</span>
+        </div>
+        <div class="stat-card redlight-card">
+          <span class="stat-label">Phạt Nguội</span>
+          <span class="stat-value text-amber" id="statRedLightCam">92</span>
+        </div>
+        <div class="stat-card south-card">
+          <span class="stat-label">TP.HCM & Nam Bộ</span>
+          <span class="stat-value text-cyan" id="statSouthCam">130</span>
+        </div>
+      </div>
+
+      <!-- TABS NAVIGATION -->
+      <div class="nav-tabs">
+        <button class="nav-tab active" data-tab="tab-list">
+          <i class="fa-solid fa-list-ul"></i> Danh Sách
+        </button>
+        <button class="nav-tab" data-tab="tab-filter">
+          <i class="fa-solid fa-filter"></i> Bộ Lọc
+        </button>
+        <button class="nav-tab" data-tab="tab-add">
+          <i class="fa-solid fa-plus-circle"></i> Thêm Mới
+        </button>
+        <button class="nav-tab" data-tab="tab-simulator">
+          <i class="fa-solid fa-gauge-high"></i> Giả Lập
+        </button>
+      </div>
+
+      <!-- TAB 1: CAMERA LIST & SEARCH -->
+      <div class="tab-pane active" id="tab-list">
+        <div class="search-box">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input type="text" id="searchInput" placeholder="Tìm theo tên đường, quận, toạ độ..." />
+          <button class="clear-search-btn" id="clearSearchBtn"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="quick-region-pills">
+          <button class="region-pill active" data-region="ALL">Toàn Quốc</button>
+          <button class="region-pill" data-region="HCM">TP.HCM</button>
+          <button class="region-pill" data-region="SOUTH">Miền Nam</button>
+          <button class="region-pill" data-region="CENTRAL">Miền Trung</button>
+          <button class="region-pill" data-region="NORTH">Miền Bắc</button>
+        </div>
+
+        <!-- CAMERA SCROLL LIST -->
+        <div class="camera-list-container" id="cameraList">
+          <!-- Dynamically Rendered Camera Items -->
+        </div>
+      </div>
+
+      <!-- TAB 2: ADVANCED FILTERS -->
+      <div class="tab-pane" id="tab-filter">
+        <div class="filter-group">
+          <label class="group-title">Loại Camera & Cảnh Báo</label>
+          <div class="checkbox-list">
+            <label class="custom-checkbox">
+              <input type="checkbox" id="filterSpeedCam" checked>
+              <span class="checkmark red"></span>
+              <span class="cb-label"><i class="fa-solid fa-bolt text-red"></i> Camera Bắn Tốc Độ</span>
+            </label>
+            <label class="custom-checkbox">
+              <input type="checkbox" id="filterRedLightCam" checked>
+              <span class="checkmark amber"></span>
+              <span class="cb-label"><i class="fa-solid fa-traffic-light text-amber"></i> Camera Phạt Nguội Vượt Đèn Đỏ</span>
+            </label>
+            <label class="custom-checkbox">
+              <input type="checkbox" id="filterSurveillanceCam" checked>
+              <span class="checkmark blue"></span>
+              <span class="cb-label"><i class="fa-solid fa-video text-blue"></i> Camera Giám Sát Tốc Độ & Giao Thông</span>
+            </label>
+            <label class="custom-checkbox">
+              <input type="checkbox" id="filterProhibitCam" checked>
+              <span class="checkmark purple"></span>
+              <span class="cb-label"><i class="fa-solid fa-ban text-purple"></i> Điểm Cấm Xe Máy Vào Cao Tốc</span>
+            </label>
+            <label class="custom-checkbox">
+              <input type="checkbox" id="filterSpeedSign" checked>
+              <span class="checkmark cyan"></span>
+              <span class="cb-label"><i class="fa-solid fa-circle-dot text-cyan"></i> Biển Báo Giới Hạn Tốc Độ</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="group-title">Giới Hạn Tốc Độ (km/h)</label>
+          <div class="speed-range-selector">
+            <button class="speed-filter-btn active" data-speed="ALL">Tất cả</button>
+            <button class="speed-filter-btn" data-speed="50">50 km/h</button>
+            <button class="speed-filter-btn" data-speed="60">60 km/h</button>
+            <button class="speed-filter-btn" data-speed="80">80 km/h</button>
+            <button class="speed-filter-btn" data-speed="90">90+ km/h</button>
+          </div>
+        </div>
+
+        <div class="filter-group">
+          <label class="group-title">Tuỳ Chọn Hiển Thị Bản Đồ</label>
+          <label class="custom-checkbox">
+            <input type="checkbox" id="toggleClustering" checked>
+            <span class="checkmark"></span>
+            <span class="cb-label">Gom Cụm Điểm (Marker Clustering)</span>
+          </label>
+          <label class="custom-checkbox">
+            <input type="checkbox" id="toggleRadarRings" checked>
+            <span class="checkmark"></span>
+            <span class="cb-label">Vòng Quét Radar Cảnh Báo (500m)</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- TAB 3: ADD NEW CAMERA -->
+      <div class="tab-pane" id="tab-add">
+        <div class="card add-camera-card">
+          <h3><i class="fa-solid fa-location-crosshairs text-cyan"></i> Thêm Camera Vào Cơ Sở Dữ Liệu</h3>
+          <p class="desc">Bấm nút "Chọn Điểm Trên Bản Đồ" hoặc nhập trực tiếp toạ độ Lat/Lng.</p>
+          
+          <button class="action-btn pick-on-map-btn" id="pickOnMapBtn">
+            <i class="fa-solid fa-map-pin"></i> Chọn Điểm Trên Bản Đồ
+          </button>
+
+          <form id="addCameraForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Vĩ Độ (Latitude)</label>
+                <input type="number" step="any" id="newLat" placeholder="Ví dụ: 10.7725" required>
+              </div>
+              <div class="form-group">
+                <label>Kinh Độ (Longitude)</label>
+                <input type="number" step="any" id="newLng" placeholder="Ví dụ: 106.6980" required>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Tên Tuyến Đường / Nút Giao</label>
+              <input type="text" id="newRoadName" placeholder="Ví dụ: Đường Võ Văn Kiệt (Gần Cầu Chữ Y)" required>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label>Loại Camera</label>
+                <select id="newType">
+                  <option value="SPEED_CAMERA">Camera Bắn Tốc Độ</option>
+                  <option value="RED_LIGHT_CAMERA">Camera Phạt Nguội Đèn Đỏ</option>
+                  <option value="COLD_FINE_SURVEILLANCE">Camera Giám Sát Phạt Nguội</option>
+                  <option value="MOTORBIKE_PROHIBITED_ZONE">Khu Vực Cấm Xe Máy</option>
+                  <option value="SPEED_LIMIT_SIGN">Biển Báo Giới Hạn Tốc Độ</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Tốc Độ Cho Phép (km/h)</label>
+                <input type="number" id="newSpeedLimit" value="60" min="0" max="140" required>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Quận / Huyện / Tỉnh Thành</label>
+              <input type="text" id="newDistrict" placeholder="Ví dụ: Quận 5, TP.HCM" required>
+            </div>
+
+            <div class="form-group">
+              <label>Mô Tả Cảnh Báo Chi Tiết</label>
+              <textarea id="newDescription" rows="2" placeholder="Ví dụ: Camera bắn tốc độ cố định làn hỗn hợp hướng về Quận 1"></textarea>
+            </div>
+
+            <button type="submit" class="primary-btn">
+              <i class="fa-solid fa-floppy-disk"></i> Lưu & Cập Nhật Lên Bản Đồ
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- TAB 4: RADAR SIMULATOR -->
+      <div class="tab-pane" id="tab-simulator">
+        <div class="card sim-card">
+          <h3><i class="fa-solid fa-radar text-red"></i> Giả Lập Cảnh Báo Radar</h3>
+          <p class="desc">Mô phỏng xe chạy tiếp cận camera để kiểm tra khoảng cách quét và giọng nói cảnh báo.</p>
+
+          <div class="sim-speed-control">
+            <div class="sim-speed-hud">
+              <span class="sim-speed-val" id="simSpeedDisplay">65</span>
+              <span class="sim-speed-unit">km/h</span>
+            </div>
+            <input type="range" id="simSpeedSlider" min="0" max="120" value="65" class="speed-slider">
+          </div>
+
+          <div class="sim-controls">
+            <button class="action-btn" id="startSimBtn">
+              <i class="fa-solid fa-play"></i> Bắt Đầu Chạy Thử (TP.HCM)
+            </button>
+            <button class="action-btn danger-btn" id="stopSimBtn" disabled>
+              <i class="fa-solid fa-stop"></i> Dừng
+            </button>
+          </div>
+
+          <div class="sim-status-box" id="simStatusBox">
+            <div class="sim-status-header">Trạng thái Radar</div>
+            <div class="sim-status-body" id="simStatusText">Sẵn sàng mô phỏng hành trình dọc đại lộ Võ Văn Kiệt - Quốc Lộ 1A.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SIDEBAR FOOTER ACTION BUTTONS -->
+      <div class="sidebar-footer">
+        <button class="footer-btn sync-osm-btn" id="syncOsmBtn">
+          <i class="fa-solid fa-cloud-arrow-down"></i> Kéo OSM Miền Nam
+        </button>
+        <button class="footer-btn export-btn" id="exportBtn">
+          <i class="fa-solid fa-file-export"></i> Xuất JSON
+        </button>
+      </div>
+    </aside>
+
+    <!-- MAIN MAP VIEW -->
+    <main class="map-view">
+      <!-- TOP FLOATING BAR -->
+      <div class="top-nav-bar">
+        <button class="icon-btn open-sidebar-btn" id="openSidebarBtn" title="Mở bảng điều khiển">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        
+        <div class="map-title-chip">
+          <i class="fa-solid fa-shield-halved text-emerald"></i>
+          <span>Bản Đồ Cảnh Báo Camera & Tốc Độ Việt Nam</span>
+        </div>
+
+        <div class="map-actions">
+          <button class="glass-pill" id="locateUserBtn" title="Định vị vị trí của tôi">
+            <i class="fa-solid fa-crosshairs"></i> Vị Trí Của Tôi
+          </button>
+          <button class="glass-pill" id="syncAllNationBtn" title="Tải camera toàn quốc từ OpenStreetMap">
+            <i class="fa-solid fa-globe"></i> Cập Nhật OSM Toàn Quốc
+          </button>
+        </div>
+      </div>
+
+      <!-- LEAFLET MAP ELEMENT -->
+      <div id="map" class="map-container"></div>
+
+      <!-- BOTTOM FLOATING HUD / DETAIL CARD (When a camera is clicked) -->
+      <div class="camera-detail-card" id="cameraDetailCard">
+        <button class="close-card-btn" id="closeDetailCardBtn"><i class="fa-solid fa-xmark"></i></button>
+        <div class="card-badge" id="cardBadge">BẮN TỐC ĐỘ 60 KM/H</div>
+        <h2 class="card-title" id="cardRoadName">Đại lộ Võ Văn Kiệt (Gần Cầu Chữ Y)</h2>
+        <p class="card-desc" id="cardDescription">Camera bắn tốc độ cố định 60 km/h làn hỗn hợp gần Cầu Chữ Y</p>
+        <div class="card-meta">
+          <div class="meta-item"><i class="fa-solid fa-location-dot"></i> <span id="cardDistrict">Quận 5, TP.HCM</span></div>
+          <div class="meta-item"><i class="fa-solid fa-compass"></i> <span id="cardDirection">Hướng về Bình Chánh</span></div>
+          <div class="meta-item"><i class="fa-solid fa-map-pin"></i> <span id="cardCoords">10.7523, 106.6712</span></div>
+        </div>
+        <div class="card-actions">
+          <button class="card-btn primary" id="openGoogleMapsBtn"><i class="fa-solid fa-arrow-up-right-from-square"></i> Mở Google Maps</button>
+          <button class="card-btn secondary" id="copyCoordsBtn"><i class="fa-solid fa-copy"></i> Sao Chép Toạ Độ</button>
+          <button class="card-btn voice-test" id="testVoicePromptBtn"><i class="fa-solid fa-volume-high"></i> Đọc Giọng Nói</button>
+        </div>
+      </div>
+
+      <!-- TOAST NOTIFICATION -->
+      <div class="toast" id="toast"></div>
+
+      <!-- LOADING OVERLAY -->
+      <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text" id="loadingText">Đang tải dữ liệu camera...</div>
+      </div>
+    </main>
+  </div>
+
+  <!-- LEAFLET & PLUGINS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  
+  <!-- PRELOADED CAMERA DATA -->
+  <script src="camera_data.js"></script>
+  <!-- MAIN APP LOGIC -->
+  <script src="app.js"></script>
+</body>
+</html>

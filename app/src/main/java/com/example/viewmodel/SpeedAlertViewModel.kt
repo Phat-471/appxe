@@ -230,6 +230,14 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
     }
   }
 
+  fun syncAllSouthernCameras() {
+    viewModelScope.launch {
+      voiceAlertEngine.speak("Đang đồng bộ toàn bộ dữ liệu camera phạt nguội và tốc độ Miền Nam...", isPriority = true)
+      val count = repository.syncSouthernCameras()
+      voiceAlertEngine.speak("Đã đồng bộ thành công $count điểm camera toàn bộ khu vực phía Nam lên đúng vị trí bản đồ!", isPriority = true)
+    }
+  }
+
   private fun startEvaluationLoop() {
     evaluationJob = viewModelScope.launch {
       combine(

@@ -224,6 +224,9 @@ fun LiveMapScreen(
     return
   }
 
+  val context = androidx.compose.ui.platform.LocalContext.current
+  val isBubbleRunning by com.example.service.FloatingSpeedBubbleService.isServiceRunning.collectAsState()
+
   Box(
     modifier = modifier
       .fillMaxSize()
@@ -259,6 +262,25 @@ fun LiveMapScreen(
       },
       onRefreshLocation = onRefreshLocation,
       onToggleVoice = onToggleVoice,
+      onReportCamera = { showReportCameraDialog = true },
+      onToggleFloatingBubble = {
+        if (!isBubbleRunning) {
+          if (!FloatingSpeedBubbleService.canDrawOverlay(context)) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+              val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:${context.packageName}")
+              )
+              context.startActivity(intent)
+            }
+          } else {
+            FloatingSpeedBubbleService.startService(context)
+          }
+        } else {
+          FloatingSpeedBubbleService.stopService(context)
+        }
+      },
+      isFloatingBubbleRunning = isBubbleRunning,
       voiceEnabled = voiceEnabled,
       compassHeading = compassHeading,
       compassEnabled = userSettings.compassEnabled,
@@ -467,124 +489,14 @@ fun LiveMapScreen(
       }
     }
 
-    // 3. LEFT-SIDE VERTICAL STACK: APPROACHING HAZARD & CAMERA QUEUE (Vietmap Live Style)
+    // 3. LEFT-SIDE VERTICAL STACK: APPROACHING HAZARD & CAMERA QUEUE (Vietmap Live Style - Đặt ngay dưới thanh tìm kiếm)
     VietmapLeftHazardQueue(
       camerasAhead = camerasAhead,
       activeWarning = activeWarning,
       modifier = Modifier
         .align(Alignment.TopStart)
-        .padding(start = 14.dp, top = if (activeRoute?.isNavigating == true) 90.dp else 75.dp)
+        .padding(start = 12.dp, top = if (activeRoute?.isNavigating == true) 140.dp else 125.dp)
     )
-
-    // 3.5. RIGHT-SIDE FLOATING ACTION CONTROLS (Voice, Test Voice, Floating HUD Bubble, Report Camera)
-    val isBubbleRunning by FloatingSpeedBubbleService.isServiceRunning.collectAsState()
-    val context = LocalContext.current
-
-    Column(
-      verticalArrangement = Arrangement.spacedBy(8.dp),
-      horizontalAlignment = Alignment.CenterHorizontally,
-      modifier = Modifier
-        .align(Alignment.TopEnd)
-        .padding(end = 14.dp, top = if (activeRoute?.isNavigating == true) 90.dp else 75.dp)
-    ) {
-      // 1. Toggle Voice Alert
-      Surface(
-        onClick = { onToggleVoice() },
-        shape = CircleShape,
-        color = if (voiceEnabled) Color(0xFF0284C7) else Color(0xFF1E293B).copy(alpha = 0.92f),
-        shadowElevation = 6.dp,
-        border = androidx.compose.foundation.BorderStroke(
-          1.2.dp,
-          if (voiceEnabled) Color(0xFF38BDF8) else Color(0xFF475569)
-        ),
-        modifier = Modifier.size(42.dp)
-      ) {
-        Box(contentAlignment = Alignment.Center) {
-          Icon(
-            imageVector = if (voiceEnabled) Icons.AutoMirrored.Filled.VolumeUp else Icons.AutoMirrored.Filled.VolumeOff,
-            contentDescription = "Giọng nói cảnh báo",
-            tint = Color.White,
-            modifier = Modifier.size(20.dp)
-          )
-        }
-      }
-
-      // 2. Test Voice Prompt
-      Surface(
-        onClick = { onTestSound() },
-        shape = CircleShape,
-        color = Color(0xFF0F172A).copy(alpha = 0.94f),
-        shadowElevation = 6.dp,
-        border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFF10B981)),
-        modifier = Modifier.size(42.dp)
-      ) {
-        Box(contentAlignment = Alignment.Center) {
-          Icon(
-            imageVector = Icons.Default.Hearing,
-            contentDescription = "Thử giọng nói",
-            tint = Color(0xFF10B981),
-            modifier = Modifier.size(20.dp)
-          )
-        }
-      }
-
-      // 3. Floating Speed Bubble HUD Toggle (Over Google Maps)
-      Surface(
-        onClick = {
-          if (!isBubbleRunning) {
-            if (!FloatingSpeedBubbleService.canDrawOverlay(context)) {
-              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val intent = Intent(
-                  Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                  Uri.parse("package:${context.packageName}")
-                )
-                context.startActivity(intent)
-              }
-            } else {
-              FloatingSpeedBubbleService.startService(context)
-            }
-          } else {
-            FloatingSpeedBubbleService.stopService(context)
-          }
-        },
-        shape = CircleShape,
-        color = if (isBubbleRunning) Color(0xFFF59E0B) else Color(0xFF0F172A).copy(alpha = 0.94f),
-        shadowElevation = 6.dp,
-        border = androidx.compose.foundation.BorderStroke(
-          1.2.dp,
-          if (isBubbleRunning) Color(0xFFFBBF24) else Color(0xFF38BDF8)
-        ),
-        modifier = Modifier.size(42.dp)
-      ) {
-        Box(contentAlignment = Alignment.Center) {
-          Icon(
-            imageVector = Icons.Default.Layers,
-            contentDescription = "Bong bóng nổi",
-            tint = if (isBubbleRunning) Color(0xFF0F172A) else Color(0xFF38BDF8),
-            modifier = Modifier.size(20.dp)
-          )
-        }
-      }
-
-      // 4. Report Camera / Traffic Trap to Community
-      Surface(
-        onClick = { showReportCameraDialog = true },
-        shape = CircleShape,
-        color = Color(0xFFDC2626),
-        shadowElevation = 6.dp,
-        border = androidx.compose.foundation.BorderStroke(1.2.dp, Color(0xFFEF4444)),
-        modifier = Modifier.size(42.dp)
-      ) {
-        Box(contentAlignment = Alignment.Center) {
-          Icon(
-            imageVector = Icons.Default.AddLocationAlt,
-            contentDescription = "Báo camera/chốt",
-            tint = Color.White,
-            modifier = Modifier.size(20.dp)
-          )
-        }
-      }
-    }
 
     // 4. BOTTOM-LEFT STACKED SPEED HUD (Realtime Speed + Vietnam Limit Sign + Camera Countdown Bar)
     VietmapStackedSpeedHUD(

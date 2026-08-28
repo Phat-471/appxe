@@ -80,6 +80,9 @@ class GpsLocationEngine(private val context: Context) {
   private var smoothHeading: Float = 65f
   private var hasInitialGpsFix = false
   private var lastRealLocationTime = 0L
+  private var prevRawLat = 0.0
+  private var prevRawLng = 0.0
+  private var prevRawTime = 0L
 
   // Trip tracking state
   private var isTripRecording = false
@@ -341,27 +344,57 @@ class GpsLocationEngine(private val context: Context) {
   private var consecutiveHighSpeedCount = 0
 
   /**
-   * Real GPS Processing with 2D Kalman Filter & Instant Zero-Lag Satellite Speed
+   * Real GPS Processing with 2D Kalman Filter, Dynamic Vector Heading, & Instant Speed
    */
   private fun processRealGpsLocation(rawLoc: Location) {
-    lastRealLocationTime = System.currentTimeMillis()
-    val rawSpeedKmh = if (rawLoc.hasSpeed()) rawLoc.speed * 3.6f else 0f
-    val rawBearing = if (rawLoc.hasBearing() && rawLoc.bearing != 0f) rawLoc.bearing else smoothHeading
+    val now = System.currentTimeMillis()
+    lastRealLocationTime = now
+
+    // 1. Tính toán khoảng cách và thời gian di chuyển từ toạ độ GPS trước đó
+    val distMoved = if (prevRawLat != 0.0 && prevRawLng != 0.0) {
+      VietnamTrafficData.calculateDistanceMeters(prevRawLat, prevRawLng, rawLoc.latitude, rawLoc.longitude)
+    } else 0.0
+    val dtSeconds = if (prevRawTime > 0L) (now - prevRawTime) / 1000.0 else 1.0
+
+    // 2. Tính tốc độ thực tế (từ cảm biến vệ tinh hoặc vector di chuyển)
+    var calculatedSpeedKmh = if (rawLoc.hasSpeed() && rawLoc.speed > 0f) {
+      rawLoc.speed * 3.6f
+    } else if (distMoved > 1.2 && dtSeconds in 0.1..4.0) {
+      ((distMoved / dtSeconds) * 3.6).toFloat()
+    } else {
+      0f
+    }
+    // Tránh nhảy tốc độ bất thường do sai số GPS đơn lẻ
+    if (calculatedSpeedKmh > 180f) calculatedSpeedKmh = smoothSpeed
+
+    // 3. Tính toán góc di chuyển (Heading/Bearing) vector thực tế khi xe chạy
+    val vectorBearing = if (distMoved >= 1.5 && prevRawLat != 0.0) {
+      VietnamTrafficData.calculateBearing(prevRawLat, prevRawLng, rawLoc.latitude, rawLoc.longitude)
+    } else null
+
+    val rawBearing = when {
+      rawLoc.hasBearing() && rawLoc.bearing != 0f -> rawLoc.bearing
+      vectorBearing != null -> vectorBearing
+      else -> smoothHeading
+    }
+
+    prevRawLat = rawLoc.latitude
+    prevRawLng = rawLoc.longitude
+    prevRawTime = now
 
     if (!hasInitialGpsFix) {
-      kalmanFilter.setState(rawLoc.latitude, rawLoc.longitude, rawSpeedKmh)
+      kalmanFilter.setState(rawLoc.latitude, rawLoc.longitude, calculatedSpeedKmh)
       smoothLat = rawLoc.latitude
       smoothLng = rawLoc.longitude
-      smoothSpeed = if (rawSpeedKmh >= 3.0f) rawSpeedKmh else 0f
+      smoothSpeed = if (calculatedSpeedKmh >= 2.5f) calculatedSpeedKmh else 0f
       smoothHeading = rawBearing
       stationaryAnchorLat = rawLoc.latitude
       stationaryAnchorLng = rawLoc.longitude
-      isStationaryLocked = rawSpeedKmh < 3.0f
+      isStationaryLocked = calculatedSpeedKmh < 2.5f
       hasInitialGpsFix = true
     } else {
-      // Ngưỡng 3.0 km/h (Chuẩn Google Maps & Vietmap): Triệt tiêu hoàn toàn nhiễu Doppler khi đứng yên
-      if (rawSpeedKmh < 3.0f) {
-        // Xe thực sự dừng / đứng yên: Khóa cứng 0 km/h
+      // Ngưỡng 2.5 km/h: Triệt tiêu hoàn toàn nhiễu Doppler khi đứng yên
+      if (calculatedSpeedKmh < 2.5f) {
         isStationaryLocked = true
         smoothSpeed = 0f
 
@@ -370,7 +403,6 @@ class GpsLocationEngine(private val context: Context) {
           stationaryAnchorLng = rawLoc.longitude
         }
 
-        // Giữ vị trí neo tuyệt đối tránh trôi map khi dừng đèn đỏ / đứng yên trong nhà
         val distDrift = VietnamTrafficData.calculateDistanceMeters(
           stationaryAnchorLat, stationaryAnchorLng,
           rawLoc.latitude, rawLoc.longitude
@@ -379,41 +411,44 @@ class GpsLocationEngine(private val context: Context) {
           smoothLat = stationaryAnchorLat
           smoothLng = stationaryAnchorLng
         } else {
-          // Xe di chuyển thực tế > 10m thì cập nhật lại điểm neo
           smoothLat = rawLoc.latitude
           smoothLng = rawLoc.longitude
           stationaryAnchorLat = rawLoc.latitude
           stationaryAnchorLng = rawLoc.longitude
         }
       } else {
-        // Xe đang di chuyển: CẬP NHẬT TỐC ĐỘ TỨC THÌ (Zero-Lag Doppler Speed)
         isStationaryLocked = false
         stationaryAnchorLat = rawLoc.latitude
         stationaryAnchorLng = rawLoc.longitude
-        smoothSpeed = rawSpeedKmh
+        smoothSpeed = calculatedSpeedKmh
 
         // Run through 2D Kalman Filter for position
         val kalmanResult = kalmanFilter.update(
           rawLat = rawLoc.latitude,
           rawLng = rawLoc.longitude,
           rawAccuracy = rawLoc.accuracy.coerceAtLeast(1.0f),
-          rawSpeedKmh = rawSpeedKmh,
+          rawSpeedKmh = calculatedSpeedKmh,
           timestampMs = rawLoc.time
         )
 
         smoothLat = kalmanResult.lat
         smoothLng = kalmanResult.lng
 
-        // Fast, responsive heading update khi xe đang chạy
-        if (rawLoc.hasBearing() && rawLoc.bearing != 0f && smoothSpeed > 3.0f) {
-          var diff = rawLoc.bearing - smoothHeading
-          while (diff > 180f) diff -= 360f
-          while (diff < -180f) diff += 360f
-          smoothHeading += diff * 0.85f
+        // Cập nhật hướng di chuyển mượt mà và chính xác khi xe di chuyển
+        val targetHeading = when {
+          rawLoc.hasBearing() && rawLoc.bearing != 0f -> rawLoc.bearing
+          vectorBearing != null -> vectorBearing
+          else -> smoothHeading
         }
 
+        var diff = targetHeading - smoothHeading
+        while (diff > 180f) diff -= 360f
+        while (diff < -180f) diff += 360f
+        val smoothingFactor = if (smoothSpeed > 15f) 0.85f else 0.65f
+        smoothHeading = (smoothHeading + diff * smoothingFactor + 360f) % 360f
+
         // Apply Vietmap-Grade Map Matching (Orthogonal Snap-to-Road Centerline)
-        if (smoothSpeed > 3.5f) {
+        if (smoothSpeed > 3.0f) {
           val snapped = MapMatchingEngine.snapToRoad(
             rawLat = smoothLat,
             rawLng = smoothLng,
@@ -423,10 +458,12 @@ class GpsLocationEngine(private val context: Context) {
           if (snapped.isSnapped) {
             smoothLat = snapped.snappedLatitude
             smoothLng = snapped.snappedLongitude
-            if (customRoadOverride == null) {
-              customRoadOverride = snapped.roadName
-            }
+            customRoadOverride = snapped.roadName
+          } else {
+            customRoadOverride = null
           }
+        } else {
+          customRoadOverride = null
         }
       }
     }

@@ -104,39 +104,43 @@ object OsmTileManager {
   )
 
   /**
-   * Recursive fallback to parent tiles (zoom - 1 down to zoom - 4).
-   * Guarantees 100% continuous map coverage during deep zoom or slow connection.
+   * Recursive fallback to parent tiles (zoom - 1 down to zoom - 5) with multi-source fallback.
+   * Guarantees 100% continuous map coverage during deep zoom, fast panning, or slow connection.
    */
   fun getDeepFallbackTile(source: MapTileSource, zoom: Int, x: Int, y: Int): FallbackSubTile? {
-    for (diff in 1..4) {
-      val pZoom = zoom - diff
-      if (pZoom < 2) break
-      val scale = 1 shl diff
-      val pX = x shr diff
-      val pY = y shr diff
-      val parentKey = "${source.name}_${pZoom}_${pX}_${pY}"
-      val pBitmap = memoryCache.get(parentKey)
-        ?: diskCacheDir?.let { dir ->
-          val file = File(dir, "$parentKey.png")
-          if (file.exists() && file.length() > 200) {
-            BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()?.also {
-              memoryCache.put(parentKey, it)
-            }
-          } else null
-        }
+    val candidateSources = listOf(source, MapTileSource.GOOGLE_MAPS_HD, MapTileSource.CARTO_VOYAGER, MapTileSource.OSM_STANDARD).distinct()
 
-      if (pBitmap != null) {
-        val subW = pBitmap.width / scale
-        val subH = pBitmap.height / scale
-        val subX = (x % scale) * subW
-        val subY = (y % scale) * subH
-        return FallbackSubTile(
-          image = pBitmap,
-          srcX = subX.coerceIn(0, pBitmap.width - subW),
-          srcY = subY.coerceIn(0, pBitmap.height - subH),
-          srcW = subW.coerceAtLeast(1),
-          srcH = subH.coerceAtLeast(1)
-        )
+    for (candSource in candidateSources) {
+      for (diff in 1..5) {
+        val pZoom = zoom - diff
+        if (pZoom < 1) break
+        val scale = 1 shl diff
+        val pX = x shr diff
+        val pY = y shr diff
+        val parentKey = "${candSource.name}_${pZoom}_${pX}_${pY}"
+        val pBitmap = memoryCache.get(parentKey)
+          ?: diskCacheDir?.let { dir ->
+            val file = File(dir, "$parentKey.png")
+            if (file.exists() && file.length() > 200) {
+              BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()?.also {
+                memoryCache.put(parentKey, it)
+              }
+            } else null
+          }
+
+        if (pBitmap != null) {
+          val subW = (pBitmap.width / scale).coerceAtLeast(1)
+          val subH = (pBitmap.height / scale).coerceAtLeast(1)
+          val subX = ((x % scale) * subW).coerceIn(0, (pBitmap.width - subW).coerceAtLeast(0))
+          val subY = ((y % scale) * subH).coerceIn(0, (pBitmap.height - subH).coerceAtLeast(0))
+          return FallbackSubTile(
+            image = pBitmap,
+            srcX = subX,
+            srcY = subY,
+            srcW = subW,
+            srcH = subH
+          )
+        }
       }
     }
     return null

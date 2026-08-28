@@ -143,22 +143,15 @@ fun LiveMapScreen(
     }.sortedBy { it.second }
   }
 
-  // Layer filtered lists for canvas (Filtered within 35km radius covering all districts & panning areas)
-  val filteredCameras = remember(cameras, userSettings, selectedLayerFilter, locationState.latitude, locationState.longitude) {
-    val nearCameras = cameras.filter { cam ->
-      VietnamTrafficData.calculateDistanceMeters(
-        locationState.latitude, locationState.longitude,
-        cam.latitude, cam.longitude
-      ) <= 35000.0
-    }
-
+  // Layer filtered lists for canvas (Filtered by user settings and active category filter)
+  val filteredCameras = remember(cameras, userSettings, selectedLayerFilter) {
     when (selectedLayerFilter) {
-      "Bắn tốc độ" -> nearCameras.filter { it.type == CameraType.SPEED_CAMERA || it.type == CameraType.SPEED_LIMIT_SIGN }
-      "Phạt nguội" -> nearCameras.filter { it.type == CameraType.RED_LIGHT_CAMERA || it.type == CameraType.COLD_FINE_SURVEILLANCE }
-      "Camera an ninh" -> nearCameras.filter { it.type == CameraType.SECURITY_MONITORING }
+      "Bắn tốc độ" -> cameras.filter { it.type == CameraType.SPEED_CAMERA || it.type == CameraType.SPEED_LIMIT_SIGN }
+      "Phạt nguội" -> cameras.filter { it.type == CameraType.RED_LIGHT_CAMERA || it.type == CameraType.COLD_FINE_SURVEILLANCE }
+      "Camera an ninh" -> cameras.filter { it.type == CameraType.SECURITY_MONITORING }
       "Cây xăng", "Trạm BOT", "Cứu hộ/Y tế", "Điểm đen" -> emptyList()
       else -> {
-        nearCameras.filter { cam ->
+        cameras.filter { cam ->
           when (cam.type) {
             CameraType.SPEED_CAMERA, CameraType.COLD_FINE_SURVEILLANCE -> userSettings.showSpeedCamerasOnMap
             CameraType.RED_LIGHT_CAMERA -> userSettings.showRedLightCamerasOnMap
@@ -171,22 +164,15 @@ fun LiveMapScreen(
     }
   }
 
-  val displayedPois = remember(allPois, selectedLayerFilter, locationState.latitude, locationState.longitude) {
-    val nearPois = allPois.filter { poi ->
-      VietnamTrafficData.calculateDistanceMeters(
-        locationState.latitude, locationState.longitude,
-        poi.latitude, poi.longitude
-      ) <= 35000.0
-    }
-
+  val displayedPois = remember(allPois, selectedLayerFilter) {
     when (selectedLayerFilter) {
-      "Tất cả" -> nearPois
-      "Cây xăng" -> nearPois.filter { it.type == PoiType.GAS_STATION }
-      "Trạm BOT" -> nearPois.filter { it.type == PoiType.TOLL_BOOTH }
-      "Cứu hộ/Y tế" -> nearPois.filter { it.type == PoiType.HOSPITAL || it.type == PoiType.TIRE_REPAIR }
-      "Điểm đen" -> nearPois.filter { it.type == PoiType.ACCIDENT_HOTSPOT }
+      "Tất cả" -> allPois
+      "Cây xăng" -> allPois.filter { it.type == PoiType.GAS_STATION }
+      "Trạm BOT" -> allPois.filter { it.type == PoiType.TOLL_BOOTH }
+      "Cứu hộ/Y tế" -> allPois.filter { it.type == PoiType.HOSPITAL || it.type == PoiType.TIRE_REPAIR }
+      "Điểm đen" -> allPois.filter { it.type == PoiType.ACCIDENT_HOTSPOT }
       "Bắn tốc độ", "Phạt nguội", "Camera an ninh" -> emptyList()
-      else -> nearPois
+      else -> allPois
     }
   }
 

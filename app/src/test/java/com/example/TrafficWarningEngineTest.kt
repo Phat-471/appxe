@@ -170,35 +170,108 @@ class TrafficWarningEngineTest {
   }
 
   @Test
-  fun testOppositeDirectionCamera_IsFilteredOut() {
-    // Car driving East (heading = 90 deg)
+  fun testHcmcWestboundCamera_IsDetected() {
+    // Car driving West (heading = 245 deg) on Vo Van Kiet towards Binh Chanh at 50 km/h
     val location = GpsLocationState(
-      latitude = 10.7580,
-      longitude = 106.6850,
-      speedKmh = 60f,
-      headingDegrees = 90f,
+      latitude = 10.7540,
+      longitude = 106.6760,
+      speedKmh = 50f,
+      headingDegrees = 245f,
       detectedRoadName = "Đại lộ Võ Văn Kiệt"
     )
 
-    // Camera ahead but facing West (bearing 270 deg) for opposite traffic
-    val oppositeCam = TrafficCamera(
-      id = "cam_opposite_01",
-      latitude = 10.7580,
-      longitude = 106.6880,
+    // Camera ahead to the West-South-West near Cau Chu Y
+    val vvkCam = TrafficCamera(
+      id = "cam_sg_vvk_01",
+      latitude = 10.7523,
+      longitude = 106.6712,
       type = CameraType.SPEED_CAMERA,
-      roadName = "Đại lộ Võ Văn Kiệt",
+      roadName = "Đại lộ Võ Văn Kiệt (Gần Cầu Chữ Y)",
       speedLimit = 60,
-      description = "Camera làn ngược chiều",
-      districtCity = "TP.HCM",
-      bearingDegrees = 270f,
-      directionName = "Hướng đi Bình Chánh"
+      description = "Camera bắn tốc độ cố định 60 km/h",
+      districtCity = "Quận 5, TP.HCM",
+      bearingDegrees = 245f,
+      directionName = "Hướng về Bình Chánh / Miền Tây"
     )
 
     val result = warningEngine.evaluateTrafficState(
       location = location,
-      allCameras = listOf(oppositeCam)
+      allCameras = listOf(vvkCam)
     )
 
-    assertNull("Camera monitoring opposite traffic direction must NOT trigger false alert", result.activeWarning)
+    assertNotNull("Westbound camera in HCMC must be detected when heading matches", result.activeWarning)
+    assertEquals("cam_sg_vvk_01", result.activeWarning?.camera?.id)
+  }
+
+  @Test
+  fun testIntersectionRedLightCamera_IsDetectedBidirectionally() {
+    // Car driving North-West approaching intersection
+    val location = GpsLocationState(
+      latitude = 10.7690,
+      longitude = 106.6360,
+      speedKmh = 35f,
+      headingDegrees = 320f,
+      detectedRoadName = "Lũy Bán Bích"
+    )
+
+    // Red light camera at Luy Ban Bich x Thoai Ngoc Hau
+    val redLightCam = TrafficCamera(
+      id = "cam_sg_lbb_01",
+      latitude = 10.7725,
+      longitude = 106.6342,
+      type = CameraType.RED_LIGHT_CAMERA,
+      roadName = "Lũy Bán Bích giao Thoại Ngọc Hầu",
+      speedLimit = 50,
+      description = "Camera phạt nguội vượt đèn đỏ",
+      districtCity = "Tân Phú, TP.HCM",
+      bearingDegrees = null,
+      directionName = "Ngã tư Thoại Ngọc Hầu"
+    )
+
+    val result = warningEngine.evaluateTrafficState(
+      location = location,
+      allCameras = listOf(redLightCam)
+    )
+
+    assertNotNull("Red light intersection camera must be detected when approaching intersection", result.activeWarning)
+    assertEquals("cam_sg_lbb_01", result.activeWarning?.camera?.id)
+  }
+
+  @Test
+  fun testPassedCamera_CanBeAlertedAgainAfterDistance() {
+    // Step 1: Car passes camera
+    val locationPassing = GpsLocationState(
+      latitude = 10.7523,
+      longitude = 106.6710, // Just passed
+      speedKmh = 40f,
+      headingDegrees = 245f,
+      detectedRoadName = "Đại lộ Võ Văn Kiệt"
+    )
+
+    val cam = TrafficCamera(
+      id = "cam_test_pass",
+      latitude = 10.7523,
+      longitude = 106.6712,
+      type = CameraType.SPEED_CAMERA,
+      roadName = "Đại lộ Võ Văn Kiệt",
+      speedLimit = 60,
+      description = "Camera thử nghiệm",
+      districtCity = "TP.HCM"
+    )
+
+    // Evaluate passing
+    warningEngine.evaluateTrafficState(locationPassing, listOf(cam))
+
+    // Step 2: Car drives 500m away and turns around (heading East = 65 deg) approaching the camera again
+    val locationApproachingAgain = GpsLocationState(
+      latitude = 10.7500,
+      longitude = 106.6660,
+      speedKmh = 45f,
+      headingDegrees = 65f,
+      detectedRoadName = "Đại lộ Võ Văn Kiệt"
+    )
+
+    val resultReapproach = warningEngine.evaluateTrafficState(locationApproachingAgain, listOf(cam))
+    assertNotNull("Camera should alert again after vehicle moves far away and approaches anew", resultReapproach.activeWarning)
   }
 }

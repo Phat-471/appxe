@@ -469,6 +469,19 @@ object AppUpdateManager {
     if (resultList.isEmpty()) {
       resultList.add(
         AppReleaseHistoryItem(
+          tagName = "v1.2.3",
+          versionName = "1.2.3",
+          versionCode = 123,
+          releaseDate = "28/08/2026",
+          releaseNotes = listOf("Khắc phục bản đồ trắng khi zoom xa", "GPS Vector Heading chính xác", "Cập nhật camera toàn diện TPHCM"),
+          apkDownloadUrl = "https://github.com/Phat-471/appxe/releases/download/v1.2.3/app-debug.apk",
+          sizeMb = 25.2f,
+          isCurrentVersion = true,
+          isOlderVersion = false
+        )
+      )
+      resultList.add(
+        AppReleaseHistoryItem(
           tagName = "v1.2.2",
           versionName = "1.2.2",
           versionCode = 122,
@@ -476,8 +489,8 @@ object AppUpdateManager {
           releaseNotes = listOf("Chế độ Siêu Tiết Kiệm Pin OLED HUD", "Cảnh báo sớm thích ứng tốc độ", "Mở rộng camera toàn quốc"),
           apkDownloadUrl = "https://github.com/Phat-471/appxe/releases/download/v1.2.2/app-debug.apk",
           sizeMb = 24.8f,
-          isCurrentVersion = true,
-          isOlderVersion = false
+          isCurrentVersion = false,
+          isOlderVersion = true
         )
       )
       resultList.add(

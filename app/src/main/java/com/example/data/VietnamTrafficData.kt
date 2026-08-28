@@ -1150,6 +1150,18 @@ object VietnamTrafficData {
     TrafficCamera("cam_ql14_dk_01", 12.6850, 108.0450, CameraType.SPEED_CAMERA, "QL14 — Đoạn Buôn Ma Thuột (BMT)", 60, "Camera 60 km/h vào TP. Buôn Ma Thuột", "Đắk Lắk"),
     TrafficCamera("cam_ql14_dk_02", 12.7550, 108.2120, CameraType.COLD_FINE_SURVEILLANCE, "QL14 — Ngã Ba Ea Knốp (Đắk Lắk)", 80, "Camera phạt nguội ngã ba Ea Knốp đèo nguy hiểm", "Đắk Lắk"),
 
+    // === TP. HỒ CHÍ MINH: QUẬN 1, QUẬN 3, QUẬN 4 (TRUNG TÂM) ===
+    TrafficCamera("cam_sg_q1_tonducthang_01", 10.7810, 106.7050, CameraType.SPEED_CAMERA, "Đường Tôn Đức Thắng (Gần Cầu Ba Son)", 50, "Camera bắn tốc độ 50 km/h đường Tôn Đức Thắng ven sông", "Quận 1, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ (Xe máy)"),
+    TrafficCamera("cam_sg_q1_bason_01", 10.7800, 106.7085, CameraType.COLD_FINE_SURVEILLANCE, "Cầu Ba Son (Cầu Thủ Thiêm 2)", 60, "Camera phạt nguội tốc độ 60 km/h và sai làn trên Cầu Ba Son", "Quận 1, TP.HCM", fineAmountText = "Phạt 400.000đ - 600.000đ"),
+    TrafficCamera("cam_sg_q1_nkkn_ntmk", 10.7785, 106.6940, CameraType.RED_LIGHT_CAMERA, "Nam Kỳ Khởi Nghĩa giao Nguyễn Thị Minh Khai", 50, "Camera phạt nguội vượt đèn đỏ và dừng đè vạch Dinh Độc Lập", "Quận 1, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_q1_hamnghi_01", 10.7715, 106.7030, CameraType.RED_LIGHT_CAMERA, "Hàm Nghi giao Pasteur", 50, "Camera phạt đèn đỏ và rẽ sai làn ngã tư Hàm Nghi", "Quận 1, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_q1_tranhungdao_01", 10.7680, 106.6970, CameraType.RED_LIGHT_CAMERA, "Trần Hưng Đạo giao Nguyễn Thái Học", 50, "Camera phạt vượt đèn ngã tư Nguyễn Thái Học", "Quận 1, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_q1_nguyenhuucanh_01", 10.7890, 106.7130, CameraType.SPEED_CAMERA, "Nguyễn Hữu Cảnh (Gần Cầu Thủ Thiêm 1)", 50, "Camera đo tốc độ tự động 50 km/h đường Nguyễn Hữu Cảnh", "Bình Thạnh, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_q3_cmt8_dpb", 10.7770, 106.6870, CameraType.RED_LIGHT_CAMERA, "Cách Mạng Tháng 8 giao Điện Biên Phủ", 50, "Camera phạt đèn đỏ ngã tư CMT8 - Điện Biên Phủ", "Quận 3, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_q3_nkkn_ltc", 10.7895, 106.6850, CameraType.RED_LIGHT_CAMERA, "Nam Kỳ Khởi Nghĩa giao Lý Chính Thắng", 50, "Camera phạt đèn đỏ và lấn làn rẽ nhánh Cầu Công Lý", "Quận 3, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_q4_hoangdieu_01", 10.7620, 106.7040, CameraType.RED_LIGHT_CAMERA, "Hoàng Diệu giao Nguyễn Tất Thành", 50, "Camera phạt đèn đỏ nút giao Cầu Khánh Hội", "Quận 4, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_q4_kenhte_01", 10.7530, 106.7010, CameraType.SPEED_CAMERA, "Cầu Kênh Tẻ (Nối Quận 4 & Quận 7)", 50, "Camera đo tốc độ 50 km/h và lấn tuyến trên Cầu Kênh Tẻ", "Quận 4, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+
     // === TÂN PHÚ & TÂN BÌNH (Tuyến thử nghiệm thực tế) ===
     TrafficCamera("cam_sg_lbb_lythaitong_01", 10.7710, 106.6346, CameraType.RED_LIGHT_CAMERA, "Lũy Bán Bích giao Lý Thái Tông", 50, "Camera phạt nguội vượt đèn đỏ và đè vạch giao lộ Lý Thái Tông", "Tân Phú, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ (Xe máy)"),
     TrafficCamera("cam_sg_lbb_lythaitong_02", 10.7711, 106.6345, CameraType.COLD_FINE_SURVEILLANCE, "Lũy Bán Bích (Lý Thái Tông)", 50, "Camera giám sát luồng giao thông và phân làn nút giao Lý Thái Tông", "Tân Phú, TP.HCM", fineAmountText = "Phạt 400.000đ - 600.000đ"),
@@ -1165,29 +1177,51 @@ object VietnamTrafficData {
     TrafficCamera("cam_sg_ltt_01", 10.8040, 106.6180, CameraType.SPEED_CAMERA, "Lê Trọng Tấn (KCN Tân Bình)", 50, "Camera bắn tốc độ tự động 50 km/h trục đường KCN Tân Bình", "Tân Phú, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ (Quá tốc độ)"),
     TrafficCamera("cam_sg_truongchinh_01", 10.8080, 106.6360, CameraType.RED_LIGHT_CAMERA, "Trường Chinh giao Tây Thạnh", 50, "Phạt nguội vượt đèn đỏ và dừng đè vạch người đi bộ", "Tân Phú, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
     TrafficCamera("cam_sg_conghoa_01", 10.8010, 106.6540, CameraType.RED_LIGHT_CAMERA, "Cộng Hòa giao Út Tịch", 50, "Camera phạt vượt đèn và rẽ trái sai quy định nút giao Út Tịch", "Tân Bình, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_conghoa_02", 10.8040, 106.6480, CameraType.SPEED_CAMERA, "Cộng Hòa (Cầu Vượt Hoàng Hoa Thám)", 50, "Camera bắn tốc độ 50 km/h cầu vượt Hoàng Hoa Thám", "Tân Bình, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_sanbay_01", 10.8140, 106.6660, CameraType.SPEED_CAMERA, "Bạch Đằng / Hồng Hà (Đường Vào Sân Bay Tân Sơn Nhất)", 50, "Camera giám sát tốc độ 50 km/h và dừng đỗ cửa ngõ Sân Bay", "Tân Bình, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
 
     // === GÒ VẤP, PHÚ NHUẬN & BÌNH THẠNH ===
     TrafficCamera("cam_sg_quangtrung_01", 10.8350, 106.6620, CameraType.RED_LIGHT_CAMERA, "Quang Trung giao Thống Nhất", 50, "Phạt nguội đèn đỏ và đè vạch ngã 3 Quang Trung - Thống Nhất", "Gò Vấp, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_quangtrung_02", 10.8490, 106.6450, CameraType.SPEED_CAMERA, "Quang Trung (Cầu Chợ Cầu - Gần Phan Huy Ích)", 50, "Camera đo tốc độ 50 km/h đoạn Cầu Chợ Cầu", "Gò Vấp, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
     TrafficCamera("cam_sg_phanvantri_01", 10.8250, 106.6850, CameraType.RED_LIGHT_CAMERA, "Phan Văn Trị giao Nguyễn Oanh (Ngã 5 Gò Vấp)", 50, "Phạt nguội ngã 5 Gò Vấp vượt đèn và đi sai làn", "Gò Vấp, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
     TrafficCamera("cam_sg_phandangleu_01", 10.7990, 106.6860, CameraType.RED_LIGHT_CAMERA, "Phan Đăng Lưu giao Hoàng Văn Thụ (Ngã tư Phú Nhuận)", 50, "Phạt nguội nút giao ngã tư Phú Nhuận", "Phú Nhuận, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
     TrafficCamera("cam_sg_dinhbolinh_01", 10.8120, 106.7110, CameraType.COLD_FINE_SURVEILLANCE, "Đinh Bộ Lĩnh (Bến Xe Miền Đông Cũ)", 50, "Camera phạt dừng đón trả khách sai quy định và lấn làn", "Bình Thạnh, TP.HCM", fineAmountText = "Phạt 400.000đ - 600.000đ"),
+    TrafficCamera("cam_sg_hangxanh_01", 10.8015, 106.7120, CameraType.RED_LIGHT_CAMERA, "Điện Biên Phủ giao Xô Viết Nghệ Tĩnh (Ngã Tư Hàng Xanh)", 60, "Camera phạt vượt đèn và đè vạch dưới chân Cầu Vượt Hàng Xanh", "Bình Thạnh, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
     TrafficCamera("cam_sg_dienbienphu_01", 10.7980, 106.7150, CameraType.SPEED_CAMERA, "Điện Biên Phủ (Chân Cầu Sài Gòn)", 60, "Camera bắn tốc độ 60 km/h chân Cầu Sài Gòn hướng vào trung tâm", "Bình Thạnh, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ (Xe máy)"),
     TrafficCamera("cam_sg_pvd_04", 10.8320, 106.7200, CameraType.RED_LIGHT_CAMERA, "Phạm Văn Đồng giao Hiệp Bình", 60, "Camera phạt đèn đỏ và đè vạch rẽ nhánh Hiệp Bình", "TP. Thủ Đức, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
     TrafficCamera("cam_sg_pvd_05", 10.8580, 106.7610, CameraType.SPEED_CAMERA, "Phạm Văn Đồng (Cầu Vượt Linh Xuân)", 60, "Camera bắn tốc độ 60 km/h đoạn đường thẳng Linh Xuân", "TP. Thủ Đức, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
 
-    // === QUẬN 1, 3, 5, 6, 10, 11 (TRUNG TÂM TP.HCM) ===
+    // === QUẬN 5, 6, 10, 11 (KHU CHỢ LỚN & TRUNG TÂM TÂY SÀI GÒN) ===
     TrafficCamera("cam_sg_vvk_04", 10.7480, 106.6600, CameraType.SPEED_CAMERA, "Võ Văn Kiệt (Cầu Nguyễn Tri Phương)", 60, "Camera đo tốc độ 60 km/h đại lộ Võ Văn Kiệt làn xe máy 50", "Quận 5, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ (Quá tốc độ)"),
+    TrafficCamera("cam_sg_vvk_05", 10.7435, 106.6510, CameraType.COLD_FINE_SURVEILLANCE, "Võ Văn Kiệt (Cầu Chà Và)", 60, "Camera phạt nguội vượt đèn và lấn làn nhánh Cầu Chà Và", "Quận 6, TP.HCM", fineAmountText = "Phạt 400.000đ - 600.000đ"),
     TrafficCamera("cam_sg_3t2_01", 10.7705, 106.6710, CameraType.RED_LIGHT_CAMERA, "Ba Tháng Hai giao Lê Hồng Phong", 50, "Camera phạt nguội vượt đèn đỏ ngã 7 Lý Thái Tổ", "Quận 10, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_3t2_svh", 10.7718, 106.6680, CameraType.RED_LIGHT_CAMERA, "Ba Tháng Hai giao Sư Vạn Hạnh", 50, "Camera phạt đèn đỏ nút giao Vạn Hạnh Mall", "Quận 10, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_3t2_ltkiet", 10.7640, 106.6575, CameraType.RED_LIGHT_CAMERA, "Ba Tháng Hai giao Lý Thường Kiệt", 50, "Camera phạt đèn đỏ và lấn làn ngã tư Cây Gõ", "Quận 11, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
     TrafficCamera("cam_sg_lythuongkiet_01", 10.7720, 106.6570, CameraType.RED_LIGHT_CAMERA, "Lý Thường Kiệt giao Tô Hiến Thành", 50, "Camera phạt đèn đỏ cổng Đại Học Bách Khoa", "Quận 10, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
     TrafficCamera("cam_sg_nguyentrai_01", 10.7560, 106.6750, CameraType.COLD_FINE_SURVEILLANCE, "Nguyễn Trãi giao Trần Phú", 50, "Camera giám sát lấn làn và rẽ trái sai quy định", "Quận 5, TP.HCM", fineAmountText = "Phạt 400.000đ - 600.000đ"),
+    TrafficCamera("cam_sg_hungvuong_01", 10.7580, 106.6670, CameraType.RED_LIGHT_CAMERA, "Hùng Vương giao Nguyễn Tri Phương", 50, "Camera phạt đèn đỏ ngã tư Hùng Vương Plaza", "Quận 5, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
     TrafficCamera("cam_sg_hongbang_01", 10.7530, 106.6520, CameraType.RED_LIGHT_CAMERA, "Hồng Bàng giao Thuận Kiều (Bệnh Viện Chợ Rẫy)", 50, "Camera phạt đèn đỏ khu vực Bệnh Viện Chợ Rẫy", "Quận 5, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
     TrafficCamera("cam_sg_kinhduongvuong_01", 10.7380, 106.6210, CameraType.SPEED_CAMERA, "Kinh Dương Vương (Bến Xe Miền Tây)", 50, "Camera đo tốc độ 50 km/h cửa ngõ Bến Xe Miền Tây", "Bình Tân, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_kinhduongvuong_02", 10.7280, 106.6080, CameraType.RED_LIGHT_CAMERA, "Kinh Dương Vương giao Tên Lửa (Vòng Xoay An Lạc)", 50, "Camera phạt đèn đỏ và lấn làn Vòng Xoay An Lạc", "Bình Tân, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
 
     // === QUẬN 7, QUẬN 8, NHÀ BÈ & BÌNH CHÁNH ===
     TrafficCamera("cam_sg_nvl_03", 10.7310, 106.7210, CameraType.SPEED_CAMERA, "Nguyễn Văn Linh (Gần Cầu Phú Mỹ)", 60, "Camera bắn tốc độ 60 km/h làn hỗn hợp đường Nguyễn Văn Linh", "Quận 7, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
     TrafficCamera("cam_sg_huynhtanphat_01", 10.7410, 106.7320, CameraType.RED_LIGHT_CAMERA, "Huỳnh Tấn Phát giao Nguyễn Thị Thập", 50, "Camera phạt đèn đỏ nút giao Cầu Phú Mỹ", "Quận 7, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
     TrafficCamera("cam_sg_ql50_01", 10.7180, 106.6450, CameraType.SPEED_CAMERA, "Quốc Lộ 50 (Ngã Tư Nguyễn Văn Linh)", 50, "Camera đo tốc độ 50 km/h vào trung tâm huyện Bình Chánh", "Bình Chánh, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_ql50_02", 10.7390, 106.6620, CameraType.SPEED_CAMERA, "Quốc Lộ 50 (Cầu Nhị Thiên Đường)", 50, "Camera bắn tốc độ 50 km/h dốc Cầu Nhị Thiên Đường", "Quận 8, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
     TrafficCamera("cam_sg_ql1a_03", 10.6980, 106.5820, CameraType.SPEED_CAMERA, "Quốc Lộ 1A (Trạm Thu Phí Chợ Đệm)", 80, "Camera tốc độ 80 km/h trước lối vào Cao tốc Trung Lương", "Bình Chánh, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ (Xe máy)"),
+
+    // === QUẬN 12, HÓC MÔN, CỦ CHI ===
+    TrafficCamera("cam_sg_ql1a_ngatuga", 10.8650, 106.6780, CameraType.SPEED_CAMERA, "Quốc Lộ 1A (Ngã Tư Ga)", 60, "Camera bắn tốc độ 60 km/h đoạn Cầu Vượt Ngã Tư Ga", "Quận 12, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_ql1a_tanthoihiep", 10.8580, 106.6480, CameraType.RED_LIGHT_CAMERA, "Quốc Lộ 1A (Cầu Vượt Tân Thới Hiệp)", 60, "Camera phạt nguội ngã tư Tân Thới Hiệp - Tô Ký", "Quận 12, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_ql22_trungchanh", 10.8520, 106.6080, CameraType.RED_LIGHT_CAMERA, "Quốc Lộ 22 giao Nguyễn Ảnh Thủ (Ngã Tư Trung Chánh)", 60, "Camera phạt đèn đỏ và đi sai làn ngã tư Trung Chánh", "Hóc Môn, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+
+    // === TP. THỦ ĐỨC (KHU ĐÔNG SÀI GÒN) ===
+    TrafficCamera("cam_sg_xlhn_rachchiec", 10.8150, 106.7550, CameraType.SPEED_CAMERA, "Xa Lộ Hà Nội (Cầu Rạch Chiếc)", 60, "Camera đo tốc độ tự động 60 km/h làn xe máy Xa Lộ Hà Nội", "TP. Thủ Đức, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_xlhn_binhthai", 10.8320, 106.7650, CameraType.RED_LIGHT_CAMERA, "Xa Lộ Hà Nội giao Đỗ Xuân Hợp (Ngã Tư Bình Thái)", 60, "Camera phạt đèn đỏ ngã tư Bình Thái dưới tuyến Metro", "TP. Thủ Đức, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_mct_luongdinhcua", 10.7890, 106.7450, CameraType.RED_LIGHT_CAMERA, "Mai Chí Thọ giao Lương Định Của", 60, "Camera phạt đèn đỏ và rẽ sai làn ngã tư Lương Định Của", "TP. Thủ Đức, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_ql13_binhtrieu", 10.8250, 106.7110, CameraType.SPEED_CAMERA, "Quốc Lộ 13 (Chân Cầu Bình Triệu)", 50, "Camera đo tốc độ 50 km/h dốc Cầu Bình Triệu", "TP. Thủ Đức, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
+    TrafficCamera("cam_sg_ql13_binhphuoc", 10.8650, 106.7180, CameraType.RED_LIGHT_CAMERA, "Quốc Lộ 13 giao QL1A (Ngã Tư Bình Phước)", 60, "Camera phạt đèn đỏ và lấn tuyến vòng xoay Bình Phước", "TP. Thủ Đức, TP.HCM", fineAmountText = "Phạt 800.000đ - 1.000.000đ"),
 
     // === HÀ NỘI, ĐÀ NẴNG, BÌNH DƯƠNG, ĐỒNG NAI ===
     TrafficCamera("cam_hn_vd3_01", 20.9980, 105.7950, CameraType.SPEED_CAMERA, "Đường Vành Đai 3 Trên Cao (Đoạn Khuất Duy Tiến)", 80, "Camera đo tốc độ 80 km/h Vành Đai 3 trên cao", "Thanh Xuân, Hà Nội", fineAmountText = "Phạt 4-6 triệu + Tước bằng lái"),

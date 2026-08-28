@@ -339,15 +339,37 @@ fun OfflineMapCanvas(
       // Rotate entire canvas smoothly
       rotate(degrees = animatedRotation, pivot = Offset(midX, midY)) {
 
-        // 2. OPENSTREETMAP TILE RENDERING WITH MULTI-LEVEL DEEP FALLBACK
+        // 2. OPENSTREETMAP TILE RENDERING WITH DYNAMIC VIEWPORT 4-CORNER BOUNDING BOX
         val maxTileIndex = (1 shl anchorZoom) - 1
-        val diagonal = hypot(canvasWidth, canvasHeight)
-        val tilesMargin = ceil(diagonal / tileSizePx / 2.0).toInt() + 2
+        val rad = Math.toRadians((-animatedRotation).toDouble())
+        val cosR = cos(rad)
+        val sinR = sin(rad)
 
-        val minTileX = (cTileX.toInt() - tilesMargin).coerceIn(0, maxTileIndex)
-        val maxTileX = (cTileX.toInt() + tilesMargin).coerceIn(0, maxTileIndex)
-        val minTileY = (cTileY.toInt() - tilesMargin).coerceIn(0, maxTileIndex)
-        val maxTileY = (cTileY.toInt() + tilesMargin).coerceIn(0, maxTileIndex)
+        fun screenToTile(sx: Float, sy: Float): Pair<Double, Double> {
+          val dx = sx - midX
+          val dy = sy - midY
+          val unrotX = dx * cosR - dy * sinR
+          val unrotY = dx * sinR + dy * cosR
+          val tx = cTileX + unrotX / tileSizePx
+          val ty = cTileY + unrotY / tileSizePx
+          return Pair(tx, ty)
+        }
+
+        val c1 = screenToTile(0f, 0f)
+        val c2 = screenToTile(canvasWidth, 0f)
+        val c3 = screenToTile(canvasWidth, canvasHeight)
+        val c4 = screenToTile(0f, canvasHeight)
+
+        val minTX = minOf(c1.first, c2.first, c3.first, c4.first)
+        val maxTX = maxOf(c1.first, c2.first, c3.first, c4.first)
+        val minTY = minOf(c1.second, c2.second, c3.second, c4.second)
+        val maxTY = maxOf(c1.second, c2.second, c3.second, c4.second)
+
+        // Lấy thêm biên an toàn 1 tile xung quanh để cuộn mượt không bị khựng
+        val minTileX = (floor(minTX).toInt() - 1).coerceIn(0, maxTileIndex)
+        val maxTileX = (ceil(maxTX).toInt() + 1).coerceIn(0, maxTileIndex)
+        val minTileY = (floor(minTY).toInt() - 1).coerceIn(0, maxTileIndex)
+        val maxTileY = (ceil(maxTY).toInt() + 1).coerceIn(0, maxTileIndex)
 
         for (tx in minTileX..maxTileX) {
           for (ty in minTileY..maxTileY) {
@@ -574,17 +596,13 @@ fun OfflineMapCanvas(
         }
       }
 
-        // 5. ENHANCED SPECIFIC CAMERA MARKERS ON MAP (Filtered by Zoom Level & Distance Radius)
-        val maxCamRadiusMeters = when {
-          zoomLevel >= 15f -> 8000.0   // Zoom gần: 8km
-          zoomLevel >= 13f -> 18000.0  // Zoom đường phố: 18km (Bao quát toàn bộ trục đường & khu vực)
-          zoomLevel >= 11f -> 35000.0  // Zoom đô thị: 35km (Toàn TP.HCM)
-          else -> 50000.0              // Zoom rộng: 50km
-        }
-
+        // 5. ENHANCED SPECIFIC CAMERA MARKERS ON MAP (Filtered dynamically by Screen Viewport)
+        val viewportMargin = 120f
         val visibleCameras = cameras.filter { cam ->
-          val d = VietnamTrafficData.calculateDistanceMeters(centerLat, centerLng, cam.latitude, cam.longitude)
-          d <= maxCamRadiusMeters || cam.id == nearestCamera?.id
+          val camPos = project(cam.latitude, cam.longitude)
+          (camPos.x in (-viewportMargin)..(canvasWidth + viewportMargin) &&
+           camPos.y in (-viewportMargin)..(canvasHeight + viewportMargin)) ||
+          cam.id == nearestCamera?.id
         }
 
         for (cam in visibleCameras) {
@@ -787,10 +805,12 @@ fun OfflineMapCanvas(
           }
         }
 
-        // 5.2. POI & HAZARD ICONS ON MAP (Only when zoomed in >= 14 for optimal performance)
-        val visiblePois = if (zoomLevel >= 14f) {
+        // 5.2. POI & HAZARD ICONS ON MAP (Filtered by Screen Viewport when zoom >= 13f)
+        val visiblePois = if (zoomLevel >= 13f) {
           pois.filter { poi ->
-            VietnamTrafficData.calculateDistanceMeters(centerLat, centerLng, poi.latitude, poi.longitude) <= 3000.0
+            val poiPos = project(poi.latitude, poi.longitude)
+            poiPos.x in (-viewportMargin)..(canvasWidth + viewportMargin) &&
+            poiPos.y in (-viewportMargin)..(canvasHeight + viewportMargin)
           }
         } else emptyList()
 

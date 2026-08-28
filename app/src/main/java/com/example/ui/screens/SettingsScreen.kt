@@ -408,11 +408,11 @@ fun SettingsScreen(
           // Chọn loại biểu tượng xe
           SettingsNavigationRow(
             icon = Icons.Default.TwoWheeler,
-            title = if (isEn) "3D Vehicle Icon Model" else "Mô hình xe",
+            title = if (isEn) "Vehicle Icon Model" else "Mô hình xe",
             valueText = when (settings.vehicleIconType) {
-              "SCOOTER" -> "🛵 ${if (isEn) "3D Scooter" else "Xe tay ga"}"
-              "MOTORBIKE" -> "🏍️ ${if (isEn) "3D Superbike" else "Xe phân khối lớn"}"
-              "CAR" -> "🚗 ${if (isEn) "3D Sport Car" else "Xe ô tô thể thao"}"
+              "SCOOTER" -> "🛵 ${if (isEn) "Scooter" else "Xe tay ga"}"
+              "MOTORBIKE" -> "🏍️ ${if (isEn) "Superbike" else "Xe phân khối lớn"}"
+              "CAR" -> "🚗 ${if (isEn) "Sport Car" else "Xe ô tô thể thao"}"
               "TRUCK" -> "🚛 ${if (isEn) "Truck" else "Xe tải"}"
               else -> "🔺 ${if (isEn) "Neon Cyan Arrow" else "Mũi tên Neon Cyan"}"
             },
@@ -1761,9 +1761,9 @@ fun VehicleTypeSelectDialog(
   isEn: Boolean
 ) {
   val options = listOf(
-    Pair("SCOOTER", "🛵 ${if (isEn) "3D Scooter Rider (Google Maps style)" else "Xe Tay Ga"}"),
-    Pair("MOTORBIKE", "🏍️ ${if (isEn) "3D Sport Motorbike" else "Xe Phân Khối Lớn"}"),
-    Pair("CAR", "🚗 ${if (isEn) "3D Sport Car Sedan" else "Xe Ô Tô"}"),
+    Pair("SCOOTER", "🛵 ${if (isEn) "Scooter Rider" else "Xe Tay Ga"}"),
+    Pair("MOTORBIKE", "🏍️ ${if (isEn) "Sport Motorbike" else "Xe Phân Khối Lớn"}"),
+    Pair("CAR", "🚗 ${if (isEn) "Sport Car Sedan" else "Xe Ô Tô"}"),
     Pair("TRUCK", "🚛 ${if (isEn) "Truck / Heavy Vehicle" else "Xe Tải"}")
   )
 

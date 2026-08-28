@@ -1,15 +1,15 @@
 {
-  "versionCode": 122,
-  "versionName": "1.2.2",
-  "releaseDate": "27/08/2026",
-  "downloadUrl": "https://github.com/Phat-471/appxe/releases/download/v1.2.2/app-debug.apk",
-  "sizeMb": 24.8,
+  "versionCode": 123,
+  "versionName": "1.2.3",
+  "releaseDate": "28/08/2026",
+  "downloadUrl": "https://github.com/Phat-471/appxe/releases/download/v1.2.3/app-debug.apk",
+  "sizeMb": 25.2,
   "isMandatory": false,
   "releaseNotes": [
-    "⚡ Chế độ Siêu Tiết Kiệm Pin Thông Minh (Adaptive GPS & Tiết kiệm > 80% pin).",
-    "🖤 Màn hình HUD Đen Tuyền OLED (Pure Black AMOLED HUD) hắt kính lái ban đêm.",
-    "🛡️ Thuật toán Cảnh Báo Sớm Thích Ứng Vận Tốc (Speed-Adaptive Early Warning) chống phạt nguội triệt để.",
-    "🗺️ Mở rộng kho dữ liệu Camera Phạt Nguội & Bắn Tốc Độ chính xác cao toàn quốc (Hà Nội, TP.HCM, QL51, QL13, Cao Tốc...).",
-    "📸 Nút báo cáo 1-chạm: Đóng góp điểm camera & chốt CSGT mới tức thì."
+    "🚀 Khắc phục triệt để lỗi bản đồ trắng tinh khi phóng to hoặc xem vị trí xa (Dynamic Viewport 4-Corner Bounding Box).",
+    "📷 Bổ sung toàn diện danh sách camera phạt nguội & bắn tốc độ trên tất cả các quận huyện TP.HCM và liên tỉnh.",
+    "🧭 Thuật toán GPS Vector Heading thông minh: Tự động tính góc lái chính xác khi thiết bị không trả về bearing, không bị kẹt góc.",
+    "🛡️ Mở rộng hành lang quét camera (75m - 150m), nhận diện camera ngã tư đa hướng và tự động hết hạn camera đã qua.",
+    "⚡ Cơ chế Fallback Tile đa tầng & đa nguồn chống trắng màn hình 100%."
   ]
 }

@@ -17,8 +17,8 @@ android {
     applicationId = "com.aistudio.speedalert.vngps"
     minSdk = 24
     targetSdk = 36
-    versionCode = 122
-    versionName = "1.2.2"
+    versionCode = 123
+    versionName = "1.2.3"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

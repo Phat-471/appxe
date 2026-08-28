@@ -91,6 +91,22 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
   private val _lastFinishedTrip = MutableStateFlow<CurrentTripStats?>(null)
   val lastFinishedTrip: StateFlow<CurrentTripStats?> = _lastFinishedTrip.asStateFlow()
 
+  // App Update & Rollback State (Declared before init block to prevent NPE)
+  private val _updateCheckState = MutableStateFlow<UpdateCheckState>(UpdateCheckState.Idle)
+  val updateCheckState: StateFlow<UpdateCheckState> = _updateCheckState.asStateFlow()
+
+  private val _releaseHistory = MutableStateFlow<List<AppReleaseHistoryItem>>(emptyList())
+  val releaseHistory: StateFlow<List<AppReleaseHistoryItem>> = _releaseHistory.asStateFlow()
+
+  private val _rollbackBackupInfo = MutableStateFlow(RollbackBackupInfo())
+  val rollbackBackupInfo: StateFlow<RollbackBackupInfo> = _rollbackBackupInfo.asStateFlow()
+
+  private val _isCrashRecoveryMode = MutableStateFlow(false)
+  val isCrashRecoveryMode: StateFlow<Boolean> = _isCrashRecoveryMode.asStateFlow()
+
+  private val _isHistoryLoading = MutableStateFlow(false)
+  val isHistoryLoading: StateFlow<Boolean> = _isHistoryLoading.asStateFlow()
+
   private var evaluationJob: Job? = null
   private var tripTickerJob: Job? = null
 
@@ -588,9 +604,6 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
   }
 
   // === APP UPDATE MANAGEMENT ===
-  private val _updateCheckState = MutableStateFlow<UpdateCheckState>(UpdateCheckState.Idle)
-  val updateCheckState: StateFlow<UpdateCheckState> = _updateCheckState.asStateFlow()
-
   fun checkForAppUpdates() {
     viewModelScope.launch {
       _updateCheckState.value = UpdateCheckState.Checking
@@ -631,18 +644,6 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
   }
 
   // === ROLLBACK & RECOVERY MANAGEMENT ===
-  private val _releaseHistory = MutableStateFlow<List<AppReleaseHistoryItem>>(emptyList())
-  val releaseHistory: StateFlow<List<AppReleaseHistoryItem>> = _releaseHistory.asStateFlow()
-
-  private val _rollbackBackupInfo = MutableStateFlow(RollbackBackupInfo())
-  val rollbackBackupInfo: StateFlow<RollbackBackupInfo> = _rollbackBackupInfo.asStateFlow()
-
-  private val _isCrashRecoveryMode = MutableStateFlow(false)
-  val isCrashRecoveryMode: StateFlow<Boolean> = _isCrashRecoveryMode.asStateFlow()
-
-  private val _isHistoryLoading = MutableStateFlow(false)
-  val isHistoryLoading: StateFlow<Boolean> = _isHistoryLoading.asStateFlow()
-
   fun initStartupWatchdog(context: android.content.Context) {
     val isCrashLoop = com.example.service.AppUpdateManager.checkStartupStability(context)
     if (isCrashLoop) {

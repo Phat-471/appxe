@@ -358,17 +358,28 @@ object AppUpdateManager {
     try {
       if (!apkFile.exists() || apkFile.length() < 1000) {
         Log.e(TAG, "APK file does not exist or corrupted")
+        android.widget.Toast.makeText(
+          context,
+          "File cập nhật không hợp lệ. Vui lòng tải lại.",
+          android.widget.Toast.LENGTH_LONG
+        ).show()
         return
       }
 
       // Check Android 8.0+ Unknown sources permission
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         if (!context.packageManager.canRequestPackageInstalls()) {
+          android.widget.Toast.makeText(
+            context,
+            "Vui lòng gạt bật 'Cho phép cài đặt từ nguồn này' để cập nhật ứng dụng.",
+            android.widget.Toast.LENGTH_LONG
+          ).show()
           val permIntent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
             data = Uri.parse("package:${context.packageName}")
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
           }
           context.startActivity(permIntent)
+          return
         }
       }
 
@@ -381,12 +392,29 @@ object AppUpdateManager {
       val installIntent = Intent(Intent.ACTION_VIEW).apply {
         setDataAndType(apkUri, "application/vnd.android.package-archive")
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(Intent.FLAG_GRANT_PREFIX_URI_PERMISSION)
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+      }
+
+      // Grant URI read permission explicitly to package installer handlers
+      val resInfoList = context.packageManager.queryIntentActivities(
+        installIntent,
+        android.content.pm.PackageManager.MATCH_DEFAULT_ONLY
+      )
+      for (resolveInfo in resInfoList) {
+        val packageName = resolveInfo.activityInfo.packageName
+        context.grantUriPermission(packageName, apkUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
       }
 
       context.startActivity(installIntent)
     } catch (e: Exception) {
       Log.e(TAG, "Failed to launch package installer", e)
+      android.widget.Toast.makeText(
+        context,
+        "Không thể mở trình cài đặt: ${e.localizedMessage}",
+        android.widget.Toast.LENGTH_LONG
+      ).show()
     }
   }
 

@@ -17,19 +17,21 @@ android {
     applicationId = "com.aistudio.speedalert.vngps"
     minSdk = 24
     targetSdk = 36
-    versionCode = 126
-    versionName = "1.2.6"
+    versionCode = 127
+    versionName = "1.2.7"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   signingConfigs {
     create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      storeFile = file(keystorePath)
-      storePassword = System.getenv("STORE_PASSWORD")
-      keyAlias = "upload"
-      keyPassword = System.getenv("KEY_PASSWORD")
+      val keystoreFile = file("${rootDir}/app/signing.keystore")
+      if (keystoreFile.exists()) {
+        storeFile = keystoreFile
+        storePassword = "speedalert123"
+        keyAlias = "speedalert"
+        keyPassword = "speedalert123"
+      }
     }
   }
 
@@ -40,7 +42,9 @@ android {
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
     }
-    debug { }
+    debug {
+      signingConfig = signingConfigs.getByName("release")
+    }
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11

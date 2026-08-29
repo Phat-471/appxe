@@ -7,9 +7,9 @@ local.properties
 *.env
 secrets.properties
 app/secrets.properties
-debug.keystore
 *.jks
 *.keystore
+!app/signing.keystore
 *.apk
 *.aab
 gradle-9.3.1/

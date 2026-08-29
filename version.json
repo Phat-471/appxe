@@ -1,15 +1,15 @@
 {
-  "versionCode": 126,
-  "versionName": "1.2.6",
+  "versionCode": 127,
+  "versionName": "1.2.7",
   "releaseDate": "29/08/2026",
-  "downloadUrl": "https://github.com/Phat-471/appxe/releases/download/v1.2.6/app-debug.apk",
+  "downloadUrl": "https://github.com/Phat-471/appxe/releases/download/v1.2.7/app-debug.apk",
   "sizeMb": 25.8,
   "isMandatory": false,
   "releaseNotes": [
-    "🎯 NÂNG CẤP THUẬT TOÁN CẢNH BÁO CHUẨN XÁC: Chỉ cảnh báo camera nằm thẳng phía trước trên đúng mặt đường đang chạy, loại bỏ 100% cảnh báo sai từ đường hẻm, đường nhánh hoặc sau lưng.",
-    "🧭 ĐỒNG BỘ CHỈ ĐƯỜNG (ACTIVE ROUTE): Khi bật dẫn đường, tự động lọc và chỉ cảnh báo duy nhất các camera nằm trên hành lang lộ trình dự kiến.",
-    "🔍 KHẮC PHỤC LỖI ZOOM BẢN ĐỒ: Bổ sung 2 phím bấm Phóng to (+) và Thu nhỏ (-) chuyên dụng trên thanh công cụ bên phải, tối ưu cảm ứng đa điểm mượt mà khi đang lái xe.",
-    "🚦 TỌA ĐỘ CHUẨN XÁC NÚT GIAO: Cập nhật dữ liệu camera 4 hướng chuẩn xác tại Ngã tư Lũy Bán Bích - Hòa Bình và các trục đường Tân Phú, Tân Bình, Q.11.",
-    "🔇 LỌC BỎ CẢNH BÁO KHI DỪNG ĐÈN ĐỎ: Khóa hướng di chuyển thực tế, không quét 360 độ vòng tròn gây báo sai khi dừng xe."
+    "🔑 ĐỒNG BỘ CHỮ KÝ CỐ ĐỊNH (UNIFIED SIGNING KEY): Cố định Keystore chứng chỉ phát hành vĩnh viễn, khắc phục triệt để lỗi 'xung đột chữ ký / không cài đặt được' khi nâng cấp qua mạng.",
+    "🛡️ NÂNG CẤP TRÌNH CÀI ĐẶT IN-APP: Tự động xin quyền 'Cài đặt từ nguồn không xác định' (Android 8 - 15) và cấp quyền đọc URI FileProvider trực tiếp cho Package Installer.",
+    "🎯 THUẬT TOÁN CẢNH BÁO CHUẨN XÁC: Chỉ cảnh báo camera nằm thẳng phía trước trên đúng mặt đường đang chạy, loại bỏ 100% cảnh báo sai từ đường hẻm hoặc sau lưng.",
+    "🧭 ĐỒNG BỘ LỘ TRÌNH CHỈ ĐƯỜNG: Khi bật dẫn đường, tự động lọc và chỉ cảnh báo duy nhất các camera nằm trên hành lang lộ trình dự kiến.",
+    "🔍 NÚT ZOOM BẢN ĐỒ (+)/(-): Bổ sung 2 phím bấm Phóng to/Thu nhỏ chuyên dụng và tối ưu cử chỉ đa điểm."
   ]
 }

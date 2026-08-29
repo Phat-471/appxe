@@ -189,6 +189,42 @@ fun OfflineMapCanvas(
       .fillMaxSize()
       .background(Color(0xFFF1F5F9))
       .pointerInput(orientationMode, cameraTilt3D) {
+        detectTransformGestures(panZoomLock = false) { centroid, pan, zoom, rotation ->
+          val canvasW = size.width.toFloat()
+          val canvasH = size.height.toFloat()
+          val vehicleBias = if (orientationMode == MapOrientationMode.TRACK_UP) {
+            if (cameraTilt3D) canvasH * 0.18f else canvasH * 0.12f
+          } else 0f
+          val originX = canvasW / 2f
+          val originY = canvasH / 2f + vehicleBias
+
+          if (zoom != 1f && zoom > 0f) {
+            // Mercator tile scale delta: deltaZ = log2(zoom) = ln(zoom)/ln(2)
+            val deltaZ = (ln(zoom.toDouble()) / ln(2.0)).toFloat()
+            val oldZ = gestureZoom
+            val newZ = (oldZ + deltaZ).coerceIn(3.0f, 19.5f)
+            val actualScaleRatio = 2.0.pow((newZ - oldZ).toDouble()).toFloat()
+
+            // Shift pan offset around exact touch centroid
+            panOffsetX = panOffsetX * actualScaleRatio + (centroid.x - originX) * (1f - actualScaleRatio)
+            panOffsetY = panOffsetY * actualScaleRatio + (centroid.y - originY) * (1f - actualScaleRatio)
+
+            gestureZoom = newZ
+            coroutineScope.launch {
+              animatedZoom.snapTo(newZ)
+            }
+          }
+
+          if (abs(rotation) > 0.45f) {
+            orientationMode = MapOrientationMode.FREE
+            userRotationAngle += rotation
+          }
+
+          panOffsetX += pan.x
+          panOffsetY += pan.y
+        }
+      }
+      .pointerInput(orientationMode, cameraTilt3D) {
         detectTapGestures(
           onDoubleTap = { tapOffset ->
             coroutineScope.launch {
@@ -274,42 +310,6 @@ fun OfflineMapCanvas(
             }
           }
         )
-      }
-      .pointerInput(orientationMode, cameraTilt3D) {
-        detectTransformGestures(panZoomLock = false) { centroid, pan, zoom, rotation ->
-          val canvasW = size.width.toFloat()
-          val canvasH = size.height.toFloat()
-          val vehicleBias = if (orientationMode == MapOrientationMode.TRACK_UP) {
-            if (cameraTilt3D) canvasH * 0.18f else canvasH * 0.12f
-          } else 0f
-          val originX = canvasW / 2f
-          val originY = canvasH / 2f + vehicleBias
-
-          if (zoom != 1f && zoom > 0f) {
-            // Mercator tile scale delta: deltaZ = log2(zoom) = ln(zoom)/ln(2)
-            val deltaZ = (ln(zoom.toDouble()) / ln(2.0)).toFloat()
-            val oldZ = gestureZoom
-            val newZ = (oldZ + deltaZ).coerceIn(3.0f, 19.5f)
-            val actualScaleRatio = 2.0.pow((newZ - oldZ).toDouble()).toFloat()
-
-            // Shift pan offset around exact touch centroid
-            panOffsetX = panOffsetX * actualScaleRatio + (centroid.x - originX) * (1f - actualScaleRatio)
-            panOffsetY = panOffsetY * actualScaleRatio + (centroid.y - originY) * (1f - actualScaleRatio)
-
-            gestureZoom = newZ
-            coroutineScope.launch {
-              animatedZoom.snapTo(newZ)
-            }
-          }
-
-          if (abs(rotation) > 0.45f) {
-            orientationMode = MapOrientationMode.FREE
-            userRotationAngle += rotation
-          }
-
-          panOffsetX += pan.x
-          panOffsetY += pan.y
-        }
       }
       .testTag("offline_map_canvas")
   ) {
@@ -1392,7 +1392,55 @@ fun OfflineMapCanvas(
         }
       }
 
-      // 5. Recenter Button (🎯)
+      // 5. Zoom In (+) Button
+      FloatingActionButton(
+        onClick = {
+          coroutineScope.launch {
+            val oldZ = gestureZoom
+            val targetZ = (oldZ + 1.0f).coerceIn(3.0f, 19.5f)
+            gestureZoom = targetZ
+            animatedZoom.snapTo(oldZ)
+            animatedZoom.animateTo(targetZ, tween(200, easing = FastOutSlowInEasing))
+          }
+        },
+        containerColor = Color.White.copy(alpha = 0.95f),
+        contentColor = Color(0xFF0284C7),
+        shape = CircleShape,
+        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
+        modifier = Modifier.size(46.dp)
+      ) {
+        Icon(
+          imageVector = Icons.Default.Add,
+          contentDescription = "Phóng to bản đồ",
+          modifier = Modifier.size(24.dp)
+        )
+      }
+
+      // 6. Zoom Out (-) Button
+      FloatingActionButton(
+        onClick = {
+          coroutineScope.launch {
+            val oldZ = gestureZoom
+            val targetZ = (oldZ - 1.0f).coerceIn(3.0f, 19.5f)
+            gestureZoom = targetZ
+            animatedZoom.snapTo(oldZ)
+            animatedZoom.animateTo(targetZ, tween(200, easing = FastOutSlowInEasing))
+          }
+        },
+        containerColor = Color.White.copy(alpha = 0.95f),
+        contentColor = Color(0xFF0284C7),
+        shape = CircleShape,
+        elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp),
+        modifier = Modifier.size(46.dp)
+      ) {
+        Icon(
+          imageVector = Icons.Default.Remove,
+          contentDescription = "Thu nhỏ bản đồ",
+          modifier = Modifier.size(24.dp)
+        )
+      }
+
+      // 7. Recenter Button (🎯)
       FloatingActionButton(
         onClick = {
           coroutineScope.launch {

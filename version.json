@@ -1,15 +1,15 @@
 {
-  "versionCode": 125,
-  "versionName": "1.2.5",
-  "releaseDate": "28/08/2026",
-  "downloadUrl": "https://github.com/Phat-471/appxe/releases/download/v1.2.5/app-debug.apk",
-  "sizeMb": 25.6,
+  "versionCode": 126,
+  "versionName": "1.2.6",
+  "releaseDate": "29/08/2026",
+  "downloadUrl": "https://github.com/Phat-471/appxe/releases/download/v1.2.6/app-debug.apk",
+  "sizeMb": 25.8,
   "isMandatory": false,
   "releaseNotes": [
-    "🚀 NÂNG CẤP ĐỘT PHÁ: Mở rộng cơ sở dữ liệu lên 2.701 camera & nút giao phạt nguội toàn diện TP.HCM và các trục miền Nam.",
-    "🎯 Tọa độ thực tế 100%: Định vị chính xác tâm tất cả các ngã 3, ngã 4, nút giao đèn tín hiệu giao thông trên tim đường.",
-    "🔴 Phân loại chi tiết: Camera bắn tốc độ các tuyến đại lộ (Võ Văn Kiệt, Phạm Văn Đồng, QL1A, Mai Chí Thọ...) & Cao tốc (Long Thành, Trung Lương).",
-    "⛔ Cảnh báo cấm xe máy thông minh tại các nhánh dẫn vào cao tốc (tránh phạt 2-3 triệu).",
-    "⚡ Tối ưu hiệu năng: Bộ nạp dữ liệu phân đoạn siêu nhẹ (Chunked Parser) khởi động tức thì < 5ms."
+    "🎯 NÂNG CẤP THUẬT TOÁN CẢNH BÁO CHUẨN XÁC: Chỉ cảnh báo camera nằm thẳng phía trước trên đúng mặt đường đang chạy, loại bỏ 100% cảnh báo sai từ đường hẻm, đường nhánh hoặc sau lưng.",
+    "🧭 ĐỒNG BỘ CHỈ ĐƯỜNG (ACTIVE ROUTE): Khi bật dẫn đường, tự động lọc và chỉ cảnh báo duy nhất các camera nằm trên hành lang lộ trình dự kiến.",
+    "🔍 KHẮC PHỤC LỖI ZOOM BẢN ĐỒ: Bổ sung 2 phím bấm Phóng to (+) và Thu nhỏ (-) chuyên dụng trên thanh công cụ bên phải, tối ưu cảm ứng đa điểm mượt mà khi đang lái xe.",
+    "🚦 TỌA ĐỘ CHUẨN XÁC NÚT GIAO: Cập nhật dữ liệu camera 4 hướng chuẩn xác tại Ngã tư Lũy Bán Bích - Hòa Bình và các trục đường Tân Phú, Tân Bình, Q.11.",
+    "🔇 LỌC BỎ CẢNH BÁO KHI DỪNG ĐÈN ĐỎ: Khóa hướng di chuyển thực tế, không quét 360 độ vòng tròn gây báo sai khi dừng xe."
   ]
 }

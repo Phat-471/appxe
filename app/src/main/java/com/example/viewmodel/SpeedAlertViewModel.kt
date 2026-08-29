@@ -238,29 +238,38 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
     }
   }
 
+  private data class EvalInputs(
+    val loc: GpsLocationState,
+    val cameras: List<TrafficCamera>,
+    val settings: com.example.data.local.UserSettingsEntity,
+    val activeRoute: NavigationRoute?
+  )
+
   private fun startEvaluationLoop() {
     evaluationJob = viewModelScope.launch {
       combine(
         locationState,
         allCameras,
-        userSettings
-      ) { loc, cameras, settings ->
-        Triple(loc, cameras, settings)
-      }.collect { (loc, cameras, settings) ->
+        userSettings,
+        gpsLocationEngine.activeRoute
+      ) { loc, cameras, settings, activeR ->
+        EvalInputs(loc, cameras, settings, activeR)
+      }.collect { inputs ->
         val eval = trafficWarningEngine.evaluateTrafficState(
-          location = loc,
-          allCameras = cameras,
-          speedBufferKmh = settings.speedBufferKmh,
-          alertMaxDistanceMeters = settings.alertDistanceMeters,
-          voiceEnabled = settings.voiceAlertsEnabled,
-          showSpeedCameras = settings.showSpeedCamerasOnMap,
-          showRedLightCameras = settings.showRedLightCamerasOnMap,
-          showProhibitedZones = settings.showProhibitedZones,
-          showSecurityCameras = settings.showSecurityCameras,
-          showHazards = settings.showHazards,
-          showCommunityReports = settings.showCommunityReportsOnMap,
-          showSpeedLimits = settings.showSpeedLimitsOnMap,
-          appLanguage = settings.appLanguage
+          location = inputs.loc,
+          allCameras = inputs.cameras,
+          activeRoute = inputs.activeRoute,
+          speedBufferKmh = inputs.settings.speedBufferKmh,
+          alertMaxDistanceMeters = inputs.settings.alertDistanceMeters,
+          voiceEnabled = inputs.settings.voiceAlertsEnabled,
+          showSpeedCameras = inputs.settings.showSpeedCamerasOnMap,
+          showRedLightCameras = inputs.settings.showRedLightCamerasOnMap,
+          showProhibitedZones = inputs.settings.showProhibitedZones,
+          showSecurityCameras = inputs.settings.showSecurityCameras,
+          showHazards = inputs.settings.showHazards,
+          showCommunityReports = inputs.settings.showCommunityReportsOnMap,
+          showSpeedLimits = inputs.settings.showSpeedLimitsOnMap,
+          appLanguage = inputs.settings.appLanguage
         )
         _trafficEvaluation.value = eval
 
@@ -283,11 +292,11 @@ class SpeedAlertViewModel(application: Application) : AndroidViewModel(applicati
 
         // Push location speed, camera & turn info to SpeedLimitTrackingService & Floating Speed Bubble
         SpeedLimitTrackingService.updateSimulatedState(
-          speedKmh = loc.speedKmh,
-          lat = loc.latitude,
-          lng = loc.longitude,
+          speedKmh = inputs.loc.speedKmh,
+          lat = inputs.loc.latitude,
+          lng = inputs.loc.longitude,
           roadName = eval.currentRoadName,
-          heading = loc.headingDegrees,
+          heading = inputs.loc.headingDegrees,
           nearestCameraDistance = eval.nearestCameraDistance,
           nearestCameraType = eval.nearestCamera?.type?.displayName,
           nearestCameraSpeedLimit = eval.nearestCamera?.speedLimit,

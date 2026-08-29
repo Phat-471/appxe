@@ -4,6 +4,7 @@ import com.example.data.VietnamTrafficData
 import com.example.data.model.ActiveWarning
 import com.example.data.model.CameraType
 import com.example.data.model.GpsLocationState
+import com.example.data.model.NavigationRoute
 import com.example.data.model.TrafficCamera
 import com.example.data.model.WarningLevel
 import kotlin.math.*
@@ -42,11 +43,13 @@ class TrafficWarningEngine(
   private var lastAlertCameraId: String? = null
   private var lastAlertDistanceBand = -1
   private var lastOverspeedAlertTime = 0L
+  private var lastValidHeadingDegrees: Float = 0f
   private val passedCameraTimestamps = mutableMapOf<String, Long>() // Camera ID -> passed time millis
 
   fun evaluateTrafficState(
     location: GpsLocationState,
     allCameras: List<TrafficCamera>,
+    activeRoute: NavigationRoute? = null,
     speedBufferKmh: Int = 0,
     alertMaxDistanceMeters: Int = 650,
     voiceEnabled: Boolean = true,
@@ -63,6 +66,11 @@ class TrafficWarningEngine(
     val isMoving = location.speedKmh > 2.5f
     val now = System.currentTimeMillis()
 
+    if (location.headingDegrees != 0f && isMoving) {
+      lastValidHeadingDegrees = location.headingDegrees
+    }
+    val effectiveHeading = if (location.headingDegrees != 0f) location.headingDegrees else lastValidHeadingDegrees
+
     // Dọn dẹp các camera đã qua quá 45 giây
     passedCameraTimestamps.entries.removeIf { (now - it.value) > 45000L }
 
@@ -70,10 +78,10 @@ class TrafficWarningEngine(
     val speedAdaptiveMaxDistance = if (isMoving) {
       (location.speedKmh * 12.0).coerceIn(alertMaxDistanceMeters.toDouble(), 1500.0)
     } else {
-      alertMaxDistanceMeters.toDouble()
+      alertMaxDistanceMeters.toDouble().coerceAtMost(350.0)
     }
 
-    // 1. Find nearest RELEVANT camera ahead (Road Corridor + Continuous Distance Bands)
+    // 1. Find nearest major road
     val nearestMajorRoad = VietnamTrafficData.ALL_ROADS.minByOrNull { road ->
       road.coordinates.minOfOrNull { (lat, lng) ->
         VietnamTrafficData.calculateDistanceMeters(location.latitude, location.longitude, lat, lng)
@@ -89,13 +97,31 @@ class TrafficWarningEngine(
     var minAlongTrackDistance = Double.MAX_VALUE
     var minEuclideanDistance = Double.MAX_VALUE
 
+    // Determine if active route navigation is running with valid waypoints
+    val isNavigatingRoute = activeRoute != null && activeRoute.isNavigating && activeRoute.waypoints.size >= 2
+    val routeWaypoints: List<Pair<Double, Double>> = if (isNavigatingRoute && activeRoute != null) activeRoute.waypoints else emptyList()
+
+    // Find user's closest waypoint index on active route
+    var userRouteIndex = 0
+    if (isNavigatingRoute) {
+      var minUserDist = Double.MAX_VALUE
+      for (i in routeWaypoints.indices) {
+        val wp = routeWaypoints[i]
+        val d = VietnamTrafficData.calculateDistanceMeters(location.latitude, location.longitude, wp.first, wp.second)
+        if (d < minUserDist) {
+          minUserDist = d
+          userRouteIndex = i
+        }
+      }
+    }
+
     for (cam in allCameras) {
       val dist = VietnamTrafficData.calculateDistanceMeters(
         location.latitude, location.longitude,
         cam.latitude, cam.longitude
       )
 
-      // Bỏ qua camera đã qua và xe vẫn còn đang ở quá gần (< 250m)
+      // Bỏ qua camera đã qua và xe vẫn còn đang ở quá gần (< 350m)
       if (passedCameraTimestamps.containsKey(cam.id)) {
         if (dist > 350.0) {
           passedCameraTimestamps.remove(cam.id) // Đã đi xa, cho phép cảnh báo lại nếu quay đầu
@@ -123,40 +149,21 @@ class TrafficWarningEngine(
       }
 
       // Skip cameras too far away to even consider
-      if (dist > speedAdaptiveMaxDistance + 200) continue
+      if (dist > speedAdaptiveMaxDistance + 150) continue
 
-      if (isMoving) {
-        // Directional Camera Filter:
-        // Các camera đèn đỏ, ngã tư hoặc camera 2 chiều luôn được quét không phụ thuộc góc cố định
-        val isIntersectionOrMultiDir = cam.type == CameraType.RED_LIGHT_CAMERA ||
-            cam.type == CameraType.COLD_FINE_SURVEILLANCE ||
-            cam.directionName.contains("Hai chiều", ignoreCase = true) ||
-            cam.directionName.contains("Ngã", ignoreCase = true) ||
-            cam.directionName.contains("Giao", ignoreCase = true)
-
-        if (cam.bearingDegrees != null && !isIntersectionOrMultiDir) {
-          var bearingDiff = cam.bearingDegrees - location.headingDegrees
-          while (bearingDiff > 180f) bearingDiff -= 360f
-          while (bearingDiff < -180f) bearingDiff += 360f
-          if (abs(bearingDiff) > 105.0f) {
-            continue
-          }
-        }
-
-        val bearingToCam = VietnamTrafficData.calculateBearing(
-          location.latitude, location.longitude,
-          cam.latitude, cam.longitude
+      if (isNavigatingRoute) {
+        // === MODE 1: STRICT ACTIVE ROUTE MATCHING ===
+        // When navigation is active, camera MUST lie within 28m of the active route polyline ahead of user
+        val (distToRoute, distAlongRoute) = distanceToPolyline(
+          cam.latitude, cam.longitude, routeWaypoints, userRouteIndex
         )
-        var angleDiffDeg = bearingToCam - location.headingDegrees
-        while (angleDiffDeg > 180f) angleDiffDeg -= 360f
-        while (angleDiffDeg < -180f) angleDiffDeg += 360f
 
-        val angleRad = Math.toRadians(angleDiffDeg.toDouble())
-        val alongTrack = dist * cos(angleRad)
-        val crossTrack = dist * abs(sin(angleRad))
+        // Camera is not on driver's planned route
+        if (distToRoute > 28.0) continue
+        if (distAlongRoute < -8.0 || distAlongRoute > speedAdaptiveMaxDistance) continue
 
-        // Đánh dấu camera đã qua khi xe đã đi qua vị trí camera (< -12m) và khoảng cách gần (< 50m)
-        if (alongTrack < -12.0 && dist < 50.0) {
+        // Check if camera was just passed
+        if (distAlongRoute < -5.0 && dist < 30.0) {
           passedCameraTimestamps[cam.id] = now
           if (voiceEnabled) {
             voiceAlertEngine?.alertPassedCamera()
@@ -164,35 +171,73 @@ class TrafficWarningEngine(
           continue
         }
 
-        // Camera phải ở phía trước xe trong phạm vi khoảng cách cảnh báo thích ứng
-        if (alongTrack <= -10.0 || alongTrack > speedAdaptiveMaxDistance) continue
-
-        // Góc quan sát phía trước:
-        val maxAllowedAngle = if (alongTrack <= 35.0) 110.0f else 75.0f
-        if (abs(angleDiffDeg) > maxAllowedAngle && alongTrack > 20.0) continue
-
-        // Cross-Track Corridor Filter (Hành lang làn đường thực tế phù hợp đô thị & quốc lộ VN):
-        val maxAllowedCorridor = when {
-          alongTrack > 500.0 -> 150.0 // Bán kính hành lang xa trên cao tốc / quốc lộ
-          alongTrack > 300.0 -> 120.0 // Bán kính hành lang xa (bao trọn khúc cua & đại lộ nhiều làn)
-          alongTrack > 100.0 -> 90.0  // Hành lang trung bình trong phố
-          else -> 75.0                // Gần camera / ngã tư
-        }
-
-        if (crossTrack > maxAllowedCorridor) {
-          continue
-        }
-
-        if (alongTrack < minAlongTrackDistance || (dist < minEuclideanDistance && minAlongTrackDistance == Double.MAX_VALUE)) {
-          minAlongTrackDistance = if (alongTrack > 0) alongTrack else dist
+        if (distAlongRoute < minAlongTrackDistance) {
+          minAlongTrackDistance = distAlongRoute
           minEuclideanDistance = dist
           nearestCamera = cam
         }
       } else {
-        // Xe dừng/chạy chậm (dưới 2.5 km/h): quét toàn bộ camera trong phạm vi 300m
-        if (dist <= 300.0 && dist < minEuclideanDistance) {
+        // === MODE 2: STRICT FORWARD ROAD-CORRIDOR MATCHING ===
+        val bearingToCam = VietnamTrafficData.calculateBearing(
+          location.latitude, location.longitude,
+          cam.latitude, cam.longitude
+        )
+        var angleDiffDeg = bearingToCam - effectiveHeading
+        while (angleDiffDeg > 180f) angleDiffDeg -= 360f
+        while (angleDiffDeg < -180f) angleDiffDeg += 360f
+
+        val angleRad = Math.toRadians(angleDiffDeg.toDouble())
+        val alongTrack = dist * cos(angleRad)
+        val crossTrack = dist * abs(sin(angleRad))
+
+        // Đánh dấu camera đã qua khi xe đã đi qua vị trí camera (< -8m) và khoảng cách gần (< 35m)
+        if (alongTrack < -8.0 && dist < 35.0) {
+          passedCameraTimestamps[cam.id] = now
+          if (voiceEnabled) {
+            voiceAlertEngine?.alertPassedCamera()
+          }
+          continue
+        }
+
+        // Camera phải ở phía trước xe (along-track > 5m và <= max khoảng cách cảnh báo)
+        if (alongTrack <= 5.0 || alongTrack > speedAdaptiveMaxDistance) continue
+
+        // Góc quan sát phía trước (chỉ chấp nhận các camera nằm thẳng trên trục đường đang chạy)
+        val maxAllowedAngle = when {
+          alongTrack > 350.0 -> 28.0f // Ở xa: góc 28 độ
+          alongTrack > 100.0 -> 35.0f // Trung bình: góc 35 độ
+          else -> 45.0f               // Rất gần ngã tư: tối đa 45 độ
+        }
+        if (abs(angleDiffDeg) > maxAllowedAngle) continue
+
+        // Hành lang làn đường chuẩn đô thị & đại lộ (tránh đường ngang, hẻm song song)
+        val maxAllowedCorridor = when {
+          alongTrack > 350.0 -> 110.0 // Xa trên đại lộ / quốc lộ
+          alongTrack > 180.0 -> 70.0  // Cự ly trung bình xa
+          alongTrack > 70.0 -> 40.0   // Tuyến phố chính
+          else -> 28.0                // Rất gần camera / ngã tư (< 70m)
+        }
+        if (crossTrack > maxAllowedCorridor) continue
+
+        // Directional camera filter nếu có bearing riêng
+        val isIntersectionOrMultiDir = cam.type == CameraType.RED_LIGHT_CAMERA ||
+            cam.type == CameraType.COLD_FINE_SURVEILLANCE ||
+            cam.directionName.contains("Hai chiều", ignoreCase = true) ||
+            cam.directionName.contains("Ngã", ignoreCase = true) ||
+            cam.directionName.contains("Giao", ignoreCase = true)
+
+        if (cam.bearingDegrees != null && !isIntersectionOrMultiDir) {
+          var bearingDiff = cam.bearingDegrees - effectiveHeading
+          while (bearingDiff > 180f) bearingDiff -= 360f
+          while (bearingDiff < -180f) bearingDiff += 360f
+          if (abs(bearingDiff) > 85.0f) {
+            continue
+          }
+        }
+
+        if (alongTrack < minAlongTrackDistance) {
+          minAlongTrackDistance = alongTrack
           minEuclideanDistance = dist
-          minAlongTrackDistance = dist
           nearestCamera = cam
         }
       }
@@ -211,7 +256,7 @@ class TrafficWarningEngine(
         // Loại bỏ số nhà ở đầu ví dụ "123/45 Võ Văn Kiệt" -> "Võ Văn Kiệt"
         rawRoadName.replace(Regex("""^\d+[\w/,\-\s]*\s+(Đường|Đ\.|Phố|Đại lộ|QL|TL)\s+"""), "$1 ")
       }
-      nearestCamera != null && minAlongTrackDistance < 350 -> nearestCamera.roadName
+      nearestCamera != null && minAlongTrackDistance < 350 && !nearestCamera.roadName.startsWith("Camera Nút Giao #") -> nearestCamera.roadName
       nearestMajorRoad != null && distToNearestMajorRoad < 150 -> nearestMajorRoad.name
       else -> "Tuyến đường hiện tại"
     }
@@ -233,7 +278,6 @@ class TrafficWarningEngine(
       nearestCamera?.type == CameraType.MOTORBIKE_PROHIBITED_ZONE && minAlongTrackDistance < 400
         -> 0
 
-      // Priority 3: Road name pattern matching (Thông tư 31/2019/TT-BGTVT)
       // Priority 3: Tuyến đường đô thị Việt Nam (Thông tư 31/2019/TT-BGTVT & Thực tế Sở GTVT TP.HCM/Hà Nội)
       currentRoadName.containsAny("Cao tốc", "Cao toc", "CT.0", "Expressway") -> 100
       currentRoadName.containsAny("Đại Lộ Thăng Long", "Long Thành", "Dầu Giây", "Trung Lương") -> 100
@@ -278,9 +322,7 @@ class TrafficWarningEngine(
 
     // 4. So sánh tốc độ theo Nghị định 100/2019/NĐ-CP & 123/2021/NĐ-CP
     val speedDelta = currentSpeed - effectiveSpeedLimit
-    // Quá tốc độ hiển thị: vượt từ 1 km/h
     val isOverspeeding = effectiveSpeedLimit > 0 && currentSpeed > (effectiveSpeedLimit + speedBufferKmh)
-    // Ngưỡng phạt tiền thực tế theo Luật giao thông Việt Nam (từ 5 km/h trở lên mới bị phạt)
     val isFineEligibleOverspeed = effectiveSpeedLimit > 0 && speedDelta >= 5
 
     var activeWarning: ActiveWarning? = null
@@ -296,23 +338,36 @@ class TrafficWarningEngine(
         else -> WarningLevel.NORMAL
       }
 
-      val isEn = appLanguage.equals("en", ignoreCase = true)
-      val formattedMsg = when (nearestCamera.type) {
-        CameraType.SPEED_CAMERA -> if (isEn) "Speed Camera ($distInt m): ${nearestCamera.roadName} (Limit ${nearestCamera.speedLimit} km/h)" else "Camera bắn tốc độ ($distInt m): ${nearestCamera.roadName} (Tối đa ${nearestCamera.speedLimit} km/h)"
-        CameraType.RED_LIGHT_CAMERA -> if (isEn) "Red Light Camera ($distInt m): ${nearestCamera.roadName}" else "Camera phạt nguội vượt đèn đỏ ($distInt m): ${nearestCamera.roadName}"
-        CameraType.COLD_FINE_SURVEILLANCE -> if (isEn) "Lane Surveillance Camera ($distInt m): ${nearestCamera.roadName}" else "Camera phạt nguội lấn làn ($distInt m): ${nearestCamera.roadName}"
-        CameraType.SECURITY_MONITORING -> if (isEn) "Security Camera ($distInt m): ${nearestCamera.roadName}" else "Camera an ninh & giám sát ($distInt m): ${nearestCamera.roadName}"
-        CameraType.ZONE_RESIDENTIAL_ENTRY -> if (isEn) "Residential Zone Entry ($distInt m): ${nearestCamera.roadName}" else "Vào khu đông dân cư ($distInt m): ${nearestCamera.roadName} (Tối đa 50 km/h)"
-        CameraType.ZONE_RESIDENTIAL_EXIT -> if (isEn) "Residential Zone Exit ($distInt m): ${nearestCamera.roadName}" else "Hết khu đông dân cư ($distInt m): ${nearestCamera.roadName} (Tối đa 60 km/h)"
-        CameraType.HAZARD_ACCIDENT_ZONE -> if (isEn) "Hazardous Zone ($distInt m): ${nearestCamera.roadName}" else "Đoạn đường nguy hiểm ($distInt m): ${nearestCamera.roadName}"
-        CameraType.MOTORBIKE_PROHIBITED_ZONE -> if (isEn) "🚨 MOTORBIKE PROHIBITED ($distInt m): ${nearestCamera.roadName}" else "🚨 CẤM XE MÁY ($distInt m): ${nearestCamera.roadName} - Không đi vào cao tốc!"
-        CameraType.SCHOOL_ZONE -> if (isEn) "School Zone ($distInt m): ${nearestCamera.roadName}" else "Khu vực trường học ($distInt m): ${nearestCamera.roadName}"
-        CameraType.SPEED_LIMIT_SIGN -> if (isEn) "Speed Limit ${nearestCamera.speedLimit} km/h ($distInt m)" else "Biển báo ${nearestCamera.speedLimit} km/h ($distInt m): ${nearestCamera.roadName}"
-        CameraType.COMMUNITY_REPORT -> if (isEn) "Community Report ($distInt m): ${nearestCamera.roadName}" else "Chốt tốc độ theo báo cáo ($distInt m): ${nearestCamera.roadName}"
+      // Format clean camera road name to avoid ugly raw OSM numbers in TTS
+      val displayRoadName = if (nearestCamera.roadName.startsWith("Camera Nút Giao #")) {
+        if (currentRoadName.isNotEmpty() && currentRoadName != "Tuyến đường hiện tại") {
+          "Nút giao $currentRoadName"
+        } else {
+          "Giao lộ phía trước"
+        }
+      } else {
+        nearestCamera.roadName
       }
 
+      val isEn = appLanguage.equals("en", ignoreCase = true)
+      val formattedMsg = when (nearestCamera.type) {
+        CameraType.SPEED_CAMERA -> if (isEn) "Speed Camera ($distInt m): $displayRoadName (Limit ${nearestCamera.speedLimit} km/h)" else "Camera bắn tốc độ ($distInt m): $displayRoadName (Tối đa ${nearestCamera.speedLimit} km/h)"
+        CameraType.RED_LIGHT_CAMERA -> if (isEn) "Red Light Camera ($distInt m): $displayRoadName" else "Camera phạt nguội vượt đèn đỏ ($distInt m): $displayRoadName"
+        CameraType.COLD_FINE_SURVEILLANCE -> if (isEn) "Lane Surveillance Camera ($distInt m): $displayRoadName" else "Camera phạt nguội lấn làn ($distInt m): $displayRoadName"
+        CameraType.SECURITY_MONITORING -> if (isEn) "Security Camera ($distInt m): $displayRoadName" else "Camera an ninh & giám sát ($distInt m): $displayRoadName"
+        CameraType.ZONE_RESIDENTIAL_ENTRY -> if (isEn) "Residential Zone Entry ($distInt m): $displayRoadName" else "Vào khu đông dân cư ($distInt m): $displayRoadName (Tối đa 50 km/h)"
+        CameraType.ZONE_RESIDENTIAL_EXIT -> if (isEn) "Residential Zone Exit ($distInt m): $displayRoadName" else "Hết khu đông dân cư ($distInt m): $displayRoadName (Tối đa 60 km/h)"
+        CameraType.HAZARD_ACCIDENT_ZONE -> if (isEn) "Hazardous Zone ($distInt m): $displayRoadName" else "Đoạn đường nguy hiểm ($distInt m): $displayRoadName"
+        CameraType.MOTORBIKE_PROHIBITED_ZONE -> if (isEn) "🚨 MOTORBIKE PROHIBITED ($distInt m): $displayRoadName" else "🚨 CẤM XE MÁY ($distInt m): $displayRoadName - Không đi vào cao tốc!"
+        CameraType.SCHOOL_ZONE -> if (isEn) "School Zone ($distInt m): $displayRoadName" else "Khu vực trường học ($distInt m): $displayRoadName"
+        CameraType.SPEED_LIMIT_SIGN -> if (isEn) "Speed Limit ${nearestCamera.speedLimit} km/h ($distInt m)" else "Biển báo ${nearestCamera.speedLimit} km/h ($distInt m): $displayRoadName"
+        CameraType.COMMUNITY_REPORT -> if (isEn) "Community Report ($distInt m): $displayRoadName" else "Chốt tốc độ theo báo cáo ($distInt m): $displayRoadName"
+      }
+
+      val cleanCameraForAlert = nearestCamera.copy(roadName = displayRoadName)
+
       activeWarning = ActiveWarning(
-        camera = nearestCamera,
+        camera = cleanCameraForAlert,
         distanceMeters = distInt,
         isOverspeeding = isOverspeeding,
         currentSpeedKmh = currentSpeed,
@@ -371,6 +426,54 @@ class TrafficWarningEngine(
       nearestCameraDistance = if (effectiveDist < 6000) effectiveDist.toInt() else null,
       nearestCamera = if (effectiveDist < 6000) nearestCamera else null
     )
+  }
+
+  /**
+   * Helper: Calculate perpendicular distance from a point to a polyline and along-route distance
+   */
+  private fun distanceToPolyline(
+    lat: Double,
+    lng: Double,
+    waypoints: List<Pair<Double, Double>>,
+    startIndex: Int = 0
+  ): Pair<Double, Double> {
+    var minCrossDist = Double.MAX_VALUE
+    var accumulatedDist = 0.0
+    var bestAlongDist = Double.MAX_VALUE
+
+    for (i in startIndex until (waypoints.size - 1)) {
+      val p1 = waypoints[i]
+      val p2 = waypoints[i + 1]
+      val segLen = VietnamTrafficData.calculateDistanceMeters(p1.first, p1.second, p2.first, p2.second)
+
+      val crossDist = distanceToSegment(lat, lng, p1.first, p1.second, p2.first, p2.second)
+      if (crossDist < minCrossDist) {
+        minCrossDist = crossDist
+        val distToP1 = VietnamTrafficData.calculateDistanceMeters(p1.first, p1.second, lat, lng)
+        bestAlongDist = accumulatedDist + distToP1
+      }
+      accumulatedDist += segLen
+    }
+    return Pair(minCrossDist, bestAlongDist)
+  }
+
+  private fun distanceToSegment(
+    pLat: Double, pLng: Double,
+    aLat: Double, aLng: Double,
+    bLat: Double, bLng: Double
+  ): Double {
+    val segLen = VietnamTrafficData.calculateDistanceMeters(aLat, aLng, bLat, bLng)
+    if (segLen < 1.0) return VietnamTrafficData.calculateDistanceMeters(pLat, pLng, aLat, aLng)
+
+    val dx = (bLng - aLng) * cos(Math.toRadians(aLat)) * 111320.0
+    val dy = (bLat - aLat) * 110540.0
+    val px = (pLng - aLng) * cos(Math.toRadians(aLat)) * 111320.0
+    val py = (pLat - aLat) * 110540.0
+
+    val t = ((px * dx + py * dy) / (dx * dx + dy * dy)).coerceIn(0.0, 1.0)
+    val projLng = aLng + (t * (bLng - aLng))
+    val projLat = aLat + (t * (bLat - aLat))
+    return VietnamTrafficData.calculateDistanceMeters(pLat, pLng, projLat, projLng)
   }
 }
 
